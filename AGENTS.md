@@ -43,6 +43,8 @@ Before making changes, read the following documents in order:
 
 Do not begin implementation until the project architecture is understood.
 
+Implementation is milestone-driven. Do not implement functionality beyond the currently assigned milestone, even if the architecture has already been defined.
+
 ---
 
 # Documentation Hierarchy

@@ -225,6 +225,69 @@ Additional project documentation can be found in the `/docs` directory.
 
 ---
 
+# Development Setup
+
+Freezeflow is split into separate backend and frontend applications.
+
+## Prerequisites
+
+* Python 3.12 or newer
+* uv
+* Node.js
+* npm
+
+## Backend
+
+```bash
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+The backend health endpoint is available at:
+
+```text
+GET /api/v1/health
+```
+
+Run backend tests and quality tools:
+
+```bash
+cd backend
+uv run pytest
+uv run ruff check .
+uv run black --check .
+```
+
+Run database migrations:
+
+```bash
+cd backend
+uv run alembic upgrade head
+```
+
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Run frontend tests and quality tools:
+
+```bash
+cd frontend
+npm run test
+npm run lint
+npm run format
+npm run build
+```
+
+Milestone 0 provides the development foundation only. The application is not yet functional and does not implement production workflows.
+
+---
+
 # Project Status
 
 🚧 Early Design Phase
@@ -253,4 +316,3 @@ Future versions may include:
 * Multi-user support
 
 The goal is to create a system that grows alongside the user's freeze-drying operation while preserving the complete history of every product from preparation to storage.
-
