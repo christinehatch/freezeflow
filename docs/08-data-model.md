@@ -15,40 +15,39 @@ It serves as the foundation for database design, API development, and applicatio
 # Entity Relationship Overview
 
 ```text
-Recipe
+Freeze Dryer
     │
-    │ 1
+    ▼
+Production Batch
     │
-    └───────────────∞
-                    │
-             Production Batch
-                    │
-                    │ 1
-                    │
-                    └───────────────∞
-                                    │
-                                   Tray
-                                    │
-                     ┌──────────────┴──────────────┐
-                     │                             │
-                     │1                           │∞
-                     ▼                             ▼
-              Weight Check                  Package
-                                                   │
-                                                   │∞
-                                                   ▼
-                                            Storage Location
+    ▼
+Tray ◄── Recipe
+    │
+    ├──────────────────┐
+    ▼                  ▼
+Weight Check     Packaging Operation Tray
+                         │
+                         ▼
+                 Packaging Operation
+                         │
+                         ▼
+                     Package
+                         │
+                         ▼
+                 Storage Location
 ```
 
-A Package may contain product from one or more completed Trays.
+A Packaging Operation may contain one or more completed Trays.
 
-A Tray may contribute to only one Package.
+A Packaging Operation may produce one or more Packages.
+
+A Tray may participate in only one Packaging Operation.
 
 ---
 
 # Recipe
 
-Represents how a product is prepared.
+Represents a reusable preparation template.
 
 ## Fields
 
@@ -61,6 +60,10 @@ Represents how a product is prepared.
 | notes       | Text     | Optional                 |
 | createdAt   | DateTime |                          |
 | updatedAt   | DateTime |                          |
+
+Recipes are templates.
+
+Historical preparation information is stored on Trays.
 
 ---
 
@@ -94,7 +97,6 @@ Represents one complete freeze dryer run.
 | ------------- | ------------------- |
 | id            | UUID                |
 | freezeDryerId | UUID                |
-| recipeId      | UUID (optional)     |
 | name          | String              |
 | startedAt     | DateTime            |
 | completedAt   | DateTime (optional) |
@@ -114,14 +116,22 @@ Represents one tray within a Production Batch.
 | ----------------- | ------------------ |
 | id                | UUID               |
 | productionBatchId | UUID               |
+| recipeId          | UUID (optional)    |
 | trayNumber        | Integer            |
-| product           | String             |
+| productName       | String             |
+| preparation       | Text               |
 | startingWeight    | Decimal            |
 | finalDryWeight    | Decimal (optional) |
 | status            | Enum               |
 | notes             | Text               |
 | createdAt         | DateTime           |
 | updatedAt         | DateTime           |
+
+The Recipe relationship is optional.
+
+The product name and preparation fields preserve the historical preparation information used for the Tray.
+
+Editing a Recipe does not update existing Trays.
 
 ---
 
@@ -144,44 +154,64 @@ Weight Checks are append-only.
 
 ---
 
-# Package
+# Packaging Operation
 
-Represents one sealed storage package.
+Represents one packaging action.
+
+The system creates a Packaging Operation when the user packages one or more completed Trays.
 
 ## Fields
 
 | Field             | Type     |
 | ----------------- | -------- |
 | id                | UUID     |
-| packageDate       | DateTime |
-| packageWeight     | Decimal  |
-| oxygenAbsorber    | String   |
-| storageLocationId | UUID     |
-| inventoryStatus   | Enum     |
+| packagedAt        | DateTime |
+| totalSourceWeight | Decimal  |
 | notes             | Text     |
 | createdAt         | DateTime |
 | updatedAt         | DateTime |
 
 ---
 
-# Package Contents
+# Packaging Operation Tray
 
-Represents the relationship between completed Trays and Packages.
+Represents the relationship between completed Trays and a Packaging Operation.
 
-This entity preserves traceability.
+This entity preserves traceability from Packages back to their source Trays.
 
 ## Fields
 
-| Field     | Type |
-| --------- | ---- |
-| id        | UUID |
-| packageId | UUID |
-| trayId    | UUID |
+| Field                | Type |
+| -------------------- | ---- |
+| id                   | UUID |
+| packagingOperationId | UUID |
+| trayId               | UUID |
 
 Business Rules:
 
-* A Tray may appear only once.
-* A Package may reference multiple Trays.
+* A Tray may appear in only one Packaging Operation.
+* A Packaging Operation must reference one or more completed Trays.
+
+---
+
+# Package
+
+Represents one sealed storage package.
+
+## Fields
+
+| Field                | Type     |
+| -------------------- | -------- |
+| id                   | UUID     |
+| packagingOperationId | UUID     |
+| packageDate          | DateTime |
+| packageWeight        | Decimal  |
+| oxygenAbsorber       | String   |
+| storageLocationId    | UUID     |
+| inventoryStatus      | Enum     |
+| notes                | Text     |
+| createdAt            | DateTime |
+| updatedAt            | DateTime |
 
 ---
 
@@ -235,7 +265,9 @@ Depleted
 
 ↓
 
-Many Production Batches
+Many Trays
+
+The relationship is optional.
 
 ---
 
@@ -269,15 +301,29 @@ Many Weight Checks
 
 ---
 
+## Packaging Operation
+
+1 Packaging Operation
+
+↓
+
+Many Trays
+
+(via Packaging Operation Tray)
+
+↓
+
+Many Packages
+
+---
+
 ## Package
 
 1 Package
 
 ↓
 
-Many Trays
-
-(via Package Contents)
+1 Packaging Operation
 
 ---
 
@@ -296,10 +342,13 @@ Many Packages
 The following constraints must always be enforced.
 
 * Every Tray belongs to one Production Batch.
+* Every Tray records historical product and preparation information.
+* A Tray may optionally reference the Recipe it was created from.
 * Every Weight Check belongs to one Tray.
+* Every Packaging Operation references one or more completed Trays.
 * Every Package belongs to one Storage Location.
-* Every Package references one or more completed Trays.
-* A Tray may only appear in one Package.
+* Every Package belongs to one Packaging Operation.
+* A Tray may only appear in one Packaging Operation.
 * Historical records are never deleted.
 
 ---
@@ -322,4 +371,3 @@ Possible future entities include:
 * Audit History
 
 These entities should extend the existing model without changing the core relationships between Production Batches, Trays, Weight Checks, Packages, and Inventory.
-

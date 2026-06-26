@@ -43,6 +43,8 @@ Examples:
 
 Identifiers should never change.
 
+Some internal entities may have stable identifiers without being exposed as top-level public API resources.
+
 ---
 
 ## Immutable History
@@ -110,7 +112,6 @@ Returns:
 * batch details
 * trays
 * status
-* recipe
 * freeze dryer
 
 ---
@@ -137,6 +138,12 @@ POST /api/production-batches/{id}/trays
 
 Adds a Tray to a Production Batch.
 
+The request may include a Recipe identifier.
+
+When a Recipe is provided, the server copies the relevant Recipe information onto the Tray.
+
+The copied preparation information becomes historical data for that Tray.
+
 ---
 
 ## Get Tray
@@ -149,6 +156,7 @@ Returns:
 
 * tray information
 * production batch
+* historical preparation information
 * weight history
 * package information (if packaged)
 
@@ -197,18 +205,46 @@ Returns chronological weight history.
 ## Package Trays
 
 ```http
-POST /api/packages
+POST /api/v1/packages
 ```
 
-Creates one or more Packages from one or more completed Trays.
+Packages one or more completed Trays.
+
+The server creates the internal Packaging Operation, records the source Trays, and creates one or more Packages.
 
 The request includes:
 
 * selected trays
-* package information
+* package weights
+* storage locations
 * sealed weights
-* oxygen absorber
+* oxygen absorber information
 * notes
+
+Example request:
+
+```json
+{
+  "trayIds": ["tray1", "tray2", "tray3", "tray4"],
+  "packages": [
+    {
+      "weight": 10.7,
+      "oxygenAbsorber": "300cc",
+      "storageLocationId": "storage-location-1"
+    },
+    {
+      "weight": 10.6,
+      "oxygenAbsorber": "300cc",
+      "storageLocationId": "storage-location-1"
+    },
+    {
+      "weight": 10.7,
+      "oxygenAbsorber": "300cc",
+      "storageLocationId": "storage-location-2"
+    }
+  ]
+}
+```
 
 Business Rules determine whether the request is valid.
 
@@ -217,13 +253,14 @@ Business Rules determine whether the request is valid.
 ## Get Package
 
 ```http
-GET /api/packages/{id}
+GET /api/v1/packages/{id}
 ```
 
 Returns:
 
 * package details
 * source trays
+* packaging history
 * storage location
 * inventory status
 
@@ -306,6 +343,8 @@ PATCH /api/recipes/{id}
 ```
 
 Historical Production Batches remain unaffected.
+
+Historical Trays that were previously created from the Recipe remain unaffected.
 
 ---
 
@@ -422,4 +461,3 @@ Possible future endpoints include:
 * Batch import/export
 
 Future endpoints should continue to follow the same workflow-oriented design philosophy.
-

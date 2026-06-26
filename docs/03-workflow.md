@@ -50,8 +50,7 @@ The user records information such as:
 
 * Freeze dryer
 * Date
-* Product or recipe
-* Preparation notes
+* Batch notes
 
 Once the production batch has been created, trays can be loaded.
 
@@ -67,9 +66,15 @@ The user records:
 
 * Tray number
 * Product
+* Recipe (optional)
+* Preparation details
 * Starting (fresh) weight
 
 Each tray becomes independently trackable throughout the drying process.
+
+If the user chooses a Recipe, Freezeflow copies the Recipe information onto the Tray.
+
+The copied preparation information becomes part of the Tray's permanent production history.
 
 ---
 
@@ -117,7 +122,7 @@ Completed trays become available for packaging.
 
 # Workflow 6 — Package Finished Product
 
-There are two possible packaging workflows.
+There are two common packaging paths.
 
 ## Package Individually
 
@@ -129,6 +134,10 @@ The package records:
 * Sealed weight
 * Oxygen absorber
 * Notes
+
+The system automatically records a Packaging Operation for this packaging action.
+
+The user does not manage the Packaging Operation directly.
 
 ---
 
@@ -142,31 +151,34 @@ Examples include:
 * Trays from different production batches
 * Trays from different freeze dryers
 
-The user selects which completed trays will be combined.
+The user selects which completed trays will be packaged together.
 
 Important:
 
-A completed tray may only be combined once.
+A completed tray may only be packaged once.
 
-Once assigned for packaging, it is no longer available for future combinations.
+Once assigned to a Packaging Operation, it is no longer available for future packaging actions.
 
-The system permanently records which trays were packaged together.
+The system automatically creates a Packaging Operation and permanently records which trays were packaged together.
+
+The Packaging Operation appears as part of package history rather than as a separate user-managed page.
 
 ---
 
 # Workflow 7 — Create Packages
 
-The combined product is divided into one or more storage bags.
+The selected tray contents are divided into one or more storage bags.
 
 For every package the user records:
 
-* Package weight
 * Sealed weight
 * Oxygen absorber
 * Package date
 * Notes
 
 Packages become the primary inventory units.
+
+Each Package is connected to the Packaging Operation that produced it.
 
 ---
 
@@ -313,4 +325,3 @@ Examples include:
 * Multi-user collaboration
 
 These additions should extend the workflow rather than replace it.
-

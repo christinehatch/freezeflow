@@ -13,36 +13,33 @@ The domain model serves as the foundation for the application's architecture. Al
 # Domain Overview
 
 ```text
-Recipe
+Freeze Dryer
     │
     ▼
 Production Batch
     │
-    ├──────────────┐
-    ▼              ▼
-Freeze Dryer     Tray
-                    │
-                    ▼
-              Weight Check
-                    │
-                    ▼
-           Packaging Batch
-                    │
-                    ▼
-                Package
-                    │
-                    ▼
-               Storage Bin
-                    │
-                    ▼
-            Inventory Status
+    ▼
+Tray ◄── Recipe
+    │
+    ├───────────────┐
+    ▼               ▼
+Weight Check   Packaging Operation
+                       │
+                       ▼
+                   Package
+                       │
+                       ▼
+               Storage Location
+                       │
+                       ▼
+               Inventory Status
 ```
 
 ---
 
 # Recipe
 
-A Recipe describes how a product is prepared before freeze drying.
+A Recipe describes a reusable way to prepare a product before freeze drying.
 
 Recipes exist to reduce repetitive data entry and ensure preparation methods are recorded consistently.
 
@@ -61,7 +58,13 @@ Examples:
 * Fresh Strawberries
 * Skittles
 
-Recipes may be reused across many production batches.
+Recipes are templates.
+
+When a Tray is created from a Recipe, the relevant recipe information is copied onto the Tray as historical preparation data.
+
+After the Tray is created, it no longer depends on the current state of the Recipe.
+
+Recipes may be reused across many Trays.
 
 ---
 
@@ -109,6 +112,8 @@ Each tray contains a single prepared product.
 A tray records:
 
 * Product
+* Recipe reference (optional)
+* Historical preparation data
 * Starting weight
 * Final dry weight
 * Tray number
@@ -117,6 +122,8 @@ A tray records:
 Each tray belongs to exactly one production batch.
 
 Each tray produces one finished dry product.
+
+Each tray owns the historical preparation information used for that tray.
 
 ---
 
@@ -137,11 +144,15 @@ Weight checks preserve the complete drying history.
 
 ---
 
-# Consolidated Lot
+# Packaging Operation
 
-A Consolidated Lot represents one or more completed trays that are combined together after drying.
+A Packaging Operation represents the act of converting one or more completed trays into one or more sealed packages.
 
-Only compatible trays should be combined.
+Packaging Operations are internal records created automatically when the user packages selected trays.
+
+Users do not manage Packaging Operations directly.
+
+Only compatible trays should be included in the same Packaging Operation.
 
 Examples:
 
@@ -150,11 +161,13 @@ Examples:
 
 Important:
 
-A tray may belong to only one consolidated lot.
+A tray may belong to only one Packaging Operation.
 
-Once assigned, it cannot be assigned again.
+Once assigned to a Packaging Operation, it cannot be assigned again.
 
-The consolidated lot becomes the source for packaging.
+The Packaging Operation preserves which trays were packaged together and becomes the source for one or more Packages.
+
+A Packaging Operation may record the total source weight from all included trays.
 
 ---
 
@@ -171,13 +184,13 @@ A package records:
 
 Packages are the primary inventory units.
 
-Each package belongs to exactly one consolidated lot.
+Each package belongs to exactly one Packaging Operation.
 
 ---
 
-# Storage Bin
+# Storage Location
 
-A Storage Bin represents the physical location where packages are stored.
+A Storage Location represents the physical location where packages are stored.
 
 Examples:
 
@@ -186,9 +199,9 @@ Examples:
 * Pantry
 * Shelf 3
 
-A storage bin may contain many packages.
+A storage location may contain many packages.
 
-Packages may be moved between storage bins while preserving history.
+Packages may be moved between storage locations while preserving history.
 
 ---
 
@@ -213,7 +226,11 @@ The following relationships define the domain.
 
 ## Recipe
 
-A Recipe may be used by many Production Batches.
+A Recipe may be used by many Trays.
+
+The Recipe relationship is optional.
+
+Trays preserve their own historical preparation data even when they were created from a Recipe.
 
 ---
 
@@ -237,7 +254,7 @@ A Tray belongs to one Production Batch.
 
 A Tray has many Weight Checks.
 
-A Tray belongs to exactly one Consolidated Lot.
+A completed Tray may belong to one Packaging Operation.
 
 ---
 
@@ -247,27 +264,27 @@ A Weight Check belongs to one Tray.
 
 ---
 
-## Consolidated Lot
+## Packaging Operation
 
-A Consolidated Lot contains one or more Trays.
+A Packaging Operation contains one or more completed Trays.
 
-A Consolidated Lot produces one or more Packages.
+A Packaging Operation produces one or more Packages.
 
 ---
 
 ## Package
 
-A Package belongs to one Consolidated Lot.
+A Package belongs to one Packaging Operation.
 
-A Package occupies one Storage Bin.
+A Package occupies one Storage Location.
 
 A Package has one Inventory Status.
 
 ---
 
-## Storage Bin
+## Storage Location
 
-A Storage Bin contains many Packages.
+A Storage Location contains many Packages.
 
 ---
 
@@ -280,4 +297,3 @@ Inventory is considered the final stage of production rather than the primary pu
 Maintaining this separation allows Freezeflow to preserve complete traceability from finished inventory back to the original freeze-drying process.
 
 Every production decision should remain connected to the finished package throughout the lifetime of the product.
-

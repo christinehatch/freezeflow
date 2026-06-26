@@ -88,7 +88,9 @@ A Product describes *what* is being dried.
 
 ## Recipe
 
-A Recipe describes *how* the product was prepared before freeze drying.
+A Recipe is a reusable preparation template.
+
+It describes *how* a product is commonly prepared before freeze drying.
 
 Examples:
 
@@ -96,14 +98,30 @@ Examples:
 * Garlic Chicken
 * Sliced Strawberries
 
-Recipes may include:
+A Recipe may include:
 
 * preparation instructions
 * seasonings
 * notes
 * default settings
 
-A Recipe may be reused across many Production Batches.
+A Recipe may be reused across many Trays.
+
+When a Tray is created from a Recipe, the relevant Recipe information is copied onto the Tray.
+
+The copied preparation information becomes the historical record for that Tray.
+
+Editing a Recipe affects future Trays only.
+
+---
+
+## Tray Preparation
+
+Tray Preparation is the historical preparation information stored on a Tray.
+
+It records what was actually prepared for that specific Tray.
+
+Tray Preparation may be copied from a Recipe or entered directly by the user.
 
 ---
 
@@ -117,13 +135,23 @@ Packaging occurs only after drying has completed.
 
 ---
 
+## Packaging Operation
+
+A Packaging Operation is the internal record created when completed trays are packaged.
+
+It connects the selected source trays to the Packages produced from them.
+
+Users do not need to manage Packaging Operations directly.
+
+---
+
 ## Package
 
 A Package is one sealed storage bag.
 
 A Package becomes the primary inventory unit.
 
-Each Package contains product from one packaging operation.
+Each Package contains product from one Packaging Operation.
 
 Examples:
 
@@ -234,7 +262,8 @@ Every Package should always be traceable to:
 * the Freeze Dryer
 * the Tray or Trays used
 * the recorded Weight Checks
-* the Recipe
+* the historical preparation information
+* the Recipe, if one was used
 
 ---
 
@@ -268,4 +297,3 @@ Whenever possible:
 * Use one term consistently rather than multiple synonyms.
 
 The terminology defined in this document should be considered the official vocabulary of the Freezeflow project.
-

@@ -94,7 +94,8 @@ Every package should always be traceable back to:
 * Freeze Dryer
 * Tray(s)
 * Weight Checks
-* Recipe
+* Historical preparation information
+* Recipe, if one was used
 
 Never introduce code that breaks traceability.
 
@@ -311,4 +312,3 @@ Consistency is more valuable than short-term convenience.
 Freezeflow should model the user's real-world workflow—not expose the software's internal implementation.
 
 When in doubt, optimize for the user experience while preserving history, traceability, and data integrity.
-

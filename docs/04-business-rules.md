@@ -102,26 +102,28 @@ Once a Tray has been marked complete, no additional Weight Checks may be recorde
 
 ## TR-008
 
-A completed Tray may only be packaged once.
+A completed Tray may participate in only one Packaging Operation.
 
 ---
 
 ## TR-009
 
-A Tray may either:
+A Packaging Operation may either:
 
-* be packaged individually, or
-* be combined with other compatible trays before packaging.
+* package one completed Tray individually, or
+* combine multiple compatible completed Trays before packaging.
 
-It may never participate in both.
+A Tray may never participate in more than one Packaging Operation.
 
 ---
 
 ## TR-010
 
-A Tray cannot be split between multiple packaging operations.
+A Tray cannot be split between multiple Packaging Operations.
 
-The entire tray always stays together.
+Once a Tray is included in a Packaging Operation, the entire Tray is considered consumed by that operation.
+
+The resulting product may be divided into one or more Packages.
 
 ---
 
@@ -165,19 +167,27 @@ Packaging begins only after a Tray has completed drying.
 
 ## PK-002
 
-A packaging operation may contain one or more completed Trays.
+A Packaging Operation represents one packaging action.
+
+The system creates a Packaging Operation when the user packages one or more completed Trays.
 
 ---
 
 ## PK-003
 
-A Tray may only participate in one packaging operation.
+A Packaging Operation may contain one or more completed Trays.
 
 ---
 
 ## PK-004
 
-Only compatible products should be packaged together.
+A Tray may participate in only one Packaging Operation.
+
+---
+
+## PK-005
+
+Only compatible products should be included in the same Packaging Operation.
 
 Compatibility is determined by the user.
 
@@ -185,19 +195,39 @@ The system may provide suggestions but should not automatically combine products
 
 ---
 
-## PK-005
+## PK-006
 
-Every Package belongs to exactly one packaging operation.
+A Packaging Operation may produce one or more Packages.
 
 ---
 
-## PK-006
+## PK-007
+
+A Packaging Operation records the total source weight of the completed Trays included in the operation.
+
+---
+
+## PK-008
+
+The total source weight should be compared with the total weight of the Packages produced.
+
+The system should warn the user when the values differ unexpectedly.
+
+---
+
+## PK-009
+
+Every Package belongs to exactly one Packaging Operation.
+
+---
+
+## PK-010
 
 Each Package records its final sealed weight.
 
 ---
 
-## PK-007
+## PK-011
 
 Packages are the primary inventory units.
 
@@ -262,21 +292,43 @@ Inventory searches should include depleted packages when historical information 
 
 ## RC-001
 
-Recipes exist to simplify data entry.
+Recipes are reusable preparation templates.
 
 ---
 
 ## RC-002
 
-Recipes may be reused across many Production Batches.
+Recipes may be reused across many Trays.
 
 ---
 
 ## RC-003
 
-Editing a Recipe does not modify historical Production Batches that previously used that Recipe.
+When a Tray is created from a Recipe, the relevant Recipe information is copied onto the Tray.
 
-Historical batches preserve the information that existed when they were created.
+---
+
+## RC-004
+
+A Tray owns its historical preparation information.
+
+The historical preparation information on a Tray is the source of truth for what was actually prepared.
+
+---
+
+## RC-005
+
+Editing a Recipe does not modify historical Trays that previously used that Recipe.
+
+Historical Trays preserve the preparation information that existed when they were created.
+
+---
+
+## RC-006
+
+A Tray may be created without a Recipe.
+
+In that case, the user records the product and preparation information directly on the Tray.
 
 ---
 
@@ -302,6 +354,8 @@ Every Package must always be traceable to:
 * the Tray or Trays that produced it
 * the Freeze Dryer used
 * the recorded Weight Checks
+* the historical preparation information
+* the Recipe, if one was used
 
 ---
 
@@ -351,4 +405,3 @@ Future features must continue to respect every business rule defined in this doc
 New functionality should extend the workflow without violating production history, traceability, or inventory integrity.
 
 Any rule changes should be documented before implementation.
-
