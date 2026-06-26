@@ -68,6 +68,57 @@ The software should never require users to mentally translate between their real
 
 ---
 
+## Optimize for Real-World Workflow
+
+Freezeflow should follow the user's physical workflow whenever possible.
+
+The interface should adapt to how work is actually performed rather than forcing the user to adapt to the software.
+
+Example:
+
+During weight checks, the user typically:
+
+1. Weighs Tray 1
+2. Records the weight
+3. Moves to Tray 2
+4. Records the weight
+5. Repeats until all trays have been weighed
+
+The interface should support this repetitive workflow with minimal navigation and minimal clicks.
+
+Prefer:
+
+* Inline editing
+* Keyboard-friendly data entry
+* Sequential workflows
+* Automatic focus advancement
+* Batch-oriented workspaces
+
+Avoid requiring users to repeatedly:
+
+* open detail screens
+* navigate back
+* search for the next tray
+* perform unnecessary confirmation steps
+
+The software should reduce friction during repetitive tasks.
+
+---
+
+## Optimize for Repetition
+
+Users perform many repetitive tasks.
+
+When designing interfaces, optimize for:
+
+* repeated weight entry
+* repeated package creation
+* repeated inventory lookup
+
+Reducing one click from a workflow performed hundreds of times is more valuable than optimizing a rare workflow.
+
+---
+
 ## Reduce Typing
 
 Typing is one of the slowest interactions.
@@ -355,4 +406,3 @@ Freezeflow should feel calm, predictable, and trustworthy.
 It should organize information without demanding attention.
 
 The software succeeds when users stop thinking about the software and simply focus on freeze drying.
-
