@@ -1,31 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.database.types import GUID
-from app.models.mixins import IdMixin, TimestampMixin
+from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
     from app.models.package import Package
     from app.models.tray import Tray
 
 
-class PackagingOperation(IdMixin, TimestampMixin, Base):
+class PackagingOperation(IdMixin, Base):
     __tablename__ = "packaging_operations"
 
     packaged_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
-    )
-    total_source_weight_grams: Mapped[Decimal] = mapped_column(
-        Numeric(12, 3),
-        nullable=False,
     )
     notes: Mapped[str | None] = mapped_column(Text)
 

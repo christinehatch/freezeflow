@@ -7,9 +7,6 @@ def test_repository_create_get_list_and_update(db_session) -> None:
         db_session,
         FreezeDryerCreate(
             name="Freeze Dryer #1",
-            manufacturer="Harvest Right",
-            model="Medium",
-            tray_count=4,
         ),
     )
     db_session.commit()

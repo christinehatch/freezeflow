@@ -2,28 +2,23 @@ from enum import StrEnum
 
 
 class InventoryStatus(StrEnum):
-    IN_STORAGE = "in_storage"
-    DEPLETED = "depleted"
+    IN_STORAGE = "In Storage"
+    DEPLETED = "Depleted"
 
 
 class ProductionBatchStatus(StrEnum):
-    DRAFT = "draft"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-
-class RecipeStatus(StrEnum):
-    ACTIVE = "active"
-    ARCHIVED = "archived"
+    DRAFT = "Draft"
+    RUNNING = "Running"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
 
 
 class TrayStatus(StrEnum):
-    DRAFT = "draft"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    PACKAGED = "packaged"
-    CANCELLED = "cancelled"
+    DRAFT = "Draft"
+    RUNNING = "Running"
+    COMPLETED = "Completed"
+    PACKAGED = "Packaged"
+    CANCELLED = "Cancelled"
 
 
 def enum_values(enum_class: type[StrEnum]) -> list[str]:

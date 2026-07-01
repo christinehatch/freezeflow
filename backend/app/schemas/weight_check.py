@@ -9,19 +9,17 @@ from app.schemas.base import ReadSchema
 
 class WeightCheckCreate(BaseModel):
     tray_id: UUID
+    weight_grams: Decimal
     observed_at: datetime
     recorded_at: datetime | None = None
-    elapsed_hours: Decimal
-    weight_grams: Decimal
     notes: str | None = None
 
 
 class WeightCheckUpdate(BaseModel):
     tray_id: UUID | None = None
+    weight_grams: Decimal | None = None
     observed_at: datetime | None = None
     recorded_at: datetime | None = None
-    elapsed_hours: Decimal | None = None
-    weight_grams: Decimal | None = None
     notes: str | None = None
 
 

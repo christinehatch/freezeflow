@@ -32,7 +32,6 @@ class WeightCheck(IdMixin, Base):
         default=utc_now,
         nullable=False,
     )
-    elapsed_hours: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     weight_grams: Mapped[Decimal] = mapped_column(Numeric(12, 3), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
 

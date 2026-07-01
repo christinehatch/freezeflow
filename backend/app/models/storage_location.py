@@ -4,32 +4,32 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 from app.database.types import GUID
-from app.models.mixins import IdMixin, TimestampMixin
+from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
     from app.models.package import Package
 
 
-class StorageLocation(IdMixin, TimestampMixin, Base):
+class StorageLocation(IdMixin, Base):
     __tablename__ = "storage_locations"
 
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    description: Mapped[str | None] = mapped_column(Text)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     packages: Mapped[list[Package]] = relationship(back_populates="storage_location")
     previous_location_histories: Mapped[list[StorageLocationHistory]] = relationship(
         back_populates="previous_storage_location",
         foreign_keys="StorageLocationHistory.previous_storage_location_id",
     )
-    new_location_histories: Mapped[list[StorageLocationHistory]] = relationship(
-        back_populates="new_storage_location",
-        foreign_keys="StorageLocationHistory.new_storage_location_id",
+    current_location_histories: Mapped[list[StorageLocationHistory]] = relationship(
+        back_populates="current_storage_location",
+        foreign_keys="StorageLocationHistory.current_storage_location_id",
     )
 
 
@@ -45,7 +45,7 @@ class StorageLocationHistory(IdMixin, Base):
         GUID(),
         ForeignKey("storage_locations.id"),
     )
-    new_storage_location_id: Mapped[UUID] = mapped_column(
+    current_storage_location_id: Mapped[UUID] = mapped_column(
         GUID(),
         ForeignKey("storage_locations.id"),
         nullable=False,
@@ -58,7 +58,7 @@ class StorageLocationHistory(IdMixin, Base):
         back_populates="previous_location_histories",
         foreign_keys=[previous_storage_location_id],
     )
-    new_storage_location: Mapped[StorageLocation] = relationship(
-        back_populates="new_location_histories",
-        foreign_keys=[new_storage_location_id],
+    current_storage_location: Mapped[StorageLocation] = relationship(
+        back_populates="current_location_histories",
+        foreign_keys=[current_storage_location_id],
     )

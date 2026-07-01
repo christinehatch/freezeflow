@@ -8,26 +8,24 @@ from app.schemas.base import ReadSchema
 
 class StorageLocationCreate(BaseModel):
     name: str
-    description: str | None = None
-    archived_at: datetime | None = None
+    notes: str | None = None
+    archived: bool = False
 
 
 class StorageLocationUpdate(BaseModel):
     name: str | None = None
-    description: str | None = None
-    archived_at: datetime | None = None
+    notes: str | None = None
+    archived: bool | None = None
 
 
 class StorageLocationRead(StorageLocationCreate, ReadSchema):
     id: UUID
-    created_at: datetime
-    updated_at: datetime
 
 
 class StorageLocationHistoryCreate(BaseModel):
     package_id: UUID
     previous_storage_location_id: UUID | None = None
-    new_storage_location_id: UUID
+    current_storage_location_id: UUID
     moved_at: datetime
     notes: str | None = None
 
@@ -35,7 +33,7 @@ class StorageLocationHistoryCreate(BaseModel):
 class StorageLocationHistoryUpdate(BaseModel):
     package_id: UUID | None = None
     previous_storage_location_id: UUID | None = None
-    new_storage_location_id: UUID | None = None
+    current_storage_location_id: UUID | None = None
     moved_at: datetime | None = None
     notes: str | None = None
 

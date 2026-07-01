@@ -2,7 +2,6 @@ from app.models.audit_entry import AuditEntry
 from app.models.enums import (
     InventoryStatus,
     ProductionBatchStatus,
-    RecipeStatus,
     TrayStatus,
 )
 from app.models.freeze_dryer import FreezeDryer
@@ -27,7 +26,6 @@ __all__ = [
     "ProductionBatch",
     "ProductionBatchStatus",
     "Recipe",
-    "RecipeStatus",
     "StorageLocation",
     "StorageLocationHistory",
     "Tray",

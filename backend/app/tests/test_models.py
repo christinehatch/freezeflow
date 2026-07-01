@@ -22,13 +22,11 @@ def test_model_creation_and_relationships(db_session) -> None:
     now = datetime.now(UTC)
     freeze_dryer = FreezeDryer(
         name="Freeze Dryer #1",
-        manufacturer="Harvest Right",
-        model="Medium",
-        tray_count=4,
+        notes="Primary freeze dryer",
     )
     recipe = Recipe(
         name="Taco Chicken",
-        product="Chicken",
+        product_name="Chicken",
         preparation="Cubed and seasoned.",
     )
     storage_location = StorageLocation(name="Bin A")
@@ -37,7 +35,7 @@ def test_model_creation_and_relationships(db_session) -> None:
 
     production_batch = ProductionBatch(
         freeze_dryer_id=freeze_dryer.id,
-        name="Chicken Batch",
+        batch_number="Chicken Batch",
         started_at=now,
         status=ProductionBatchStatus.RUNNING,
     )
@@ -60,13 +58,9 @@ def test_model_creation_and_relationships(db_session) -> None:
     weight_check = WeightCheck(
         tray_id=tray.id,
         observed_at=now,
-        elapsed_hours=Decimal("12.50"),
         weight_grams=Decimal("250.000"),
     )
-    packaging_operation = PackagingOperation(
-        packaged_at=now,
-        total_source_weight_grams=Decimal("231.000"),
-    )
+    packaging_operation = PackagingOperation(packaged_at=now)
     db_session.add_all([weight_check, packaging_operation])
     db_session.flush()
 
@@ -76,11 +70,10 @@ def test_model_creation_and_relationships(db_session) -> None:
     )
     package = Package(
         packaging_operation_id=packaging_operation.id,
-        package_date=now,
         package_weight_grams=Decimal("240.000"),
         oxygen_absorber="300cc",
         storage_location_id=storage_location.id,
-        inventory_status=InventoryStatus.IN_STORAGE,
+        status=InventoryStatus.IN_STORAGE,
     )
     db_session.add_all([packaging_link, package])
     db_session.flush()
@@ -88,7 +81,7 @@ def test_model_creation_and_relationships(db_session) -> None:
     storage_history = StorageLocationHistory(
         package_id=package.id,
         previous_storage_location_id=None,
-        new_storage_location_id=storage_location.id,
+        current_storage_location_id=storage_location.id,
         moved_at=now,
     )
     db_session.add(storage_history)
