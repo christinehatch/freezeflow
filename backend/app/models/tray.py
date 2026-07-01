@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import TYPE_CHECKING
+from uuid import UUID
+
+from sqlalchemy import Enum, ForeignKey, Numeric, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database.base import Base
+from app.database.types import GUID
+from app.models.enums import TrayStatus, enum_values
+from app.models.mixins import IdMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.packaging_operation import PackagingOperationTray
+    from app.models.production_batch import ProductionBatch
+    from app.models.recipe import Recipe
+    from app.models.weight_check import WeightCheck
+
+
+class Tray(IdMixin, TimestampMixin, Base):
+    __tablename__ = "trays"
+    __table_args__ = (
+        UniqueConstraint(
+            "production_batch_id",
+            "tray_number",
+            name="uq_trays_production_batch_tray_number",
+        ),
+    )
+
+    production_batch_id: Mapped[UUID] = mapped_column(
+        GUID(),
+        ForeignKey("production_batches.id"),
+        nullable=False,
+    )
+    recipe_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("recipes.id"))
+    tray_number: Mapped[int] = mapped_column(nullable=False)
+    product_name: Mapped[str] = mapped_column(nullable=False)
+    preparation: Mapped[str] = mapped_column(Text, nullable=False)
+    starting_weight_grams: Mapped[Decimal] = mapped_column(
+        Numeric(12, 3),
+        nullable=False,
+    )
+    final_dry_weight_grams: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    status: Mapped[TrayStatus] = mapped_column(
+        Enum(TrayStatus, native_enum=False, values_callable=enum_values),
+        default=TrayStatus.DRAFT,
+        nullable=False,
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    production_batch: Mapped[ProductionBatch] = relationship(back_populates="trays")
+    recipe: Mapped[Recipe | None] = relationship(back_populates="trays")
+    weight_checks: Mapped[list[WeightCheck]] = relationship(back_populates="tray")
+    packaging_operation_link: Mapped[PackagingOperationTray | None] = relationship(
+        back_populates="tray"
+    )

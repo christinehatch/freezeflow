@@ -39,6 +39,8 @@ Historical events are never undone.
 
 If incorrect information is recorded, it is corrected through the audit process rather than by reversing lifecycle states.
 
+The lifecycle states defined in this ADR are the authoritative persisted state values used throughout the application.
+
 ---
 
 # Production Batch Lifecycle
@@ -58,6 +60,13 @@ or
 
 Cancelled
 ```
+
+Persisted status values:
+
+- Draft
+- Running
+- Completed
+- Cancelled
 
 ## Draft
 
@@ -135,6 +144,14 @@ or
 Cancelled
 ```
 
+Persisted status values:
+
+- Draft
+- Running
+- Completed
+- Packaged
+- Cancelled
+
 ## Draft
 
 The Tray has been created but drying has not begun.
@@ -192,6 +209,11 @@ In Storage
 Depleted
 ```
 
+Persisted status values:
+
+- In Storage
+- Depleted
+
 ## In Storage
 
 The Package is available.
@@ -228,6 +250,11 @@ Active
     v
 Archived
 ```
+
+Persisted status values:
+
+- Active
+- Archived
 
 ## Active
 
@@ -266,8 +293,8 @@ Some transitions occur automatically.
 
 Examples:
 
-* Production Batch -> Completed, when all Trays are completed
-* Tray -> Packaged, when included in a Packaging Operation
+* Production Batch → Completed when all Trays are completed.
+* Tray → Packaged when included in a Packaging Operation.
 
 Other transitions require explicit user action.
 

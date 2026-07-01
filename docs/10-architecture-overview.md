@@ -233,6 +233,32 @@ These principles should guide future architectural decisions.
 
 ---
 
+# Current State vs Historical Records
+
+Freezeflow separates the application's **current state** from its **historical records**.
+
+Primary entities store the current state of the system.
+
+Historical entities preserve how that state was reached.
+
+Examples:
+
+| Current State | Historical Record |
+|---------------|-------------------|
+| Tray | Weight Checks |
+| Package | Storage Location History |
+| Any Correctable Entity | Audit Entries |
+
+This design keeps common operations simple while preserving complete historical traceability.
+
+Users typically interact with the current state.
+
+Historical records remain available for reporting, auditing, and understanding how production evolved over time.
+
+This separation is one of the core architectural principles of Freezeflow and should be preserved throughout the application.
+
+---
+
 # Documentation Roadmap
 
 This document serves as the entry point to the architecture.

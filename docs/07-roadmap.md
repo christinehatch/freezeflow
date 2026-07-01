@@ -22,153 +22,170 @@ Development should always prioritize reducing work for the user.
 
 ---
 
-# Milestone 0 — Foundation
+# Milestones
 
-## Goal
+Development is organized into small, incremental milestones.
 
-Establish the project's architecture and core infrastructure.
+Each milestone builds upon the previous one and leaves the application in a stable, working state.
 
-## Objectives
-
-* Project setup
-* Backend structure
-* Frontend structure
-* Documentation
-* Database foundation
-* Development environment
-* Testing framework
-
-## User Value
-
-No direct user functionality.
-
-Creates a stable foundation for future development.
+Later milestones extend existing functionality rather than replacing it.
 
 ---
 
-# Milestone 1 — Production Tracking
+## Milestone 0 — Project Foundation
 
-## Goal
+Establish the project foundation.
 
-Allow users to record complete freeze-drying batches.
+Includes:
 
-## Features
-
-* Create Production Batch
-* Manage Freeze Dryers
-* Add Trays
-* Record Starting Weight
-* Record Weight Checks
-* Complete Trays
-
-## User Value
-
-Users can replace handwritten production logs.
+- Repository structure
+- Development environment
+- Documentation
+- Project scaffolding
+- Tooling
+- Initial testing framework
 
 ---
 
-# Milestone 2 — Packaging
+## Milestone 1 — Persistence Layer
 
-## Goal
+Implement the persistence layer.
 
-Allow users to package completed trays.
+Includes:
 
-## Features
+- Database schema
+- SQLAlchemy models
+- Alembic migrations
+- Repository layer
+- Pydantic schemas
+- Database relationships
 
-* View completed trays
-* Select one or more trays
-* Package selected trays
-* Record package information
-* Record sealed package weight
-* Record oxygen absorber information
-
-## User Value
-
-Users can accurately record finished products.
+No business workflows are implemented during this milestone.
 
 ---
 
-# Milestone 3 — Inventory
+## Milestone 2 — Production Workflow
 
-## Goal
+Implement the first production workflow.
 
-Track stored packages.
+Includes:
 
-## Features
+- Freeze Dryer management
+- Production Batches
+- Trays
+- Production Dashboard
+- Production navigation
 
-* Storage locations
-* Assign packages
-* Search inventory
-* Move inventory
-* Mark depleted
-* Inventory history
-
-## User Value
-
-Users can immediately locate stored products.
+Users can organize a production run, but drying progress is not yet tracked.
 
 ---
 
-# Milestone 4 — Reporting
+## Milestone 3 — Weight Tracking
 
-## Goal
+Implement drying progress.
 
-Turn production history into useful insights.
+Includes:
 
-## Features
+- Starting Weight
+- Weight Checks
+- Final Dry Weight
+- Tray completion
+- Batch completion
 
-* Freeze Dryer statistics
-* Product statistics
-* Yield calculations
-* Drying time analysis
-* Inventory summaries
-
-## User Value
-
-Historical production data becomes actionable.
+Users can now fully record a production run.
 
 ---
 
-# Milestone 5 — Workflow Improvements
+## Milestone 4 — Packaging
 
-## Goal
+Convert completed production into inventory.
 
-Reduce repetitive work.
+Includes:
 
-## Features
-
-* Saved recipes
-* Recently used products
-* Suggested tray combinations
-* Smart defaults
-* Faster batch creation
-
-## User Value
-
-Less typing.
-
-Faster production logging.
+- Packaging Operations
+- Package creation
+- Multiple Packages
+- Traceability
+- Initial Storage Location assignment
 
 ---
 
-# Milestone 6 — Quality of Life
+## Milestone 5 — Inventory
 
-## Goal
+Manage finished inventory.
 
-Improve the everyday experience.
+Includes:
 
-## Possible Features
+- Inventory search
+- Package details
+- Storage Locations
+- Storage movement
+- Package depletion
 
-* Autosave
-* Keyboard shortcuts
-* Bulk editing
-* Improved searching
-* Better filtering
-* Timeline views
+---
 
-## User Value
+## Milestone 6 — Recipes
 
-The application becomes faster and easier to use.
+Improve production efficiency.
+
+Includes:
+
+- Recipe management
+- Recipe templates
+- Applying Recipes to Trays
+- Recipe search
+- Recipe organization
+
+---
+
+## Milestone 7 — Reporting
+
+Provide historical insight.
+
+Includes:
+
+- Production reports
+- Inventory reports
+- Drying statistics
+- Historical analysis
+
+---
+
+## Milestone 8 — Application Polish
+
+Improve usability and reliability.
+
+Includes:
+
+- Validation improvements
+- Accessibility
+- Performance
+- User experience refinements
+- Error handling
+
+---
+
+## Milestone 9 — Version 1 Release
+
+Prepare Freezeflow for production release.
+
+Includes:
+
+- Bug fixing
+- Final testing
+- Documentation review
+- Release validation
+- Version 1 launch readiness
+
+---
+
+# Guiding Principle
+
+Every milestone should produce a working application.
+
+No milestone should depend on partially implemented functionality from a future milestone.
+
+Each milestone should be independently testable before development continues.
 
 ---
 

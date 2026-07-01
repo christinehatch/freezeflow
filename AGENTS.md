@@ -26,26 +26,102 @@ Do not silently change architecture in code.
 
 ---
 
-# Required Reading Order
+# Required Read Order
 
-Before making changes, read the following documents in order:
-
-1. README.md
-2. docs/01-project-overview.md
-3. docs/02-domain-model.md
-4. docs/03-workflow.md
-5. docs/04-business-rules.md
-6. docs/05-terminology.md
-7. docs/06-ui-philosophy.md
-8. docs/07-roadmap.md
-9. docs/08-data-model.md
-10. docs/09-api-design.md
-
-Do not begin implementation until the project architecture is understood.
-
-Implementation is milestone-driven. Do not implement functionality beyond the currently assigned milestone, even if the architecture has already been defined.
+Before making architectural or implementation decisions, every AI agent must read the project documentation in the following order.
 
 ---
+
+## 1. Repository Overview
+
+1. README.md
+2. AGENTS.md
+
+---
+
+## 2. Core Architecture
+
+These documents define the business domain and overall architecture.
+
+1. docs/01-project-overview.md
+2. docs/02-domain-model.md
+3. docs/03-workflow.md
+4. docs/04-business-rules.md
+5. docs/05-terminology.md
+6. docs/06-ui-philosophy.md
+7. docs/07-roadmap.md
+8. docs/08-data-model.md
+9. docs/09-api-design.md
+10. docs/10-architecture-overview.md
+11. docs/11-technology-stack.md
+12. docs/12-v1-scope.md
+
+---
+
+## 3. Architecture Decision Records (ADRs)
+
+Read every document in:
+
+docs/architecture-decisions/
+
+These documents extend and clarify the architecture.
+
+If an ADR conflicts with an earlier document, the ADR represents the accepted architectural decision.
+
+---
+
+## 4. Persistence Documentation
+
+Read every document in:
+
+docs/persistence/
+
+These documents are the authoritative definition of the persistence layer.
+
+If a persistence document differs from the higher-level Data Model, the persistence documentation should be used when implementing the database schema.
+
+---
+
+## 5. Wireframes
+
+If implementing user interface features, read every document in:
+
+docs/wireframes/
+
+These documents describe the intended user experience and interaction patterns.
+
+---
+
+## 6. Implementation Plan
+
+Read:
+
+docs/implementation/README.md
+
+Then read **only the milestone currently being implemented**.
+
+Do not implement functionality assigned to later milestones.
+
+---
+
+# Documentation Precedence
+
+When documentation overlaps, use the following order of precedence:
+
+1. Architecture Decision Records (ADRs)
+2. Persistence Documentation (for persistence implementation)
+3. Core Architecture Documents
+4. Wireframes
+5. Implementation Milestones
+
+If implementation requires a decision that is not documented:
+
+- Stop.
+- Ask for clarification.
+- Do not invent architecture.
+- Do not silently make assumptions.
+
+Documentation always drives implementation.
 
 # Documentation Hierarchy
 
