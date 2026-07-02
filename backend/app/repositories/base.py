@@ -26,6 +26,10 @@ class Repository[ModelT: Base, CreateSchemaT: BaseModel, UpdateSchemaT: BaseMode
     def list(self, db: Session) -> list[ModelT]:
         return list(db.scalars(select(self.model)).all())
 
+    def delete(self, db: Session, db_obj: ModelT) -> None:
+        db.delete(db_obj)
+        db.flush()
+
     def update(
         self,
         db: Session,

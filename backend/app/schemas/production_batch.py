@@ -10,20 +10,19 @@ from app.schemas.base import ReadSchema
 class ProductionBatchCreate(BaseModel):
     freeze_dryer_id: UUID
     batch_number: str
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
     notes: str | None = None
-    status: ProductionBatchStatus = ProductionBatchStatus.DRAFT
 
 
 class ProductionBatchUpdate(BaseModel):
     freeze_dryer_id: UUID | None = None
-    batch_number: str | None = None
+    notes: str | None = None
+
+
+class ProductionBatchRead(ReadSchema):
+    id: UUID
+    freeze_dryer_id: UUID
+    batch_number: str
     started_at: datetime | None = None
     completed_at: datetime | None = None
     notes: str | None = None
-    status: ProductionBatchStatus | None = None
-
-
-class ProductionBatchRead(ProductionBatchCreate, ReadSchema):
-    id: UUID
+    status: ProductionBatchStatus

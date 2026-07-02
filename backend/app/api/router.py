@@ -1,6 +1,10 @@
 from fastapi import APIRouter
 
+from app.api.freeze_dryers import router as freeze_dryers_router
 from app.api.health import router as health_router
+from app.api.production import router as production_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
+api_router.include_router(freeze_dryers_router)
+api_router.include_router(production_router)

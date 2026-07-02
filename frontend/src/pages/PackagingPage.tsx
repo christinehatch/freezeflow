@@ -4,7 +4,7 @@ export function PackagingPage() {
   return (
     <PlaceholderPage
       title="Packaging"
-      description="Milestone 0 foundation placeholder."
+      description="This workflow is not available yet."
     />
   );
 }

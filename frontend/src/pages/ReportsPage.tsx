@@ -4,7 +4,7 @@ export function ReportsPage() {
   return (
     <PlaceholderPage
       title="Reports"
-      description="Milestone 0 foundation placeholder."
+      description="This workflow is not available yet."
     />
   );
 }

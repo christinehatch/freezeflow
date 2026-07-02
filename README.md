@@ -1,6 +1,6 @@
 # ❄️ Freezeflow
 
-> A production management and inventory system designed specifically for freeze drying.
+> Freezeflow helps freeze-drying enthusiasts capture every batch, understand every result, and continuously improve their process through trustworthy records and meaningful insights.
 
 Freezeflow is a software platform that tracks the complete lifecycle of freeze-dried products—from fresh food preparation through long-term storage.
 
