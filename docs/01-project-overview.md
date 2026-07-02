@@ -6,6 +6,8 @@
 
 Freezeflow is a production management and inventory system designed specifically for freeze drying.
 
+Freezeflow helps freeze-drying enthusiasts capture every batch, understand every result, and continuously improve their process through trustworthy records and meaningful insights.
+
 Unlike traditional inventory systems, Freezeflow captures the complete lifecycle of every product—from fresh food preparation through freeze drying, packaging, storage, and eventual use.
 
 The goal is to preserve production history, simplify inventory management, and provide meaningful insights that improve future batches.
@@ -133,6 +135,21 @@ Future versions may expand into additional features such as cost analysis, print
 
 Every design decision should follow these principles.
 
+## The User Is the Scientist
+
+Freezeflow should support the user's curiosity about their own process.
+
+The product should help users answer questions such as:
+
+* Why did this batch work better?
+* Which preparation method dried faster?
+* Did pre-freezing help?
+* Why is one Freeze Dryer slower than another?
+
+Freezeflow should amplify user judgment rather than replace it.
+
+---
+
 ## Preserve History
 
 Production data should never be discarded.
@@ -176,6 +193,22 @@ Relationships between production stages should never be broken.
 The software should adapt to the user's workflow.
 
 Users should never feel like they are working around the software.
+
+---
+
+## Automate Math, Not Judgment
+
+Freezeflow should calculate repetitive, objective information such as drying time, yield, and weight comparisons whenever those concepts are documented and implemented.
+
+The user remains responsible for judgment calls such as whether food feels dry, whether products are compatible, or whether a package should be trusted.
+
+---
+
+## Respect the Craft
+
+Freeze drying is a craft that users improve over time.
+
+Freezeflow should help users become more confident and capable, not merely faster at data entry.
 
 ---
 
@@ -223,4 +256,6 @@ Inventory is only the final stage of a much larger process.
 
 The true purpose of Freezeflow is to preserve the complete story of every product—from preparation through long-term storage—while making that information easy to search, understand, and learn from.
 
+Freezeflow is not just a spreadsheet replacement, a batch logger, or a digital notebook.
 
+It is a trustworthy production memory that helps users improve their freeze-drying process over time.

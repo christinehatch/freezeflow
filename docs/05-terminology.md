@@ -18,7 +18,7 @@ Every feature, screen, API, and database model should use these terms consistent
 
 A Production Batch represents one complete freeze-dryer run.
 
-It begins when trays are loaded into a freeze dryer and ends when every tray has completed drying.
+It begins when the user starts production and ends when every Tray has completed drying.
 
 A Production Batch is the primary production record.
 
@@ -42,13 +42,50 @@ Each freeze dryer performs many Production Batches over time.
 
 ---
 
+## Tray Slot
+
+A Tray Slot is a position inside a Freeze Dryer.
+
+Tray Slots define how many trays a Freeze Dryer can hold during one Production Batch.
+
+Examples:
+
+* Slot 1
+* Slot 2
+* Slot 3
+* Slot 4
+
+A Tray Slot is not the same thing as a reusable Physical Tray.
+
+---
+
+## Physical Tray
+
+A Physical Tray is a reusable removable tray owned by the user.
+
+Physical Trays exist independently from any single Freeze Dryer or Production Batch.
+
+Examples:
+
+* Physical Tray 1
+* Physical Tray 7
+* Stainless Tray A
+
+A Physical Tray may be placed into a Tray Slot during Production Batch setup.
+
+---
+
 ## Tray
 
-A Tray represents one physical tray inside a freeze dryer.
+A Tray represents one loaded tray record inside a Production Batch.
 
-Each tray contains one prepared product.
+Each Tray contains one prepared product.
 
-A tray is tracked independently throughout the drying process.
+A Tray is tracked independently throughout the drying process.
+
+Tray refers to the production record for that Batch, including Tray Slot, Physical Tray, product, preparation, weights, notes, and status.
+
+A Tray may reference the Physical Tray and Tray Slot used during that Production Batch.
 
 Examples:
 
@@ -173,6 +210,22 @@ Package Weight is preserved for long-term verification of package integrity.
 
 ---
 
+## Supplies
+
+Supplies are materials used to create Packages.
+
+Examples:
+
+* Mylar bags
+* oxygen absorbers
+* labels
+
+Supplies are distinct from food inventory.
+
+Supply tracking is a future enhancement unless explicitly added through updated documentation.
+
+---
+
 # Inventory
 
 ## Inventory
@@ -230,7 +283,25 @@ Within Freezeflow the official term is:
 
 The weight of a Tray after drying has completed.
 
-This value is used to determine moisture loss and production yield.
+This value is used to determine moisture loss and fresh-to-dry yield.
+
+---
+
+## Yield
+
+Fresh-to-dry yield compares Starting Weight to Final Dry Weight.
+
+It answers how much finished dry product resulted from the fresh input loaded onto a Tray.
+
+Within Freezeflow the official term is:
+
+**Yield**
+
+Yield is a key production insight, not merely a calculated field.
+
+Milestone 3 records the underlying weights.
+
+Milestone 7 (Reporting) provides yield analysis across production history.
 
 ---
 
@@ -242,6 +313,27 @@ This measurement is used to verify package integrity during long-term storage.
 
 ---
 
+## Package Type
+
+A reusable description of a common packaging format.
+
+Examples include:
+
+* 1 qt Mylar
+* 2 qt Mylar
+* Pint Jar
+* Half Gallon Jar
+
+Package Types are a future concept.
+
+They may eventually provide defaults such as oxygen absorber size, label behavior, expected sealed weight, or packaging notes.
+
+Milestone 4 records package attributes directly on each Package.
+
+Package Types are not implemented in Milestone 2.
+
+---
+
 # Historical Records
 
 ## Production History
@@ -249,6 +341,18 @@ This measurement is used to verify package integrity during long-term storage.
 Production History includes every recorded step from preparation through packaging.
 
 Production History is never deleted.
+
+---
+
+## Production Notes
+
+Freeform notes recorded during production.
+
+Production Notes may appear on Production Batches, Trays, Weight Checks, Packaging Operations, and Packages.
+
+Notes may include shorthand, corrections, calculations, observations, "same as above," and other imperfect real-world record keeping.
+
+Production Notes are first-class production history, not disposable metadata.
 
 ---
 
@@ -279,7 +383,9 @@ The following terms should be used consistently throughout the project.
 | Weight Check     | Reading                        |
 | Starting Weight  | Wet Weight, Fresh Weight       |
 | Final Dry Weight | Finished Weight                |
+| Yield            | Dry yield, Moisture loss alone |
 | Package          | Bag, Pouch                     |
+| Package Type     | Container, Bag size            |
 | Storage Location | Bin (when referring generally) |
 | Inventory Status | State                          |
 

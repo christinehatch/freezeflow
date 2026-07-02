@@ -15,26 +15,11 @@ It serves as the foundation for database design, API development, and applicatio
 # Entity Relationship Overview
 
 ```text
-Freeze Dryer
-    │
-    ▼
-Production Batch
-    │
-    ▼
-Tray ◄── Recipe
-    │
-    ├──────────────────┐
-    ▼                  ▼
-Weight Check     Packaging Operation Tray
-                         │
-                         ▼
-                 Packaging Operation
-                         │
-                         ▼
-                     Package
-                         │
-                         ▼
-                 Storage Location
+Freeze Dryer ──< Tray Slot
+Freeze Dryer ──< Production Batch ──< Tray >── Recipe
+Physical Tray ───────────────────────> Tray
+Tray ──< Weight Check
+Tray ──< Packaging Operation Tray >── Packaging Operation ──< Package >── Storage Location
 ```
 
 A Packaging Operation may contain one or more completed Trays.
@@ -77,13 +62,47 @@ Represents one physical freeze dryer.
 | ------------ | ----------------- |
 | id           | UUID              |
 | name         | String            |
-| manufacturer | String            |
-| model        | String            |
-| serialNumber | String (optional) |
-| trayCount    | Integer           |
 | notes        | Text              |
-| createdAt    | DateTime          |
-| updatedAt    | DateTime          |
+| archived     | Boolean           |
+
+---
+
+# Tray Slot
+
+Represents one position inside a Freeze Dryer.
+
+## Fields
+
+| Field         | Type    |
+| ------------- | ------- |
+| id            | UUID    |
+| freezeDryerId | UUID    |
+| slotNumber    | Integer |
+| label         | String  |
+| archived      | Boolean |
+
+Tray Slots define Freeze Dryer capacity.
+
+A Tray Slot does not represent a reusable Physical Tray.
+
+---
+
+# Physical Tray
+
+Represents one reusable removable tray owned by the user.
+
+## Fields
+
+| Field     | Type    |
+| --------- | ------- |
+| id        | UUID    |
+| label     | String  |
+| notes     | Text    |
+| archived  | Boolean |
+
+Physical Trays exist independently from Freeze Dryers and Production Batches.
+
+Future versions may add tare weight, calibration notes, or other physical characteristics.
 
 ---
 
@@ -97,12 +116,16 @@ Represents one complete freeze dryer run.
 | ------------- | ------------------- |
 | id            | UUID                |
 | freezeDryerId | UUID                |
-| name          | String              |
-| startedAt     | DateTime            |
+| batchNumber   | String              |
+| startedAt     | DateTime (optional) |
 | completedAt   | DateTime (optional) |
 | notes         | Text                |
-| createdAt     | DateTime            |
-| updatedAt     | DateTime            |
+
+`startedAt` is unset while the Batch is in Draft and is set when the Batch transitions to Running.
+
+The system should suggest the next Batch Number when creating a Draft Production Batch.
+
+Users may edit the suggested Batch Number before saving the Draft.
 
 ---
 
@@ -116,22 +139,23 @@ Represents one tray within a Production Batch.
 | ----------------- | ------------------ |
 | id                | UUID               |
 | productionBatchId | UUID               |
+| physicalTrayId    | UUID               |
+| traySlotId        | UUID               |
 | recipeId          | UUID (optional)    |
-| trayNumber        | Integer            |
 | productName       | String             |
 | preparation       | Text               |
-| startingWeight    | Decimal            |
+| startingWeight    | Decimal (optional) |
 | finalDryWeight    | Decimal (optional) |
 | status            | Enum               |
 | notes             | Text               |
-| createdAt         | DateTime           |
-| updatedAt         | DateTime           |
 
 The Recipe relationship is optional.
 
 The product name and preparation fields preserve the historical preparation information used for the Tray.
 
 Editing a Recipe does not update existing Trays.
+
+The Physical Tray and Tray Slot preserve which reusable tray was placed in which Freeze Dryer position for that Production Batch.
 
 ---
 

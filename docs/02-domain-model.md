@@ -37,6 +37,23 @@ Weight Check   Packaging Operation
 
 ---
 
+# Domain Discovery Principles
+
+Freezeflow models the user's real-world workflow.
+
+The domain is not centered on inventory first.
+
+It starts with food preparation and production history, then becomes inventory only after Packaging.
+
+Many Freezeflow concepts have both:
+
+* a current state used for daily workflow
+* historical records that explain how that state was reached
+
+ADR-0008 defines this event-oriented production history principle.
+
+---
+
 # Recipe
 
 A Recipe describes a reusable way to prepare a product before freeze drying.
@@ -81,20 +98,26 @@ Each freeze dryer may produce many production batches over its lifetime.
 
 The system uses freeze dryer information to generate performance statistics.
 
+Freeze Dryers are first-class domain objects because users reason about machines by identity, nickname, reliability, and performance.
+
+Examples from the user's workflow may include machines named Black or White.
+
+Detailed maintenance history is a future enhancement.
+
 ---
 
 # Production Batch
 
 A Production Batch represents one complete freeze-drying run.
 
-It begins when trays are loaded into a freeze dryer.
+It begins when the user starts production.
 
 It ends when every tray in that batch has completed drying.
 
 A production batch contains:
 
-* Date
 * Freeze dryer
+* Started date (`startedAt`, set when production begins)
 * Operator (future)
 * Notes
 * One or more trays
@@ -103,21 +126,60 @@ A production batch is never deleted.
 
 ---
 
+# Tray Slot
+
+A Tray Slot represents one position inside a Freeze Dryer.
+
+Tray Slots define Freeze Dryer capacity.
+
+For example, a Freeze Dryer may have four Tray Slots while the user owns twelve reusable Physical Trays.
+
+Tray Slots belong to the Freeze Dryer configuration.
+
+Tray Slots are not historical production records.
+
+---
+
+# Physical Tray
+
+A Physical Tray is a reusable removable tray owned by the user.
+
+A Physical Tray may be placed into a Tray Slot during a Production Batch.
+
+A Physical Tray may eventually store:
+
+* tray identifier
+* tare weight
+* calibration notes
+* physical or heat-behavior notes
+* archived status
+
+Physical Tray identity is distinct from the historical Tray record in a Production Batch.
+
+---
+
 # Tray
 
-A Tray represents one shelf inside a production batch.
+A Tray represents one loaded tray record inside a production batch.
 
 Each tray contains a single prepared product.
 
 A tray records:
 
+* Tray Slot
+* Physical Tray
 * Product
 * Recipe reference (optional)
 * Historical preparation data
 * Starting weight
 * Final dry weight
-* Tray number
 * Notes
+
+Freeform notes are first-class production history.
+
+They may include shorthand, corrections, calculations, observations, and imperfect records.
+
+Starting weight is recorded when drying begins (Milestone 3), not during Milestone 2 tray setup.
 
 Each tray belongs to exactly one production batch.
 
@@ -141,6 +203,12 @@ Each weight check contains:
 A tray may have many weight checks.
 
 Weight checks preserve the complete drying history.
+
+Weight Checks are historical observations.
+
+They are part of the production timeline, not merely edits to a current weight field.
+
+Future versions may add explicit Drying Run or Drying Session records if the system needs to record each additional machine-run interval separately from weight observations.
 
 ---
 
@@ -185,6 +253,32 @@ A package records:
 Packages are the primary inventory units.
 
 Each package belongs to exactly one Packaging Operation.
+
+Packages are preservation records before they are inventory search results.
+
+They may carry notes such as rerun history, trust warnings, or special handling observations.
+
+Future versions may introduce Package Types as reusable templates (for example, 1 qt Mylar or Pint Jar) that provide defaults for oxygen absorber, label behavior, expected weight, and packaging notes.
+
+Package Types are not part of Milestone 2.
+
+---
+
+# Supplies
+
+Supplies are materials used during Packaging.
+
+Examples include:
+
+* Mylar bags
+* Oxygen absorbers
+* Labels
+
+Supplies are distinct from food inventory.
+
+They may become first-class records in a future version to support package defaults, stock counts, and reorder reminders.
+
+Supply tracking is not part of Version 1 unless explicitly added through updated roadmap and persistence documentation.
 
 ---
 
@@ -237,6 +331,16 @@ Trays preserve their own historical preparation data even when they were created
 ## Freeze Dryer
 
 A Freeze Dryer may perform many Production Batches.
+
+A Freeze Dryer has one or more Tray Slots.
+
+---
+
+## Physical Tray
+
+A Physical Tray may be used by many Trays over time.
+
+A Physical Tray is selected for a Tray Slot during Production Batch setup.
 
 ---
 

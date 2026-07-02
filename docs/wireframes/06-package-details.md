@@ -187,7 +187,8 @@ Every Package should display the Trays that contributed to its creation.
 
 Each Tray should display:
 
-* Tray Number
+* Tray Slot
+* Physical Tray
 * Production Batch
 * Freeze Dryer
 * Final Dry Weight

@@ -295,7 +295,9 @@ Whenever possible, the application should mirror the physical workspace.
 Examples:
 
 * Freeze Dryers are the primary entry point into Production.
-* Trays represent physical trays.
+* Trays represent loaded tray records within a Production Batch.
+* Physical Trays represent reusable numbered equipment.
+* Tray Slots represent positions inside a Freeze Dryer.
 * Packages represent physical bags.
 * Storage Locations represent real shelves or bins.
 

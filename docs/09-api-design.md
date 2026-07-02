@@ -83,6 +83,10 @@ POST /api/production-batches
 
 Creates a new Production Batch.
 
+The server may suggest or accept a Batch Number during Draft creation.
+
+The user may edit the suggested Batch Number before the Draft is saved.
+
 ---
 
 ## List Production Batches
@@ -128,6 +132,67 @@ Historical records remain preserved.
 
 ---
 
+## Start Production Batch
+
+```http
+POST /api/production-batches/{id}/start
+```
+
+Transitions a Draft Production Batch to the Running state.
+
+### Behavior
+
+When production starts:
+
+* The Production Batch status becomes Running.
+* `startedAt` is set to the current timestamp.
+* Every Draft Tray in the Batch transitions to Running.
+
+### Request
+
+No request body is required.
+
+### Response
+
+Returns the updated Production Batch.
+
+### Validation
+
+* The Production Batch must be in the Draft state.
+* The Production Batch must contain at least one Tray.
+* The assigned Freeze Dryer must not already have a Running Production Batch.
+* The assigned Freeze Dryer must not be archived.
+* The Production Batch cannot already be Running, Completed, or Cancelled.
+
+If validation fails, the request returns an appropriate error response.
+
+---
+
+## Cancel Production Batch
+
+```http
+POST /api/production-batches/{id}/cancel
+```
+
+Transitions a Draft or Running Production Batch to the Cancelled state.
+
+### Request
+
+No request body is required.
+
+### Response
+
+Returns the updated Production Batch.
+
+### Validation
+
+* Completed Production Batches cannot be cancelled.
+* Cancelled Production Batches cannot be cancelled again.
+
+If validation fails, the request returns an appropriate error response.
+
+---
+
 # Tray Endpoints
 
 ## Add Tray
@@ -138,11 +203,69 @@ POST /api/production-batches/{id}/trays
 
 Adds a Tray to a Production Batch.
 
+The request identifies the Tray Slot and Physical Tray selected for that Production Batch.
+
 The request may include a Recipe identifier.
 
 When a Recipe is provided, the server copies the relevant Recipe information onto the Tray.
 
 The copied preparation information becomes historical data for that Tray.
+
+---
+
+# Tray Slot Endpoints
+
+Tray Slot endpoints manage Freeze Dryer capacity and slot labels.
+
+## List Tray Slots
+
+```http
+GET /api/freeze-dryers/{id}/tray-slots
+```
+
+Returns the Tray Slots configured for a Freeze Dryer.
+
+## Configure Tray Slots
+
+```http
+PUT /api/freeze-dryers/{id}/tray-slots
+```
+
+Updates the Tray Slot setup for a Freeze Dryer when allowed by business rules.
+
+Historical Production Batches must remain traceable to the Tray Slots selected at the time of production.
+
+---
+
+# Physical Tray Endpoints
+
+Physical Tray endpoints manage reusable removable trays owned by the user.
+
+## Create Physical Tray
+
+```http
+POST /api/physical-trays
+```
+
+Creates a reusable Physical Tray.
+
+## List Physical Trays
+
+```http
+GET /api/physical-trays
+```
+
+Returns Physical Trays available for production setup.
+
+## Update Physical Tray
+
+```http
+PATCH /api/physical-trays/{id}
+```
+
+Updates editable Physical Tray setup information.
+
+Historical Tray records remain preserved.
 
 ---
 
@@ -159,6 +282,48 @@ Returns:
 * historical preparation information
 * weight history
 * package information (if packaged)
+
+---
+
+## Update Tray
+
+```http
+PATCH /api/trays/{id}
+```
+
+Updates the editable fields of a Tray.
+
+### Request
+
+Only editable Tray fields may be modified.
+
+### Validation
+
+* Only Draft Trays may be edited unless otherwise allowed by the business rules.
+* Historical production information must be preserved.
+
+### Response
+
+Returns the updated Tray.
+
+---
+
+## Delete Tray
+
+```http
+DELETE /api/trays/{id}
+```
+
+Removes a Draft Tray from its Production Batch.
+
+### Validation
+
+* Only Draft Trays may be deleted.
+* Running, Completed, Packaged, or Cancelled Trays cannot be deleted.
+
+### Response
+
+Returns a successful response with no body.
 
 ---
 
@@ -441,7 +606,9 @@ The API should be versioned.
 Initial version:
 
 ```
-/api/v1/
+/api/v1/production-batches
+/api/v1/trays
+/api/v1/recipes
 ```
 
 Future breaking changes should create new API versions rather than modifying existing endpoints.

@@ -12,6 +12,136 @@ This screen should minimize navigation, reduce repetitive clicks, and allow the 
 
 ---
 
+# Milestone Progression
+
+The Production Batch screen evolves throughout development.
+
+## Milestone 2 — Setup Only
+
+During Milestone 2, the Production Batch screen is a setup workspace only.
+
+It does not include Weight Checks, tray completion, or packaging actions.
+
+Implement:
+
+* Batch summary (Freeze Dryer, status, notes)
+* Suggested editable Batch Number during creation
+* Freeze Dryer Slots list for setup fields only
+* Select Physical Tray for each used Tray Slot
+* Add product and preparation information for selected Trays
+* Edit Draft Tray
+* Remove Draft Tray
+* Start Production Batch
+* Cancel Production Batch
+
+Do not implement:
+
+* Starting Weight
+* Weight Check entry
+* Tray completion
+* Batch completion indicators beyond Draft / Running / Cancelled
+
+### Milestone 2 Desktop Layout
+
+```text
++======================================================================================+
+| Harvest Right #1                                                     Draft            |
+| Chicken Batch                                                        Not started     |
++======================================================================================+
+
+Batch Notes
+
+______________________________________________________________
+
+Freeze Dryer Slots
+
+Slot | Physical Tray | Product         | Recipe              | Preparation Summary
+
+----------------------------------------------------------------------------
+
+1    | Tray 7        | Taco Chicken    | Taco Chicken        | 2 lbs grilled, seasoned
+
+2    | Tray 3        | Strawberries    | —                   | Washed, hulled, sliced
+
+3    | —             | —               | —                   | —
+
+4    | Tray 11       | Skittles        | Skittles            | Single layer
+
+----------------------------------------------------------------------------
+
+[ Select Trays Used ]
+
+----------------------------------------------------------------------------
+
+[ Start Production Batch ]                              [ Cancel Batch ]
+```
+
+Draft setup should represent the Freeze Dryer's configured Tray Slots and the Physical Trays selected for those slots.
+
+The number of selected Trays cannot exceed the Freeze Dryer's configured Tray Slot count.
+
+Example:
+
+```text
+Slot | Physical Tray | Product         | Recipe              | Preparation Summary
+
+----------------------------------------------------------------------------
+
+1    | Tray 7        | Taco Chicken    | Taco Chicken        | 2 lbs grilled, seasoned
+
+2    | Tray 3        | Strawberries    | —                   | Washed, hulled, sliced
+
+3    | —             | —               | —                   | —
+
+4    | Tray 11       | Skittles        | Skittles            | Single layer
+```
+
+The recommended setup action is:
+
+```text
+Select Trays Used
+```
+
+Primary action while Draft:
+
+Start Production Batch
+
+Once Running in Milestone 2, the screen shows the batch and tray setup information in read-only form.
+
+Weight entry belongs to Milestone 3.
+
+---
+
+## Milestone 3 and Later
+
+Adds Starting Weight, inline Weight Checks, tray completion, drying progress, Production Batch completion, and the full layouts below.
+
+Starting Weight should appear as a structured field for each Tray before or when production starts.
+
+Users should not need to store Starting Weight in Notes.
+
+Example:
+
+```text
+Slot | Physical Tray | Product      | Starting Weight | Status
+
+----------------------------------------------------------------------------
+
+1    | Tray 7        | Chicken      | [ 2.0 lb ]       | Ready
+
+2    | Tray 3        | Chicken      | [ 2.0 lb ]       | Ready
+
+3    | Tray 11       | Blueberries  | [ 2.0 lb ]       | Ready
+
+4    | Tray 2        | Strawberries | [ 2.0 lb ]       | Ready
+
+----------------------------------------------------------------------------
+
+[ Start Production Batch ]
+```
+
+---
+
 # User Goals
 
 A user should be able to:

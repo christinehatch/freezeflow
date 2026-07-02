@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A Tray represents one physical tray loaded into a Freeze Dryer during a Production Batch.
+A Tray represents one loaded tray record within a Production Batch.
 
 The Tray is the primary production record in Freezeflow.
 
@@ -24,7 +24,8 @@ Every Tray preserves its own production history.
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
 | productionBatchId | Yes | No | Parent Production Batch |
-| trayNumber | Yes | No* | Position within the Production Batch |
+| traySlotId | Yes | No* | Freeze Dryer Tray Slot used during the Batch |
+| physicalTrayId | Yes | No* | Reusable Physical Tray used during the Batch |
 | recipeId | No | No | Optional Recipe template used |
 | productName | Yes | Yes** | Historical product name |
 | preparation | Yes | Yes** | Historical preparation snapshot |
@@ -34,7 +35,7 @@ Every Tray preserves its own production history.
 | finalDryWeightGrams | No | System | Recorded when the Tray is completed |
 | completedAt | No | System | Automatically set when the Tray is completed |
 
-\* Tray numbers may only be changed while the Batch is still in Draft.
+\* Tray Slot and Physical Tray selections may only be changed while the Batch is still in Draft.
 
 \** Product information may only be edited before drying begins.
 
@@ -47,6 +48,8 @@ Every Tray preserves its own production history.
 A Tray:
 
 - belongs to one Production Batch
+- references one Tray Slot
+- references one Physical Tray
 - may reference one Recipe
 - has many Weight Checks
 - belongs to zero or one Packaging Operation
@@ -144,53 +147,59 @@ Every Tray belongs to exactly one Production Batch.
 
 TR-002
 
-A Tray contains exactly one prepared product.
+Every Tray records which Tray Slot and Physical Tray were used during the Production Batch.
 
 ---
 
 TR-003
 
-A Tray preserves its own historical preparation information.
+A Tray contains exactly one prepared product.
 
 ---
 
 TR-004
 
-A Tray may reference one optional Recipe.
+A Tray preserves its own historical preparation information.
 
 ---
 
 TR-005
 
-A Tray records one Starting Weight.
+A Tray may reference one optional Recipe.
 
 ---
 
 TR-006
 
-A Tray records one Final Dry Weight.
+A Tray records one Starting Weight.
 
 ---
 
 TR-007
 
-A Tray may have many Weight Checks.
+A Tray records one Final Dry Weight.
 
 ---
 
 TR-008
 
-Weight Checks are not permitted after the Tray is completed.
+A Tray may have many Weight Checks.
 
 ---
 
 TR-009
 
-A Tray may participate in only one Packaging Operation.
+Weight Checks are not permitted after the Tray is completed.
 
 ---
 
 TR-010
+
+A Tray may participate in only one Packaging Operation.
+
+---
+
+TR-011
 
 Once a Tray has been included in a Packaging Operation, it is considered fully consumed by that operation.
 
@@ -198,7 +207,7 @@ The resulting product may be divided into one or more Packages.
 
 ---
 
-TR-011
+TR-012
 
 Completed Trays remain historical production records.
 
@@ -208,9 +217,12 @@ They are never deleted.
 
 # Notes
 
-The Tray is the central production entity within Freezlow.
+The Tray is the central production entity within Freezeflow.
 
 Production history, drying progress, recipe snapshots, and packaging traceability all originate from the Tray.
 
 Most historical reports are ultimately derived from Tray records.
 
+Physical Tray identity and Tray Slot selection are part of the Tray's traceability record.
+
+Tare weight, calibration notes, and preferred machine behavior are future Physical Tray enhancements.

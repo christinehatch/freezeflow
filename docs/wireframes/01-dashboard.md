@@ -14,6 +14,83 @@ The Dashboard should immediately direct the user toward the next logical task wi
 
 ---
 
+# Milestone Progression
+
+The Dashboard evolves throughout development.
+
+Each milestone introduces additional sections as new workflows become available.
+
+The wireframe below represents the complete Version 1 Dashboard.
+
+Earlier milestones should implement only the sections relevant to the workflows available at that stage.
+
+## Milestone 2
+
+Implement:
+
+- Quick Actions
+- Needs Attention
+- Freeze Dryer cards
+- Recent Production Batches
+
+Do not implement Packaging, Inventory, Reports, or Weight Tracking.
+
+### Recent Production Batches
+
+Display a fixed list of recent batches using deterministic rules:
+
+* Batches with `startedAt` are shown first and sorted by `startedAt` descending.
+* Batches without `startedAt` are shown after started batches and sorted by `batchNumber` descending.
+* Include Draft, Running, Completed, and Cancelled batches.
+* Show up to 10 entries.
+* Do not repeat a batch that is already shown as the active batch on its Freeze Dryer card.
+
+Each entry should show:
+
+* Batch number
+* Freeze Dryer
+* Status
+* Started date, if available; otherwise "Not started"
+
+---
+
+## Milestone 3
+
+Adds:
+
+- Weight Check reminders
+- Drying progress indicators
+
+---
+
+## Milestone 4
+
+Adds:
+
+- Packaging Queue
+- Completed Trays awaiting Packaging
+
+---
+
+## Milestone 5
+
+Adds:
+
+- Inventory Summary
+- Storage information
+
+---
+
+## Milestone 7
+
+Adds:
+
+- Reports
+- Recent Activity
+- Historical production summaries
+
+---
+
 # User Goals
 
 A user should be able to:

@@ -19,9 +19,11 @@ Every freeze-dried product follows the same high-level lifecycle.
 ```text
 Prepare Food
       ↓
-Create Production Batch
+Create Draft Production Batch
       ↓
-Load Freeze Dryer
+Load Trays
+      ↓
+Start Production
       ↓
 Record Weight Checks
       ↓
@@ -52,23 +54,36 @@ The user records information such as:
 * Date
 * Batch notes
 
+Freezeflow should automatically suggest the next Batch Number.
+
+The suggested Batch Number should be visible before creation and editable before the Draft Production Batch is saved.
+
 Once the production batch has been created, trays can be loaded.
 
 ---
 
 # Workflow 2 — Load Trays
 
-The user assigns products to individual trays.
+The user selects which Physical Trays are used in the Freeze Dryer's Tray Slots.
+
+Each selected Physical Tray becomes a Tray record within the Production Batch.
 
 Each tray contains one prepared product.
 
 The user records:
 
-* Tray number
+* Tray Slot
+* Physical Tray
 * Product
 * Recipe (optional)
 * Preparation details
-* Starting (fresh) weight
+* Notes
+
+Starting Weight is recorded when drying begins, not during production setup.
+
+During Milestone 2, users load Trays and organize the Production Batch without entering weight information.
+
+Starting Weight belongs to Milestone 3, when the user begins tracking drying progress.
 
 Each tray becomes independently trackable throughout the drying process.
 
@@ -78,13 +93,28 @@ The copied preparation information becomes part of the Tray's permanent producti
 
 ---
 
-# Workflow 3 — Start Freeze Drying
+# Workflow 3 — Start Production
 
-After loading all trays, the production batch enters the drying phase.
+Once all required Trays have been added, the user starts the Production Batch.
 
-At this point no additional production setup is required.
+Starting Production transitions the Production Batch from the Draft state to the Running state.
 
-The user simply waits until the next weight check.
+Before Production can begin:
+
+* The Production Batch must contain at least one Tray.
+* The user may continue editing the Production Batch while it is in the Draft state.
+
+Once Production has started:
+
+* Additional production setup is no longer permitted.
+* Every Draft Tray in the Batch transitions to Running.
+* `startedAt` is recorded on the Production Batch.
+* Weight Checks may begin.
+* The Production Batch becomes an active production record.
+
+The Freeze Dryer now has an active Running Production Batch until the Batch completes or is cancelled.
+
+The user then waits until the next scheduled Weight Check.
 
 ---
 
@@ -251,8 +281,18 @@ Examples include:
 ### Product Reports
 
 * Average drying time
-* Yield percentage
+* Fresh-to-dry yield
 * Production frequency
+
+Fresh-to-dry yield is a key production insight.
+
+It answers: "How much finished dry product do I actually get from this fresh input?"
+
+Yield reporting belongs in Milestone 7 (Reporting).
+
+Milestone 3 records the underlying weights (Starting Weight and Final Dry Weight).
+
+Milestone 4 adds packaged output, which enables related packaging-efficiency comparisons in reports.
 
 ---
 
@@ -301,6 +341,16 @@ Every package should remain traceable back through every stage of production.
 
 ---
 
+## Preserve Freeform Notes
+
+Production notes are first-class history.
+
+Users should be able to record observations, shorthand, calculations, and imperfect records as quickly as they would in a paper notebook.
+
+Freezeflow should preserve and search notes where appropriate rather than treating them as disposable metadata.
+
+---
+
 ## Keep Inventory Separate from Production
 
 Inventory is the result of production.
@@ -318,6 +368,7 @@ Future versions may add additional workflows without changing the existing produ
 Examples include:
 
 * Recipe management
+* Package Types
 * QR code labels
 * Barcode scanning
 * Mobile weight entry

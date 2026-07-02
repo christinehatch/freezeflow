@@ -22,6 +22,21 @@ The application should support the workflow without becoming the focus of it.
 
 ---
 
+## Smart Notebook
+
+Freezeflow should behave like a smart notebook, not a rigid form.
+
+* Fast capture takes priority over perfect structure.
+* Users should be able to record production information as quickly as writing in a notebook.
+* Freezeflow should progressively add structure only where it improves traceability.
+* The app should never slow production by forcing unnecessary data entry.
+
+Structure should emerge from use, not block the user before work begins.
+
+When a field is optional during capture, the interface should make that obvious and stay out of the way.
+
+---
+
 # Design Principles
 
 ## Make the Next Step Obvious
@@ -65,6 +80,18 @@ Storage
 Inventory
 
 The software should never require users to mentally translate between their real-world process and the application's structure.
+
+---
+
+## Start With the Food
+
+When practical, production capture should begin with the question the user is already answering:
+
+> What are you freeze drying today?
+
+The interface may still create a Production Batch internally, but the user experience should not overemphasize system objects when the user's mental model starts with food, preparation, machine, and trays.
+
+This principle should guide future workflow design without changing the Milestone 2 requirement to support Draft Production Batches and Tray setup.
 
 ---
 
@@ -139,6 +166,10 @@ Examples include:
 * default values
 * suggested tray combinations
 
+Future UX may build structured product descriptions from selections such as product type, cut, preparation, seasoning, cooking method, source, and notes.
+
+Those suggestions should reduce typing while preserving the user's ability to enter freeform descriptions.
+
 ---
 
 ## Preserve Context
@@ -161,6 +192,12 @@ Users should be able to understand how a product reached its current state.
 
 The interface should encourage confidence rather than uncertainty.
 
+Freeform notes are part of production history, not disposable metadata.
+
+Notes may include shorthand, corrections, calculations, observations, "same as above," and imperfect records.
+
+The interface should preserve notes faithfully and make them searchable where appropriate rather than treating them as temporary input.
+
 ---
 
 ## Search First
@@ -174,6 +211,7 @@ Users should be able to quickly locate:
 * trays
 * batches
 * storage locations
+* production notes, where indexed
 
 without navigating through multiple screens.
 
@@ -243,6 +281,96 @@ Examples include:
 * package history
 
 Users should not have to remember information the software already knows.
+
+---
+
+## Don't Make the User Remember
+
+Freezeflow should become the user's production memory.
+
+The interface should surface known context instead of requiring the user to recall it from paper notes or memory.
+
+Examples include:
+
+* previous batches for the same Product
+* recent preparation choices
+* previous drying times
+* Freeze Dryer performance patterns
+* package rerun or special-attention notes
+* storage movement history
+
+This principle does not require every insight to be implemented in Version 1.
+
+It should guide future design decisions as more historical data becomes available.
+
+---
+
+## Ask Better Questions
+
+When a single broad field would force the user to remember too much, the interface should ask smaller workflow-shaped questions.
+
+Examples:
+
+* Is it raw or cooked?
+* If cooked, how was it cooked?
+* Was it seasoned?
+* Was it pre-frozen?
+* Was it store-bought or home-prepared?
+
+The goal is to reduce typing and improve consistency without eliminating freeform notes.
+
+---
+
+## Helpful, Not Bossy
+
+Freezeflow may suggest better habits, warnings, or next steps.
+
+It should not override the user's judgment.
+
+Examples:
+
+* "Would you like to calibrate your trays?"
+* "This Tray has not changed weight since the last Weight Check."
+* "This Freeze Dryer has been slower than usual."
+* "These Products usually finish at different times."
+
+Suggestions should remain explainable and dismissible.
+
+---
+
+# UX Opportunity Themes
+
+User research has identified future UX opportunities that may reduce mental work after the core workflow is stable.
+
+These include:
+
+* guided product description builders
+* reusable smart notes and recently used values
+* Physical Tray calibration
+* live drying dashboards
+* automatic stability detection
+* Freeze Dryer health indicators
+* product pairing suggestions based on drying history
+* supply forecasting
+* production timelines and batch replay
+* rerun warnings
+* historical insight summaries
+
+These are product directions, not current milestone commitments.
+
+---
+
+# Generated Defaults
+
+The interface should reduce typing by suggesting safe defaults for repetitive identifiers.
+
+When creating a Production Batch, Freezeflow should suggest the next Batch Number automatically.
+
+Generated defaults should be visible before saving and editable by the user.
+
+Defaults should reduce work without hiding important production identity from the user.
+
+Each opportunity requires architecture, business rules, persistence, and milestone documentation before implementation.
 
 ---
 

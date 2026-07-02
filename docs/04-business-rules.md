@@ -36,7 +36,11 @@ A Production Batch belongs to exactly one Freeze Dryer.
 
 ## PB-003
 
-A Production Batch must contain at least one Tray.
+A Draft Production Batch may temporarily contain zero Trays while it is being assembled.
+
+A Production Batch must contain at least one Tray before it can transition to the Running state.
+
+A Production Batch cannot contain more Trays than the assigned Freeze Dryer's configured Tray Slot count.
 
 ---
 
@@ -54,6 +58,103 @@ Production Batches are never deleted.
 
 ---
 
+## PB-006
+
+When a Production Batch transitions from Draft to Running:
+
+* `startedAt` is set to the time production began.
+* Every Draft Tray in the Batch transitions to Running.
+
+Tray setup is complete after this transition.
+
+Draft Trays may no longer be added, edited, or removed.
+
+---
+
+## PB-007
+
+A Freeze Dryer may have at most one Running Production Batch at a time.
+
+A Draft Production Batch cannot be started while its Freeze Dryer already has a Running Production Batch.
+
+---
+
+# Freeze Dryer Rules
+
+## FD-001
+
+Every Production Batch must belong to exactly one Freeze Dryer.
+
+---
+
+## FD-002
+
+A Freeze Dryer may have any number of Production Batches over its lifetime.
+
+---
+
+## FD-003
+
+A Freeze Dryer may have at most one Running Production Batch at a time.
+
+---
+
+## FD-004
+
+Archived Freeze Dryers cannot be selected when creating or starting a new Production Batch.
+
+---
+
+## FD-005
+
+Freeze Dryers cannot be deleted if historical Production Batches reference them.
+
+Freeze Dryers should normally be archived rather than deleted.
+
+---
+
+## FD-006
+
+A Freeze Dryer has a configured Tray Slot count.
+
+Tray Slots define the machine's capacity for a Production Batch.
+
+---
+
+## FD-007
+
+A Tray Slot is a position inside a Freeze Dryer.
+
+A Tray Slot does not represent a reusable Physical Tray.
+
+---
+
+# Physical Tray Rules
+
+## PT-001
+
+A Physical Tray is reusable equipment owned by the user.
+
+---
+
+## PT-002
+
+A Physical Tray does not belong permanently to one Freeze Dryer.
+
+---
+
+## PT-003
+
+A Physical Tray may be selected for use in a Tray Slot during Production Batch setup.
+
+---
+
+## PT-004
+
+Changing or archiving a Physical Tray must not alter historical Tray records from completed or running Production Batches.
+
+---
+
 # Tray Rules
 
 ## TR-001
@@ -64,11 +165,25 @@ A Tray belongs to exactly one Production Batch.
 
 ## TR-002
 
-A Tray represents one physical tray within a freeze dryer.
+A Tray represents one loaded tray record within a Production Batch.
+
+A Tray records the Physical Tray and Tray Slot used for that Production Batch when those setup records are available.
 
 ---
 
 ## TR-003
+
+A Tray Slot may be used at most once within a single Production Batch.
+
+---
+
+## TR-004
+
+A Physical Tray may be selected at most once within a single Production Batch.
+
+---
+
+## TR-005
 
 A Tray contains exactly one prepared product.
 
@@ -76,37 +191,39 @@ Different products may not exist on the same tray.
 
 ---
 
-## TR-004
-
-A Tray has one recorded starting (fresh) weight.
-
----
-
-## TR-005
-
-A Tray has one recorded final dry weight.
-
----
-
 ## TR-006
 
-A Tray may have zero or more Weight Checks.
+A Tray has one recorded Starting Weight.
+
+Starting Weight is recorded when drying begins, not during Milestone 2 production setup.
 
 ---
 
 ## TR-007
 
-Once a Tray has been marked complete, no additional Weight Checks may be recorded.
+A Tray has one recorded final dry weight.
 
 ---
 
 ## TR-008
 
-A completed Tray may participate in only one Packaging Operation.
+A Tray may have zero or more Weight Checks.
 
 ---
 
 ## TR-009
+
+Once a Tray has been marked complete, no additional Weight Checks may be recorded.
+
+---
+
+## TR-010
+
+A completed Tray may participate in only one Packaging Operation.
+
+---
+
+## TR-011
 
 A Packaging Operation may either:
 
@@ -117,7 +234,7 @@ A Tray may never participate in more than one Packaging Operation.
 
 ---
 
-## TR-010
+## TR-012
 
 A Tray cannot be split between multiple Packaging Operations.
 
@@ -332,6 +449,74 @@ In that case, the user records the product and preparation information directly 
 
 ---
 
+# Production Notes Rules
+
+## NT-001
+
+Production notes are first-class production history.
+
+Notes may appear on Production Batches, Trays, Weight Checks, Packaging Operations, and Packages.
+
+---
+
+## NT-002
+
+Notes may include shorthand, corrections, calculations, observations, "same as above," and other imperfect real-world record keeping.
+
+The system should preserve notes faithfully rather than requiring formal structure.
+
+---
+
+## NT-003
+
+Notes are never deleted as part of normal production workflow.
+
+Corrections to notes follow the audit process defined in ADR-0005.
+
+---
+
+## NT-004
+
+Notes should be searchable where appropriate so users can locate past observations, preparation details, and packaging decisions.
+
+---
+
+## NT-005
+
+Notes are not disposable metadata.
+
+They contribute to traceability and historical understanding alongside structured production data.
+
+---
+
+# Yield Rules
+
+## YD-001
+
+Fresh-to-dry yield compares Starting Weight to Final Dry Weight for a Tray.
+
+It answers how much finished dry product resulted from the fresh input loaded onto the tray.
+
+---
+
+## YD-002
+
+Yield depends on Starting Weight and Final Dry Weight.
+
+Both values are recorded in Milestone 3.
+
+Yield calculations and historical yield insights belong in Reporting (Milestone 7).
+
+---
+
+## YD-003
+
+Reports may also compare total packaged output to source tray weight after Milestone 4 introduces Packaging.
+
+That comparison answers a related but distinct question about packaging efficiency.
+
+---
+
 # Historical Data Rules
 
 ## HD-001
@@ -362,6 +547,20 @@ Every Package must always be traceable to:
 ## HD-004
 
 Changes to inventory must never destroy production history.
+
+---
+
+## HD-005
+
+Important workflow events should be preserved as historical records whenever practical.
+
+Examples include Weight Checks, Packaging Operations, Storage Location History, Audit Entries, lifecycle timestamps, and production notes.
+
+---
+
+## HD-006
+
+Current state may be stored for usability, but it must not replace the historical records needed to explain how that state was reached.
 
 ---
 
@@ -405,3 +604,7 @@ Future features must continue to respect every business rule defined in this doc
 New functionality should extend the workflow without violating production history, traceability, or inventory integrity.
 
 Any rule changes should be documented before implementation.
+
+Future enhancements may include Package Types as reusable packaging templates with defaults for oxygen absorber, label behavior, expected weight, and packaging notes.
+
+Package Types are not part of Milestone 2.

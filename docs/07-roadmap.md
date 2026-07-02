@@ -66,17 +66,23 @@ No business workflows are implemented during this milestone.
 
 ## Milestone 2 — Production Workflow
 
-Implement the first production workflow.
+Implement the production setup workflow.
 
 Includes:
 
 - Freeze Dryer management
-- Production Batches
-- Trays
 - Production Dashboard
+- Draft Production Batches
+- Tray management
+- Start Production
+- Cancel Production
 - Production navigation
 
-Users can organize a production run, but drying progress is not yet tracked.
+Users can create and organize a production run.
+
+Production setup ends when the user starts the Production Batch.
+
+Weight tracking, tray completion, packaging, and inventory management are implemented in later milestones.
 
 ---
 
@@ -94,6 +100,17 @@ Includes:
 
 Users can now fully record a production run.
 
+Milestone 3 records the weight data required for fresh-to-dry yield:
+
+* Starting Weight (fresh input)
+* Final Dry Weight (finished tray output)
+
+Yield itself is a derived production metric.
+
+Individual tray moisture loss may be visible when a Tray completes.
+
+Answering historical yield questions across products and batches belongs in Milestone 7 (Reporting).
+
 ---
 
 ## Milestone 4 — Packaging
@@ -107,6 +124,10 @@ Includes:
 - Multiple Packages
 - Traceability
 - Initial Storage Location assignment
+
+Package attributes (sealed weight, oxygen absorber, notes) are recorded directly on each Package.
+
+Package Types as reusable templates are a future enhancement, not part of initial Milestone 4 implementation.
 
 ---
 
@@ -147,7 +168,17 @@ Includes:
 - Production reports
 - Inventory reports
 - Drying statistics
+- Fresh-to-dry yield analysis
 - Historical analysis
+
+Reporting answers questions such as:
+
+* How much finished dry product do I actually get from this fresh input?
+* Which products or preparation methods produce the best yield over time?
+
+Yield analysis depends on Starting Weight and Final Dry Weight recorded in Milestone 3.
+
+Packaging data from Milestone 4 enables additional comparisons between tray output and sealed package output.
 
 ---
 
@@ -238,7 +269,83 @@ The following features are intentionally deferred until the production workflow 
 * Long-term trends
 * Machine efficiency
 * Product comparisons
+* Fresh-to-dry yield trends
 * Historical charts
+
+---
+
+## Package Types
+
+Reusable packaging templates for common container formats.
+
+Examples:
+
+* 1 qt Mylar
+* 2 qt Mylar
+* Pint Jar
+* Half Gallon Jar
+
+A Package Type may eventually provide defaults such as:
+
+* oxygen absorber size
+* label behavior
+* expected sealed weight
+* packaging notes
+
+Package Types are a future enhancement.
+
+They are not part of Milestone 2 or Milestone 4 initial implementation.
+
+---
+
+## Future Domain Enhancements
+
+User research has identified additional real-world concepts that may become first-class records after the core V1 workflow is stable.
+
+These include:
+
+* Physical Tray tare weights and calibration notes
+* Drying Run or Drying Session records for additional machine-run intervals
+* Packaging Supplies such as Mylar bags, oxygen absorbers, and labels
+* Supply stock counts and reorder reminders
+* Guided product description builders for consistent naming and reporting
+* Package rerun or special-attention history
+* Freeze Dryer maintenance history
+
+These concepts should be documented in architecture and persistence docs before implementation.
+
+They should not be added opportunistically to the current milestone.
+
+---
+
+## Future UX Opportunities
+
+User research has also identified product opportunities that may help Freezeflow remove mental work for the user.
+
+Examples include:
+
+* structured product-name builders
+* smart reusable notes
+* tray calibration wizards
+* live drying dashboards
+* automatic stability indicators
+* machine health comparisons
+* product pairing suggestions
+* smart warnings for mismatched products
+* supply forecasts
+* production timelines
+* batch replay
+* rerun visibility
+* historical insight summaries
+
+These opportunities should be evaluated against the product philosophy:
+
+* preserve trustworthy history
+* reduce cognitive load
+* automate math, not judgment
+* help users improve their craft
+
+They are not current milestone commitments.
 
 ---
 
@@ -262,7 +369,7 @@ Development should prioritize:
 1. Recording production accurately.
 2. Packaging products correctly.
 3. Finding inventory quickly.
-4. Learning from historical data.
+4. Learning from historical data, including fresh-to-dry yield.
 
 If a proposed feature does not improve one of these four areas, it should be reconsidered before implementation.
 
@@ -275,4 +382,3 @@ This roadmap is expected to evolve as new requirements are discovered.
 Changes should preserve the overall philosophy of the project while remaining focused on improving the real-world freeze-drying workflow.
 
 The roadmap should remain implementation-independent and should describe user-facing value rather than technical tasks.
-

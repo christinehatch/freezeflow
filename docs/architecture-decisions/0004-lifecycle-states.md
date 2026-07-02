@@ -84,6 +84,11 @@ Users may:
 
 Freeze drying has begun.
 
+When a Production Batch enters Running:
+
+* `startedAt` is set if not already recorded.
+* Every Draft Tray in the Batch transitions to Running.
+
 Users may:
 
 * Record Weight Checks

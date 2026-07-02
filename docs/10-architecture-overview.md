@@ -22,6 +22,12 @@ Historical information is considered more valuable than convenience.
 
 The architecture is designed to preserve complete traceability from raw product to finished Package.
 
+The architecture is also event-oriented.
+
+Primary entities keep the current state needed for daily use, while historical records preserve the observations and actions that explain how that state was reached.
+
+ADR-0008 defines this principle.
+
 ---
 
 # High-Level Flow
@@ -90,16 +96,23 @@ Production Batches organize production but do not directly contain inventory.
 
 ## Trays
 
-A Tray represents one physical tray inside a Freeze Dryer.
+A Tray represents one loaded tray record inside a Production Batch.
 
 Each Tray:
 
 * contains one prepared product
+* records the Tray Slot and Physical Tray used for the Batch
 * records its own Weight Checks
 * progresses independently through production
 * preserves its own historical preparation information
 
 The Tray is the core production record in Freezeflow.
+
+Physical Trays are reusable equipment records.
+
+Tray Slots are Freeze Dryer positions.
+
+Future versions may add tare weights or calibration notes to Physical Trays.
 
 ---
 
@@ -205,11 +218,17 @@ The architecture intentionally separates different responsibilities.
 | Preparation Templates | Recipe              |
 | Production Session    | Production Batch    |
 | Production History    | Tray                |
+| Reusable Tray Setup   | Physical Tray       |
+| Freeze Dryer Capacity | Tray Slot           |
 | Drying Progress       | Weight Check        |
 | Packaging Event       | Packaging Operation |
 | Inventory             | Package             |
 | Physical Storage      | Storage Location    |
 | Historical Analysis   | Reports             |
+
+Future architecture may add Drying Run or Drying Session and Supply records.
+
+Those concepts should be introduced through documentation before implementation.
 
 Each entity has one primary purpose.
 
@@ -274,4 +293,3 @@ For additional detail, refer to:
 7. Wireframes
 
 Together, these documents define the complete Version 1 architecture of Freezeflow.
-

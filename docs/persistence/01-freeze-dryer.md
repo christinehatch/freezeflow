@@ -26,10 +26,16 @@ Freeze Dryers are long-lived setup records that change infrequently.
 A Freeze Dryer:
 
 - has many Production Batches
+- has many Tray Slots
 
 A Production Batch:
 
 - belongs to exactly one Freeze Dryer
+
+A Tray Slot:
+
+- belongs to exactly one Freeze Dryer
+- may be selected by many historical Trays over time
 
 ---
 
@@ -92,10 +98,32 @@ Changing a Freeze Dryer does not modify historical Production Batch records.
 
 ---
 
+FD-006
+
+A Freeze Dryer may have at most one Running Production Batch at a time.
+
+---
+
+FD-007
+
+A Freeze Dryer has a configured number of Tray Slots.
+
+---
+
+FD-008
+
+Tray Slots represent positions inside the Freeze Dryer, not reusable Physical Trays.
+
+---
+
 # Notes
 
-The Freeze Dryer is intentionally lightweight.
+The Freeze Dryer represents the physical machine.
 
-It represents the physical machine, not its maintenance history, runtime statistics, firmware version, or hardware configuration.
+It may include basic hardware setup such as Tray Slots.
+
+It does not own reusable Physical Trays.
+
+Maintenance history, runtime statistics, firmware version, and detailed hardware diagnostics are future enhancements.
 
 Those features may be added in future versions if needed.

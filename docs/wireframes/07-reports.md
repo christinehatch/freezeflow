@@ -167,8 +167,14 @@ Users should be able to answer:
 
 * How often have I freeze dried this product?
 * What is the average drying time?
-* What is the average dry yield?
+* What is the average fresh-to-dry yield?
 * When was the last batch?
+
+Fresh-to-dry yield compares Starting Weight to Final Dry Weight.
+
+Yield analysis belongs in Reporting (Milestone 7).
+
+Milestone 3 records the underlying weights.
 
 ---
 

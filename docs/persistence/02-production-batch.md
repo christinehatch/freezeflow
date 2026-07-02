@@ -18,7 +18,7 @@ A Production Batch organizes the production process but does not directly repres
 | freezeDryerId | Yes | No* | The Freeze Dryer used for this Batch |
 | batchNumber | Yes | No | Human-readable identifier |
 | status | Yes | System | Lifecycle state |
-| startedAt | No | Yes | When the Batch began |
+| startedAt | No | System | Set when the Batch transitions to Running |
 | completedAt | No | System | Automatically set when the Batch completes |
 | notes | No | Yes | Optional production notes |
 
@@ -65,6 +65,11 @@ Cancelled batches remain part of the historical record.
 
 Completed batches cannot return to an earlier lifecycle state.
 
+When a Production Batch transitions from Draft to Running:
+
+- `startedAt` is set to the transition time
+- every Draft Tray in the Batch transitions to Running
+
 ---
 
 # Completion
@@ -101,7 +106,9 @@ Every Production Batch belongs to exactly one Freeze Dryer.
 
 PB-002
 
-A Production Batch must contain at least one Tray.
+A Draft Production Batch may temporarily contain zero Trays while it is being assembled.
+
+A Production Batch must contain at least one Tray before it can transition to Running.
 
 ---
 
