@@ -2,15 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { Tray, productionApi } from "../api/client";
+import { PhysicalTray, Tray, TraySlot, productionApi } from "../api/client";
 
 export function ProductionBatchPage() {
   const { batchId } = useParams();
   const queryClient = useQueryClient();
-  const [trayNumber, setTrayNumber] = useState("");
-  const [productName, setProductName] = useState("");
-  const [preparation, setPreparation] = useState("");
-  const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isEditingBatch, setIsEditingBatch] = useState(false);
   const [batchFreezeDryerId, setBatchFreezeDryerId] = useState("");
@@ -24,22 +20,9 @@ export function ProductionBatchPage() {
     queryKey: ["freeze-dryers"],
     queryFn: productionApi.listFreezeDryers,
   });
-  const addTray = useMutation({
-    mutationFn: productionApi.addTray,
-    onError: (mutationError) => {
-      setError(mutationError.message);
-    },
-    onSuccess: () => {
-      setTrayNumber("");
-      setProductName("");
-      setPreparation("");
-      setNotes("");
-      setError(null);
-      void queryClient.invalidateQueries({
-        queryKey: ["production-batch", batchId],
-      });
-      void queryClient.invalidateQueries({ queryKey: ["production-batches"] });
-    },
+  const physicalTraysQuery = useQuery({
+    queryKey: ["physical-trays"],
+    queryFn: productionApi.listPhysicalTrays,
   });
   const startBatch = useMutation({
     mutationFn: productionApi.startProductionBatch,
@@ -76,24 +59,21 @@ export function ProductionBatchPage() {
   const batch = batchQuery.data;
   const isDraft = batch?.status === "Draft";
   const freezeDryers = freezeDryersQuery.data ?? [];
+  const physicalTrays = physicalTraysQuery.data ?? [];
+  const activePhysicalTrays = physicalTrays.filter(
+    (physicalTray) => !physicalTray.archived,
+  );
   const selectableFreezeDryers = freezeDryers.filter(
     (freezeDryer) =>
       !freezeDryer.archived || freezeDryer.id === batch?.freeze_dryer_id,
   );
-
-  function handleAddTray(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!batchId) return;
-    addTray.mutate({
-      batchId,
-      body: {
-        tray_number: Number(trayNumber),
-        product_name: productName,
-        preparation,
-        notes: notes.trim() === "" ? null : notes,
-      },
-    });
-  }
+  const traySlots =
+    batch?.freeze_dryer.tray_slots
+      .filter((traySlot) => !traySlot.archived)
+      .sort((a, b) => a.slot_number - b.slot_number) ?? [];
+  const selectedPhysicalTrayIds = new Set(
+    batch?.trays.map((tray) => tray.physical_tray_id) ?? [],
+  );
 
   function handleBatchUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -220,10 +200,14 @@ export function ProductionBatchPage() {
             </div>
           </form>
         ) : (
-          <dl className="mt-4 grid gap-4 md:grid-cols-2">
+          <dl className="mt-4 grid gap-4 md:grid-cols-3">
             <div>
               <dt className="label-text">Freeze Dryer</dt>
               <dd>{batch.freeze_dryer.name}</dd>
+            </div>
+            <div>
+              <dt className="label-text">Tray Slots</dt>
+              <dd>{batch.freeze_dryer.tray_slot_count}</dd>
             </div>
             <div>
               <dt className="label-text">Batch Notes</dt>
@@ -237,88 +221,53 @@ export function ProductionBatchPage() {
 
       <section className="panel">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="section-title">Trays</h3>
+          <h3 className="section-title">Freeze Dryer Slots</h3>
           <p className="text-sm text-slate-600">
             {isDraft
-              ? "Add trays before starting production."
+              ? "Select the Physical Trays used in this Production Batch."
               : "Setup is locked for this Production Batch."}
           </p>
         </div>
 
-        {batch.trays.length === 0 ? (
+        {traySlots.length === 0 ? (
           <p className="mt-4 text-slate-600">
-            No Trays have been added to this Draft Production Batch.
+            This Freeze Dryer has no active Tray Slots configured.
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Tray</th>
+                  <th>Slot</th>
+                  <th>Physical Tray</th>
                   <th>Product</th>
-                  <th>Preparation Summary</th>
+                  <th>Preparation</th>
                   <th>Notes</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {batch.trays.map((tray) => (
-                  <TrayRow
-                    batchId={batch.id}
-                    editable={isDraft && tray.status === "Draft"}
-                    key={tray.id}
-                    tray={tray}
-                  />
-                ))}
+                {traySlots.map((traySlot) => {
+                  const tray = batch.trays.find(
+                    (batchTray) => batchTray.tray_slot_id === traySlot.id,
+                  );
+                  return (
+                    <SlotSetupRow
+                      batchId={batch.id}
+                      editable={Boolean(isDraft)}
+                      key={traySlot.id}
+                      physicalTrays={activePhysicalTrays}
+                      selectedPhysicalTrayIds={selectedPhysicalTrayIds}
+                      tray={tray}
+                      traySlot={traySlot}
+                    />
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-
-        {isDraft ? (
-          <form
-            className="mt-6 grid gap-4 md:grid-cols-[8rem_1fr_2fr_1fr_auto]"
-            onSubmit={handleAddTray}
-          >
-            <label className="field">
-              <span>Tray</span>
-              <input
-                min="1"
-                required
-                type="number"
-                value={trayNumber}
-                onChange={(event) => setTrayNumber(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Product</span>
-              <input
-                required
-                value={productName}
-                onChange={(event) => setProductName(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Preparation</span>
-              <input
-                required
-                value={preparation}
-                onChange={(event) => setPreparation(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Notes</span>
-              <input
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-              />
-            </label>
-            <button className="secondary-action self-end" type="submit">
-              + Add Tray
-            </button>
-          </form>
-        ) : null}
       </section>
 
       <section className="flex flex-wrap gap-3">
@@ -353,44 +302,105 @@ export function ProductionBatchPage() {
   );
 }
 
-function TrayRow({
+function SlotSetupRow({
   batchId,
   editable,
+  physicalTrays,
+  selectedPhysicalTrayIds,
   tray,
+  traySlot,
 }: {
   batchId: string;
   editable: boolean;
-  tray: Tray;
+  physicalTrays: PhysicalTray[];
+  selectedPhysicalTrayIds: Set<string>;
+  tray?: Tray;
+  traySlot: TraySlot;
 }) {
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [trayNumber, setTrayNumber] = useState(String(tray.tray_number));
-  const [productName, setProductName] = useState(tray.product_name);
-  const [preparation, setPreparation] = useState(tray.preparation);
-  const [notes, setNotes] = useState(tray.notes ?? "");
+  const [isEditing, setIsEditing] = useState(!tray);
+  const [physicalTrayId, setPhysicalTrayId] = useState(
+    tray?.physical_tray_id ?? "",
+  );
+  const [productName, setProductName] = useState(tray?.product_name ?? "");
+  const [preparation, setPreparation] = useState(tray?.preparation ?? "");
+  const [notes, setNotes] = useState(tray?.notes ?? "");
+  const addTray = useMutation({
+    mutationFn: productionApi.addTray,
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
   const updateTray = useMutation({
     mutationFn: productionApi.updateTray,
-    onSuccess: () => refreshBatch(queryClient, batchId),
+    onSuccess: () => {
+      setIsEditing(false);
+      refreshBatch(queryClient, batchId);
+    },
   });
   const deleteTray = useMutation({
     mutationFn: productionApi.deleteTray,
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
 
-  if (isEditing) {
+  const slotLabel = traySlot.label || `Slot ${traySlot.slot_number}`;
+  const availablePhysicalTrays = physicalTrays.filter(
+    (physicalTray) =>
+      physicalTray.id === tray?.physical_tray_id ||
+      !selectedPhysicalTrayIds.has(physicalTray.id),
+  );
+
+  function handleSave() {
+    const body = {
+      tray_slot_id: traySlot.id,
+      physical_tray_id: physicalTrayId,
+      product_name: productName,
+      preparation,
+      notes: notes.trim() === "" ? null : notes,
+    };
+
+    if (tray) {
+      updateTray.mutate({ id: tray.id, body });
+    } else {
+      addTray.mutate({ batchId, body });
+    }
+  }
+
+  if (!tray && !editable) {
     return (
       <tr>
+        <td>{slotLabel}</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>Empty</td>
+        <td></td>
+      </tr>
+    );
+  }
+
+  if (editable && isEditing) {
+    return (
+      <tr>
+        <td>{slotLabel}</td>
         <td>
-          <input
+          <select
             className="table-input"
-            type="number"
-            value={trayNumber}
-            onChange={(event) => setTrayNumber(event.target.value)}
-          />
+            required
+            value={physicalTrayId}
+            onChange={(event) => setPhysicalTrayId(event.target.value)}
+          >
+            <option value="">Select Tray</option>
+            {availablePhysicalTrays.map((physicalTray) => (
+              <option key={physicalTray.id} value={physicalTray.id}>
+                {physicalTray.label}
+              </option>
+            ))}
+          </select>
         </td>
         <td>
           <input
             className="table-input"
+            required
             value={productName}
             onChange={(event) => setProductName(event.target.value)}
           />
@@ -398,6 +408,7 @@ function TrayRow({
         <td>
           <input
             className="table-input"
+            required
             value={preparation}
             onChange={(event) => setPreparation(event.target.value)}
           />
@@ -409,32 +420,58 @@ function TrayRow({
             onChange={(event) => setNotes(event.target.value)}
           />
         </td>
-        <td>{tray.status}</td>
+        <td>{tray?.status ?? "Draft"}</td>
         <td className="flex gap-2">
           <button
             className="secondary-action"
-            onClick={() => {
-              updateTray.mutate({
-                id: tray.id,
-                body: {
-                  tray_number: Number(trayNumber),
-                  product_name: productName,
-                  preparation,
-                  notes: notes.trim() === "" ? null : notes,
-                },
-              });
-              setIsEditing(false);
-            }}
+            disabled={
+              physicalTrayId === "" ||
+              productName.trim() === "" ||
+              preparation.trim() === "" ||
+              addTray.isPending ||
+              updateTray.isPending
+            }
+            onClick={handleSave}
             type="button"
           >
             Save
           </button>
+          {tray ? (
+            <button
+              className="quiet-action"
+              onClick={() => {
+                setPhysicalTrayId(tray.physical_tray_id);
+                setProductName(tray.product_name);
+                setPreparation(tray.preparation);
+                setNotes(tray.notes ?? "");
+                setIsEditing(false);
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </td>
+      </tr>
+    );
+  }
+
+  if (!tray) {
+    return (
+      <tr>
+        <td>{slotLabel}</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>Empty</td>
+        <td>
           <button
             className="quiet-action"
-            onClick={() => setIsEditing(false)}
+            onClick={() => setIsEditing(true)}
             type="button"
           >
-            Cancel
+            Select Tray
           </button>
         </td>
       </tr>
@@ -443,7 +480,8 @@ function TrayRow({
 
   return (
     <tr>
-      <td>{tray.tray_number}</td>
+      <td>{slotLabel}</td>
+      <td>{tray.physical_tray.label}</td>
       <td>
         <Link className="text-link" to={`/trays/${tray.id}`}>
           {tray.product_name}
@@ -457,7 +495,7 @@ function TrayRow({
           <Link className="quiet-action" to={`/trays/${tray.id}`}>
             View
           </Link>
-          {editable ? (
+          {editable && tray.status === "Draft" ? (
             <>
               <button
                 className="quiet-action"
@@ -471,7 +509,7 @@ function TrayRow({
                 onClick={() => deleteTray.mutate(tray.id)}
                 type="button"
               >
-                Remove
+                Clear
               </button>
             </>
           ) : null}

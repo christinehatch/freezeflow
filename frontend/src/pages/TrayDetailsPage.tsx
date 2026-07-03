@@ -34,13 +34,14 @@ export function TrayDetailsPage() {
         >
           Production Batch
         </Link>{" "}
-        / Tray {tray.tray_number}
+        / {tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}
       </nav>
 
       <section className="workspace-header">
         <div>
           <p className="text-sm font-medium text-slate-500">
-            Tray {tray.tray_number}
+            {tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`} ·{" "}
+            {tray.physical_tray.label}
           </p>
           <h2 className="text-3xl font-semibold">{tray.product_name}</h2>
         </div>
@@ -50,6 +51,16 @@ export function TrayDetailsPage() {
       <section className="panel">
         <h3 className="section-title">Product</h3>
         <dl className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <dt className="label-text">Physical Tray</dt>
+            <dd>{tray.physical_tray.label}</dd>
+          </div>
+          <div>
+            <dt className="label-text">Tray Slot</dt>
+            <dd>
+              {tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}
+            </dd>
+          </div>
           <div>
             <dt className="label-text">Recipe</dt>
             <dd>{tray.recipe_name ?? "No Recipe"}</dd>

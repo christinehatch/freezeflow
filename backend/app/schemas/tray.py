@@ -7,7 +7,8 @@ from app.schemas.base import ReadSchema
 
 
 class TrayCreate(BaseModel):
-    tray_number: int
+    tray_slot_id: UUID
+    physical_tray_id: UUID
     recipe_id: UUID | None = None
     product_name: str | None = None
     preparation: str | None = None
@@ -15,7 +16,8 @@ class TrayCreate(BaseModel):
 
 
 class TrayUpdate(BaseModel):
-    tray_number: int | None = None
+    tray_slot_id: UUID | None = None
+    physical_tray_id: UUID | None = None
     product_name: str | None = None
     preparation: str | None = None
     notes: str | None = None
@@ -24,7 +26,8 @@ class TrayUpdate(BaseModel):
 class TrayRead(ReadSchema):
     id: UUID
     production_batch_id: UUID
-    tray_number: int
+    tray_slot_id: UUID
+    physical_tray_id: UUID
     recipe_id: UUID | None = None
     product_name: str
     preparation: str

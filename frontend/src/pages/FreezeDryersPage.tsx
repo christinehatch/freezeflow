@@ -2,12 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import { Link } from "react-router";
 
-import { FreezeDryer, ProductionBatch, productionApi } from "../api/client";
+import {
+  FreezeDryer,
+  PhysicalTray,
+  ProductionBatch,
+  productionApi,
+} from "../api/client";
 
 export function FreezeDryersPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
+  const [traySlotCount, setTraySlotCount] = useState("4");
+  const [physicalTrayLabel, setPhysicalTrayLabel] = useState("");
+  const [physicalTrayNotes, setPhysicalTrayNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const freezeDryersQuery = useQuery({
     queryKey: ["freeze-dryers"],
@@ -17,6 +25,10 @@ export function FreezeDryersPage() {
     queryKey: ["production-batches"],
     queryFn: productionApi.listProductionBatches,
   });
+  const physicalTraysQuery = useQuery({
+    queryKey: ["physical-trays"],
+    queryFn: productionApi.listPhysicalTrays,
+  });
   const saveFreezeDryer = useMutation({
     mutationFn: productionApi.createFreezeDryer,
     onError: (mutationError) => {
@@ -25,12 +37,26 @@ export function FreezeDryersPage() {
     onSuccess: () => {
       setName("");
       setNotes("");
+      setTraySlotCount("4");
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ["freeze-dryers"] });
     },
   });
+  const savePhysicalTray = useMutation({
+    mutationFn: productionApi.createPhysicalTray,
+    onError: (mutationError) => {
+      setError(mutationError.message);
+    },
+    onSuccess: () => {
+      setPhysicalTrayLabel("");
+      setPhysicalTrayNotes("");
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ["physical-trays"] });
+    },
+  });
   const freezeDryers = freezeDryersQuery.data ?? [];
   const batches = batchesQuery.data ?? [];
+  const physicalTrays = physicalTraysQuery.data ?? [];
   const activeBatches = batches.filter((batch) => batch.status === "Running");
   const activeDryers = freezeDryers.filter(
     (freezeDryer) => !freezeDryer.archived,
@@ -44,6 +70,15 @@ export function FreezeDryersPage() {
     saveFreezeDryer.mutate({
       name,
       notes: notes.trim() === "" ? null : notes,
+      tray_slot_count: Number(traySlotCount),
+    });
+  }
+
+  function handleCreatePhysicalTray(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    savePhysicalTray.mutate({
+      label: physicalTrayLabel,
+      notes: physicalTrayNotes.trim() === "" ? null : physicalTrayNotes,
     });
   }
 
@@ -57,7 +92,7 @@ export function FreezeDryersPage() {
       </section>
 
       <form
-        className="panel grid gap-4 md:grid-cols-[1fr_2fr_auto]"
+        className="panel grid gap-4 md:grid-cols-[1fr_8rem_2fr_auto]"
         onSubmit={handleCreate}
       >
         <label className="field">
@@ -66,6 +101,16 @@ export function FreezeDryersPage() {
             required
             value={name}
             onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Tray Slots</span>
+          <input
+            min="1"
+            required
+            type="number"
+            value={traySlotCount}
+            onChange={(event) => setTraySlotCount(event.target.value)}
           />
         </label>
         <label className="field">
@@ -83,9 +128,63 @@ export function FreezeDryersPage() {
           + New Freeze Dryer
         </button>
         {error ? (
-          <p className="md:col-span-3 text-sm text-red-700">{error}</p>
+          <p className="md:col-span-4 text-sm text-red-700">{error}</p>
         ) : null}
       </form>
+
+      <section className="panel">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="section-title">Physical Trays</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Reusable trays owned by the client. They can be selected for any
+              Freeze Dryer slot during Production Batch setup.
+            </p>
+          </div>
+        </div>
+        <form
+          className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_auto]"
+          onSubmit={handleCreatePhysicalTray}
+        >
+          <label className="field">
+            <span>Label</span>
+            <input
+              required
+              value={physicalTrayLabel}
+              onChange={(event) => setPhysicalTrayLabel(event.target.value)}
+              placeholder="Tray 1"
+            />
+          </label>
+          <label className="field">
+            <span>Notes</span>
+            <input
+              value={physicalTrayNotes}
+              onChange={(event) => setPhysicalTrayNotes(event.target.value)}
+            />
+          </label>
+          <button
+            className="secondary-action self-end"
+            disabled={savePhysicalTray.isPending}
+            type="submit"
+          >
+            + Add Physical Tray
+          </button>
+        </form>
+        {physicalTrays.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            No Physical Trays have been created.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {physicalTrays.map((physicalTray) => (
+              <PhysicalTrayRow
+                key={physicalTray.id}
+                physicalTray={physicalTray}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       <section>
         <h3 className="section-title">Active Freeze Dryers</h3>
@@ -136,6 +235,9 @@ function FreezeDryerCard({
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(freezeDryer.name);
   const [notes, setNotes] = useState(freezeDryer.notes ?? "");
+  const [traySlotCount, setTraySlotCount] = useState(
+    String(freezeDryer.tray_slot_count),
+  );
   const [error, setError] = useState<string | null>(null);
   const updateFreezeDryer = useMutation({
     mutationFn: ({
@@ -143,7 +245,12 @@ function FreezeDryerCard({
       body,
     }: {
       id: string;
-      body: { name?: string; notes?: string | null; archived?: boolean };
+      body: {
+        name?: string;
+        notes?: string | null;
+        archived?: boolean;
+        tray_slot_count?: number;
+      };
     }) => productionApi.updateFreezeDryer(id, body),
     onError: (mutationError) => {
       setError(mutationError.message);
@@ -162,6 +269,7 @@ function FreezeDryerCard({
       body: {
         name,
         notes: notes.trim() === "" ? null : notes,
+        tray_slot_count: Number(traySlotCount),
       },
     });
   }
@@ -185,6 +293,16 @@ function FreezeDryerCard({
               onChange={(event) => setNotes(event.target.value)}
             />
           </label>
+          <label className="field">
+            <span>Tray Slots</span>
+            <input
+              min="1"
+              required
+              type="number"
+              value={traySlotCount}
+              onChange={(event) => setTraySlotCount(event.target.value)}
+            />
+          </label>
           <div className="flex flex-wrap gap-2">
             <button
               className="secondary-action"
@@ -198,6 +316,7 @@ function FreezeDryerCard({
               onClick={() => {
                 setName(freezeDryer.name);
                 setNotes(freezeDryer.notes ?? "");
+                setTraySlotCount(String(freezeDryer.tray_slot_count));
                 setIsEditing(false);
                 setError(null);
               }}
@@ -220,6 +339,9 @@ function FreezeDryerCard({
           <p className="mt-1 text-sm text-slate-600">
             {freezeDryer.notes || "No notes"}
           </p>
+          <p className="mt-2 text-sm text-slate-600">
+            {freezeDryer.tray_slot_count} Tray Slots
+          </p>
         </div>
         <span className={activeBatch ? "pill-running" : "pill-idle"}>
           {activeBatch ? "Running" : "Idle"}
@@ -232,7 +354,10 @@ function FreezeDryerCard({
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         {activeBatch ? (
-          <Link className="secondary-action" to={`/production/${activeBatch.id}`}>
+          <Link
+            className="secondary-action"
+            to={`/production/${activeBatch.id}`}
+          >
             Open Current Batch
           </Link>
         ) : (
@@ -272,13 +397,8 @@ function FreezeDryerCard({
 function ArchivedFreezeDryerRow({ freezeDryer }: { freezeDryer: FreezeDryer }) {
   const queryClient = useQueryClient();
   const restoreFreezeDryer = useMutation({
-    mutationFn: ({
-      id,
-      body,
-    }: {
-      id: string;
-      body: { archived: boolean };
-    }) => productionApi.updateFreezeDryer(id, body),
+    mutationFn: ({ id, body }: { id: string; body: { archived: boolean } }) =>
+      productionApi.updateFreezeDryer(id, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["freeze-dryers"] });
     },
@@ -299,6 +419,109 @@ function ArchivedFreezeDryerRow({ freezeDryer }: { freezeDryer: FreezeDryer }) {
       >
         Restore
       </button>
+    </div>
+  );
+}
+
+function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [label, setLabel] = useState(physicalTray.label);
+  const [notes, setNotes] = useState(physicalTray.notes ?? "");
+  const updatePhysicalTray = useMutation({
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { label?: string; notes?: string | null; archived?: boolean };
+    }) => productionApi.updatePhysicalTray(id, body),
+    onSuccess: () => {
+      setIsEditing(false);
+      void queryClient.invalidateQueries({ queryKey: ["physical-trays"] });
+    },
+  });
+
+  if (isEditing) {
+    return (
+      <form
+        className="rounded-md border border-slate-200 p-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          updatePhysicalTray.mutate({
+            id: physicalTray.id,
+            body: {
+              label,
+              notes: notes.trim() === "" ? null : notes,
+            },
+          });
+        }}
+      >
+        <label className="field">
+          <span>Label</span>
+          <input
+            required
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+          />
+        </label>
+        <label className="field mt-3">
+          <span>Notes</span>
+          <input
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </label>
+        <div className="mt-3 flex gap-2">
+          <button className="secondary-action" type="submit">
+            Save
+          </button>
+          <button
+            className="quiet-action"
+            onClick={() => {
+              setLabel(physicalTray.label);
+              setNotes(physicalTray.notes ?? "");
+              setIsEditing(false);
+            }}
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <div className="row-line">
+      <div>
+        <p className="font-semibold">{physicalTray.label}</p>
+        <p className="text-sm text-slate-600">
+          {physicalTray.notes || "No notes"}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          className="quiet-action"
+          onClick={() => setIsEditing(true)}
+          type="button"
+        >
+          Edit
+        </button>
+        <button
+          className="quiet-action"
+          disabled={updatePhysicalTray.isPending}
+          onClick={() =>
+            updatePhysicalTray.mutate({
+              id: physicalTray.id,
+              body: { archived: !physicalTray.archived },
+            })
+          }
+          type="button"
+        >
+          {physicalTray.archived ? "Restore" : "Archive"}
+        </button>
+      </div>
     </div>
   );
 }

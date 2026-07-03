@@ -1,10 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 
 import { ProductionBatch, productionApi } from "../api/client";
 
 export function DashboardPage() {
-  const queryClient = useQueryClient();
   const freezeDryersQuery = useQuery({
     queryKey: ["freeze-dryers"],
     queryFn: productionApi.listFreezeDryers,
@@ -13,13 +12,6 @@ export function DashboardPage() {
     queryKey: ["production-batches"],
     queryFn: productionApi.listProductionBatches,
   });
-  const createBatch = useMutation({
-    mutationFn: productionApi.createProductionBatch,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["production-batches"] });
-    },
-  });
-
   const freezeDryers = freezeDryersQuery.data ?? [];
   const batches = batchesQuery.data ?? [];
   const runningBatches = batches.filter((batch) => batch.status === "Running");
@@ -120,19 +112,17 @@ export function DashboardPage() {
                         Open Current Batch
                       </Link>
                     ) : (
-                      <button
+                      <Link
                         className="secondary-action"
-                        disabled={!canCreate || createBatch.isPending}
-                        onClick={() =>
-                          createBatch.mutate({
-                            freeze_dryer_id: freezeDryer.id,
-                            batch_number: nextBatchNumber(batches),
-                          })
+                        aria-disabled={!canCreate}
+                        to={
+                          canCreate
+                            ? `/production?freezeDryerId=${freezeDryer.id}`
+                            : "/production"
                         }
-                        type="button"
                       >
                         Create Production Batch
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </article>
@@ -197,10 +187,6 @@ function getRecentBatches(
       return b.batch_number.localeCompare(a.batch_number);
     })
     .slice(0, 10);
-}
-
-function nextBatchNumber(batches: ProductionBatch[]) {
-  return `Batch ${String(batches.length + 1).padStart(3, "0")}`;
 }
 
 function formatStarted(startedAt: string | null) {

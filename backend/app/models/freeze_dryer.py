@@ -10,6 +10,7 @@ from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
     from app.models.production_batch import ProductionBatch
+    from app.models.tray_slot import TraySlot
 
 
 class FreezeDryer(IdMixin, Base):
@@ -21,4 +22,8 @@ class FreezeDryer(IdMixin, Base):
 
     production_batches: Mapped[list[ProductionBatch]] = relationship(
         back_populates="freeze_dryer"
+    )
+    tray_slots: Mapped[list[TraySlot]] = relationship(
+        back_populates="freeze_dryer",
+        cascade="all, delete-orphan",
     )

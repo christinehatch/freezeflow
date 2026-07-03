@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     FreezeDryer,
+    PhysicalTray,
     ProductionBatch,
     ProductionBatchStatus,
     Recipe,
     Tray,
+    TraySlot,
     TrayStatus,
 )
 from app.repositories import production_batch_repository, tray_repository
@@ -26,8 +28,12 @@ def list_production_batches(db: Session) -> list[ProductionBatch]:
     return list(
         db.scalars(
             select(ProductionBatch).options(
-                selectinload(ProductionBatch.freeze_dryer),
-                selectinload(ProductionBatch.trays),
+                selectinload(ProductionBatch.freeze_dryer).selectinload(
+                    FreezeDryer.tray_slots
+                ),
+                selectinload(ProductionBatch.trays).selectinload(Tray.recipe),
+                selectinload(ProductionBatch.trays).selectinload(Tray.tray_slot),
+                selectinload(ProductionBatch.trays).selectinload(Tray.physical_tray),
             )
         ).all()
     )
@@ -38,8 +44,12 @@ def get_production_batch(db: Session, batch_id: UUID) -> ProductionBatch:
         select(ProductionBatch)
         .where(ProductionBatch.id == batch_id)
         .options(
-            selectinload(ProductionBatch.freeze_dryer),
+            selectinload(ProductionBatch.freeze_dryer).selectinload(
+                FreezeDryer.tray_slots
+            ),
             selectinload(ProductionBatch.trays).selectinload(Tray.recipe),
+            selectinload(ProductionBatch.trays).selectinload(Tray.tray_slot),
+            selectinload(ProductionBatch.trays).selectinload(Tray.physical_tray),
         )
     )
     if batch is None:
@@ -79,6 +89,10 @@ def update_production_batch(
 
     values: dict[str, object] = {}
     if data.freeze_dryer_id is not None:
+        if batch.trays:
+            raise BusinessRuleError(
+                "Freeze Dryer cannot be changed after Trays have been selected."
+            )
         freeze_dryer = _get_freeze_dryer(db, data.freeze_dryer_id)
         if freeze_dryer.archived:
             raise BusinessRuleError("Archived Freeze Dryers cannot be selected.")
@@ -136,8 +150,12 @@ def add_tray_to_batch(db: Session, batch_id: UUID, data: TrayCreate) -> Tray:
     if batch.status != ProductionBatchStatus.DRAFT:
         raise BusinessRuleError("Trays may only be added to Draft Production Batches.")
 
-    if _tray_number_exists(db, batch.id, data.tray_number):
-        raise BusinessRuleError("Tray number already exists in this Production Batch.")
+    _validate_tray_selection(
+        db,
+        batch,
+        data.tray_slot_id,
+        data.physical_tray_id,
+    )
 
     values = _tray_create_values(db, batch.id, data)
     tray = tray_repository.create(db, values)
@@ -155,6 +173,8 @@ def get_tray(db: Session, tray_id: UUID) -> Tray:
                 ProductionBatch.freeze_dryer
             ),
             selectinload(Tray.recipe),
+            selectinload(Tray.tray_slot),
+            selectinload(Tray.physical_tray),
         )
     )
     if tray is None:
@@ -170,14 +190,27 @@ def update_tray(db: Session, tray_id: UUID, data: TrayUpdate) -> Tray:
         raise BusinessRuleError("Tray setup is locked after Production starts.")
 
     values: dict[str, object] = {}
-    if data.tray_number is not None and data.tray_number != tray.tray_number:
-        if _tray_number_exists(
-            db, tray.production_batch_id, data.tray_number, current_id=tray.id
-        ):
-            raise BusinessRuleError(
-                "Tray number already exists in this Production Batch."
-            )
-        values["tray_number"] = data.tray_number
+    if data.tray_slot_id is not None and data.tray_slot_id != tray.tray_slot_id:
+        _validate_tray_slot(
+            db,
+            tray.production_batch,
+            data.tray_slot_id,
+            current_id=tray.id,
+        )
+        tray_slot = _get_tray_slot(db, data.tray_slot_id)
+        values["tray_slot_id"] = data.tray_slot_id
+        values["tray_number"] = tray_slot.slot_number
+    if (
+        data.physical_tray_id is not None
+        and data.physical_tray_id != tray.physical_tray_id
+    ):
+        _validate_physical_tray(
+            db,
+            tray.production_batch.id,
+            data.physical_tray_id,
+            current_id=tray.id,
+        )
+        values["physical_tray_id"] = data.physical_tray_id
     if data.product_name is not None:
         values["product_name"] = data.product_name
     if data.preparation is not None:
@@ -231,9 +264,13 @@ def _tray_create_values(
             "Product Name and Preparation are required when no Recipe is selected."
         )
 
+    tray_slot = _get_tray_slot(db, data.tray_slot_id)
+
     return {
         "production_batch_id": batch_id,
-        "tray_number": data.tray_number,
+        "tray_slot_id": data.tray_slot_id,
+        "physical_tray_id": data.physical_tray_id,
+        "tray_number": tray_slot.slot_number,
         "recipe_id": data.recipe_id,
         "product_name": product_name,
         "preparation": preparation,
@@ -242,20 +279,80 @@ def _tray_create_values(
     }
 
 
-def _tray_number_exists(
+def _validate_tray_selection(
     db: Session,
-    batch_id: UUID,
-    tray_number: int,
+    batch: ProductionBatch,
+    tray_slot_id: UUID,
+    physical_tray_id: UUID,
+) -> None:
+    active_slot_count = len(
+        [slot for slot in batch.freeze_dryer.tray_slots if not slot.archived]
+    )
+    if len(batch.trays) >= active_slot_count:
+        raise BusinessRuleError(
+            "A Production Batch cannot contain more Trays than the "
+            "Freeze Dryer's Tray Slot count."
+        )
+
+    _validate_tray_slot(db, batch, tray_slot_id)
+    _validate_physical_tray(db, batch.id, physical_tray_id)
+
+
+def _validate_tray_slot(
+    db: Session,
+    batch: ProductionBatch,
+    tray_slot_id: UUID,
     *,
     current_id: UUID | None = None,
-) -> bool:
+) -> None:
+    tray_slot = _get_tray_slot(db, tray_slot_id)
+    if tray_slot.freeze_dryer_id != batch.freeze_dryer_id:
+        raise BusinessRuleError(
+            "Tray Slot does not belong to this Production Batch's Freeze Dryer."
+        )
+    if tray_slot.archived:
+        raise BusinessRuleError("Archived Tray Slots cannot be selected.")
+
+    existing = db.scalar(
+        select(Tray).where(
+            Tray.production_batch_id == batch.id,
+            Tray.tray_slot_id == tray_slot_id,
+        )
+    )
+    if existing is not None and existing.id != current_id:
+        raise BusinessRuleError("Tray Slot already selected in this Production Batch.")
+
+
+def _validate_physical_tray(
+    db: Session,
+    batch_id: UUID,
+    physical_tray_id: UUID,
+    *,
+    current_id: UUID | None = None,
+) -> None:
+    physical_tray = db.get(PhysicalTray, physical_tray_id)
+    if physical_tray is None:
+        raise BusinessRuleError("Physical Tray was not found.", status_code=404)
+    if physical_tray.archived:
+        raise BusinessRuleError("Archived Physical Trays cannot be selected.")
+
     existing = db.scalar(
         select(Tray).where(
             Tray.production_batch_id == batch_id,
-            Tray.tray_number == tray_number,
+            Tray.physical_tray_id == physical_tray_id,
         )
     )
-    return existing is not None and existing.id != current_id
+    if existing is not None and existing.id != current_id:
+        raise BusinessRuleError(
+            "Physical Tray already selected in this Production Batch."
+        )
+
+
+def _get_tray_slot(db: Session, tray_slot_id: UUID) -> TraySlot:
+    tray_slot = db.get(TraySlot, tray_slot_id)
+    if tray_slot is None:
+        raise BusinessRuleError("Tray Slot was not found.", status_code=404)
+    return tray_slot
 
 
 def _has_other_running_batch(

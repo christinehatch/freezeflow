@@ -13,6 +13,11 @@ from app.schemas.packaging_operation import (
     PackagingOperationTrayUpdate,
     PackagingOperationUpdate,
 )
+from app.schemas.physical_tray import (
+    PhysicalTrayCreate,
+    PhysicalTrayRead,
+    PhysicalTrayUpdate,
+)
 from app.schemas.production_batch import (
     ProductionBatchCreate,
     ProductionBatchRead,
@@ -28,6 +33,7 @@ from app.schemas.storage_location import (
     StorageLocationUpdate,
 )
 from app.schemas.tray import TrayCreate, TrayRead, TrayUpdate
+from app.schemas.tray_slot import TraySlotCreate, TraySlotRead, TraySlotUpdate
 from app.schemas.weight_check import (
     WeightCheckCreate,
     WeightCheckRead,
@@ -50,6 +56,9 @@ __all__ = [
     "PackagingOperationTrayRead",
     "PackagingOperationTrayUpdate",
     "PackagingOperationUpdate",
+    "PhysicalTrayCreate",
+    "PhysicalTrayRead",
+    "PhysicalTrayUpdate",
     "ProductionBatchCreate",
     "ProductionBatchRead",
     "ProductionBatchUpdate",
@@ -64,6 +73,9 @@ __all__ = [
     "StorageLocationUpdate",
     "TrayCreate",
     "TrayRead",
+    "TraySlotCreate",
+    "TraySlotRead",
+    "TraySlotUpdate",
     "TrayUpdate",
     "WeightCheckCreate",
     "WeightCheckRead",

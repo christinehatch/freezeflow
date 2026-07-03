@@ -7,12 +7,14 @@ from app.models import (
     Package,
     PackagingOperation,
     PackagingOperationTray,
+    PhysicalTray,
     ProductionBatch,
     ProductionBatchStatus,
     Recipe,
     StorageLocation,
     StorageLocationHistory,
     Tray,
+    TraySlot,
     TrayStatus,
     WeightCheck,
 )
@@ -32,6 +34,14 @@ def test_model_creation_and_relationships(db_session) -> None:
     storage_location = StorageLocation(name="Bin A")
     db_session.add_all([freeze_dryer, recipe, storage_location])
     db_session.flush()
+    tray_slot = TraySlot(
+        freeze_dryer_id=freeze_dryer.id,
+        slot_number=1,
+        label="Slot 1",
+    )
+    physical_tray = PhysicalTray(label="Tray 1")
+    db_session.add_all([tray_slot, physical_tray])
+    db_session.flush()
 
     production_batch = ProductionBatch(
         freeze_dryer_id=freeze_dryer.id,
@@ -44,8 +54,10 @@ def test_model_creation_and_relationships(db_session) -> None:
 
     tray = Tray(
         production_batch_id=production_batch.id,
+        tray_slot_id=tray_slot.id,
+        physical_tray_id=physical_tray.id,
         recipe_id=recipe.id,
-        tray_number=1,
+        tray_number=tray_slot.slot_number,
         product_name="Chicken",
         preparation="Cubed and seasoned.",
         starting_weight_grams=Decimal("964.000"),
@@ -88,7 +100,10 @@ def test_model_creation_and_relationships(db_session) -> None:
     db_session.commit()
 
     assert freeze_dryer.production_batches == [production_batch]
+    assert freeze_dryer.tray_slots == [tray_slot]
     assert production_batch.trays == [tray]
+    assert tray.tray_slot == tray_slot
+    assert tray.physical_tray == physical_tray
     assert tray.recipe == recipe
     assert tray.weight_checks == [weight_check]
     assert tray.packaging_operation_link == packaging_link

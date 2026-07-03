@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { productionApi } from "../api/client";
@@ -19,7 +19,8 @@ export function ProductionPage() {
   const activeFreezeDryers =
     freezeDryersQuery.data?.filter((freezeDryer) => !freezeDryer.archived) ??
     [];
-  const batches = batchesQuery.data ?? [];
+  const batches = batchesQuery.data;
+  const productionBatches = useMemo(() => batches ?? [], [batches]);
   const [freezeDryerId, setFreezeDryerId] = useState(
     searchParams.get("freezeDryerId") ?? "",
   );
@@ -48,6 +49,12 @@ export function ProductionPage() {
       notes: notes.trim() === "" ? null : notes,
     });
   }
+
+  useEffect(() => {
+    if (batchNumber === "" && !batchesQuery.isLoading) {
+      setBatchNumber(nextBatchNumber(productionBatches));
+    }
+  }, [batchNumber, batchesQuery.isLoading, productionBatches]);
 
   return (
     <div className="space-y-8">
@@ -84,7 +91,7 @@ export function ProductionPage() {
             required
             value={batchNumber}
             onChange={(event) => setBatchNumber(event.target.value)}
-            placeholder="Batch 001"
+            placeholder={nextBatchNumber(productionBatches)}
           />
         </label>
         <label className="field">
@@ -105,7 +112,7 @@ export function ProductionPage() {
 
       <section className="panel">
         <h3 className="section-title">Production Batches</h3>
-        {batches.length === 0 ? (
+        {productionBatches.length === 0 ? (
           <p className="mt-3 text-slate-600">
             No Production Batches exist. Create a Draft batch to begin setup.
           </p>
@@ -121,7 +128,7 @@ export function ProductionPage() {
                 </tr>
               </thead>
               <tbody>
-                {batches.map((batch) => (
+                {productionBatches.map((batch) => (
                   <tr key={batch.id}>
                     <td>
                       <Link
@@ -154,4 +161,8 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function nextBatchNumber(batches: { batch_number: string }[]) {
+  return `Batch ${String(batches.length + 1).padStart(3, "0")}`;
 }

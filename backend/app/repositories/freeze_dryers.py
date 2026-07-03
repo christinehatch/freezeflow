@@ -15,5 +15,24 @@ class FreezeDryerRepository(
     def get_by_name(self, db: Session, name: str) -> FreezeDryer | None:
         return db.scalar(select(FreezeDryer).where(FreezeDryer.name == name))
 
+    def create(
+        self,
+        db: Session,
+        data: FreezeDryerCreate | dict[str, object],
+    ) -> FreezeDryer:
+        values = self._to_dict(data, exclude_none=True, exclude_unset=False)
+        values.pop("tray_slot_count", None)
+        return super().create(db, values)
+
+    def update(
+        self,
+        db: Session,
+        db_obj: FreezeDryer,
+        data: FreezeDryerUpdate | dict[str, object],
+    ) -> FreezeDryer:
+        values = self._to_dict(data, exclude_none=False, exclude_unset=True)
+        values.pop("tray_slot_count", None)
+        return super().update(db, db_obj, values)
+
 
 freeze_dryer_repository = FreezeDryerRepository()

@@ -12,12 +12,32 @@ export type FreezeDryer = {
   name: string;
   notes: string | null;
   archived: boolean;
+  tray_slot_count: number;
+  tray_slots: TraySlot[];
+};
+
+export type TraySlot = {
+  id: string;
+  freeze_dryer_id: string;
+  slot_number: number;
+  label: string | null;
+  archived: boolean;
+};
+
+export type PhysicalTray = {
+  id: string;
+  label: string;
+  notes: string | null;
+  archived: boolean;
 };
 
 export type Tray = {
   id: string;
   production_batch_id: string;
-  tray_number: number;
+  tray_slot_id: string;
+  tray_slot: TraySlot;
+  physical_tray_id: string;
+  physical_tray: PhysicalTray;
   recipe_id: string | null;
   recipe_name: string | null;
   product_name: string;
@@ -88,12 +108,29 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const productionApi = {
   listFreezeDryers: () => apiGet<FreezeDryer[]>("/freeze-dryers"),
-  createFreezeDryer: (body: { name: string; notes?: string | null }) =>
-    apiPost<FreezeDryer>("/freeze-dryers", body),
+  createFreezeDryer: (body: {
+    name: string;
+    notes?: string | null;
+    tray_slot_count: number;
+  }) => apiPost<FreezeDryer>("/freeze-dryers", body),
   updateFreezeDryer: (
     id: string,
-    body: { name?: string; notes?: string | null; archived?: boolean },
+    body: {
+      name?: string;
+      notes?: string | null;
+      archived?: boolean;
+      tray_slot_count?: number;
+    },
   ) => apiPatch<FreezeDryer>(`/freeze-dryers/${id}`, body),
+  listTraySlots: (freezeDryerId: string) =>
+    apiGet<TraySlot[]>(`/freeze-dryers/${freezeDryerId}/tray-slots`),
+  listPhysicalTrays: () => apiGet<PhysicalTray[]>("/physical-trays"),
+  createPhysicalTray: (body: { label: string; notes?: string | null }) =>
+    apiPost<PhysicalTray>("/physical-trays", body),
+  updatePhysicalTray: (
+    id: string,
+    body: { label?: string; notes?: string | null; archived?: boolean },
+  ) => apiPatch<PhysicalTray>(`/physical-trays/${id}`, body),
   listProductionBatches: () => apiGet<ProductionBatch[]>("/production-batches"),
   createProductionBatch: (body: {
     freeze_dryer_id: string;
@@ -116,7 +153,8 @@ export const productionApi = {
   }: {
     batchId: string;
     body: {
-      tray_number: number;
+      tray_slot_id: string;
+      physical_tray_id: string;
       product_name?: string | null;
       preparation?: string | null;
       notes?: string | null;
@@ -129,7 +167,8 @@ export const productionApi = {
   }: {
     id: string;
     body: {
-      tray_number?: number;
+      tray_slot_id?: string;
+      physical_tray_id?: string;
       product_name?: string;
       preparation?: string;
       notes?: string | null;
