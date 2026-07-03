@@ -116,9 +116,13 @@ Weight entry belongs to Milestone 3.
 
 Adds Starting Weight, inline Weight Checks, tray completion, drying progress, Production Batch completion, and the full layouts below.
 
-Starting Weight should appear as a structured field for each Tray before or when production starts.
+Starting Weight should appear as a structured field for each Tray before production starts.
 
 Users should not need to store Starting Weight in Notes.
+
+Every selected Tray must have a Starting Weight before Start Production Batch is enabled.
+
+Starting Production automatically creates the first Drying Run.
 
 Example:
 
@@ -158,9 +162,12 @@ A user should be able to:
 
 # Primary Actions
 
-* Record Weight Check
+* Current Run Complete
+* Record Weight Checks
+* Start Another Drying Run
 * View Tray Details
 * Mark Tray Complete
+* Complete Batch
 * Edit Batch Notes
 * Cancel Production Batch
 
@@ -172,13 +179,44 @@ Once trays are complete, the user moves to the Packaging workflow.
 
 # Desktop Layout
 
-Desktop is optimized for rapid keyboard-based data entry.
+Desktop is optimized for rapid keyboard-based data entry after a Drying Run completes.
+
+## Active Drying Run
 
 ```text
 +======================================================================================+
 | Harvest Right #1                                                Running               |
 | Production Batch #24                                           Started: Apr 25 9:30  |
 +======================================================================================+
+
+Current Drying Run
+
+Run 1
+
+Started: Apr 25 9:30 AM
+
+[ Current Run Complete ]
+```
+
+While a Drying Run is active, Weight Check entry is not shown.
+
+The user does not normally weigh trays during an active freeze dryer cycle.
+
+---
+
+## Completed Drying Run Weight Entry
+
+```text
++======================================================================================+
+| Harvest Right #1                                                Running               |
+| Production Batch #24                                           Started: Apr 25 9:30  |
++======================================================================================+
+
+Drying Run 1 Complete
+
+Started: Apr 25 9:30 AM
+
+Ended:   Apr 25 10:30 PM
 
 Batch Notes
 
@@ -208,7 +246,53 @@ Recent Activity
 
 * Tray 2 Weight Check recorded
 
-* Batch started 8:30 AM
+* Drying Run 1 completed 10:30 PM
+```
+
+All Running Trays must receive a Weight Check for the completed Drying Run before another Drying Run can start.
+
+Completed Trays are excluded from later Weight Check requirements.
+
+---
+
+## Continue Drying
+
+After Weight Checks are saved, the user may mark some Trays Complete and continue drying the remaining Running Trays.
+
+```text
+Tray | Product         | Last Weight | Change | Status
+
+----------------------------------------------------------------------------
+
+1    | Taco Chicken    | 8.1 oz      | 0.0 oz | Complete
+
+2    | Taco Chicken    | 8.3 oz      | 0.1 oz | Running
+
+3    | Strawberries    | 3.8 oz      | 0.0 oz | Complete
+
+4    | Skittles        | 4.2 oz      | 0.2 oz | Running
+
+----------------------------------------------------------------------------
+
+[ Start Another Drying Run ]
+```
+
+Starting another Drying Run includes only Trays that remain Running.
+
+---
+
+## Ready to Complete Batch
+
+When every Tray is Complete, the Batch becomes ready to complete.
+
+The Batch should not complete automatically.
+
+```text
+All Trays Complete
+
+Review the Batch before moving to Packaging.
+
+[ Complete Batch ]
 ```
 
 ---
@@ -350,6 +434,8 @@ Weight unchanged
 
 The application should never automatically complete a Tray.
 
+Completing all Trays should make the Batch ready to complete, but the Batch still requires the user to choose Complete Batch.
+
 ---
 
 # Tray Details
@@ -359,6 +445,7 @@ Each Tray row or card should be selectable.
 Selecting a Tray opens the Tray Details screen, where the user can view:
 
 * Weight Check history
+* Drying Run context
 * Starting Weight
 * Final Dry Weight
 * Product information

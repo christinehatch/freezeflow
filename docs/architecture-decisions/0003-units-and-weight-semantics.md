@@ -93,6 +93,7 @@ Each Weight Check represents the current weight of the food on the Tray.
 Weight Checks:
 
 * belong to one Tray
+* belong to one Drying Run
 * are chronological
 * are historical observations
 * do not replace previous Weight Checks
@@ -222,6 +223,7 @@ Examples include:
 * Weight Difference
 * Weight Loss
 * Drying Percentage
+* Total Drying Time from non-voided Drying Run durations
 
 Derived values should always be recalculated from historical records.
 

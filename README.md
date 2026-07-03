@@ -99,6 +99,9 @@ Production Batch
 Tray Assignment
         │
         ▼
+Drying Runs
+        │
+        ▼
 Weight Checks
         │
         ▼
@@ -135,9 +138,10 @@ Depleted
 ## Drying Process
 
 * Record starting weights
+* Track drying runs
 * Record unlimited weight checks
-* Track drying time
-* Automatically determine completed trays
+* Track actual machine drying time
+* Suggest when trays may be complete
 * Compare drying performance
 
 ## Packaging

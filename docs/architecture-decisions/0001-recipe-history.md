@@ -14,7 +14,7 @@ They describe reusable preparation information that may be applied when loading 
 
 Historical production records must not change when a Recipe is edited later.
 
-A Production Batch represents one freeze-dryer run and may contain Trays with different products or preparation methods.
+A Production Batch represents one freeze-drying production session for one Freeze Dryer load and may contain Trays with different products or preparation methods.
 
 This means Recipe history cannot safely live only on the Production Batch.
 

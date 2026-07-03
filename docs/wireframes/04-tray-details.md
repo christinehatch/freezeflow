@@ -96,15 +96,15 @@ Final Dry Weight
 
 Weight History
 
-Date & Time           Weight
+Run     Date & Time           Weight
 
-Apr 25 4:00 PM        15.8 oz
+Run 1   Apr 25 10:45 PM       15.8 oz
 
-Apr 26 9:00 AM        11.2 oz
+Run 2   Apr 26 9:00 AM        11.2 oz
 
-Apr 27 8:00 AM        8.4 oz
+Run 3   Apr 27 8:00 AM        8.4 oz
 
-Apr 27 2:30 PM        8.1 oz
+Run 4   Apr 27 2:30 PM        8.1 oz
 
 ------------------------------------------------------------------------------
 
@@ -154,6 +154,7 @@ Weight Checks should be displayed chronologically.
 
 Each Weight Check should show:
 
+* Drying Run
 * Timestamp
 * Weight
 * Optional notes
@@ -199,7 +200,7 @@ Historical edits should preserve audit history.
 
 ## Running
 
-Weight Checks continue to be recorded.
+Weight Checks continue to be recorded after completed Drying Runs.
 
 The Tray has not yet been completed.
 

@@ -101,7 +101,11 @@ Running Batches may not return to Draft.
 
 ## Completed
 
-A Production Batch automatically becomes Completed when every Tray has been completed.
+A Production Batch becomes Completed only after every Tray has been completed and the user explicitly chooses Complete Batch.
+
+When every Tray has been completed, the Batch is ready to complete.
+
+The system may make this action obvious, but it must not complete the Batch without user confirmation.
 
 Completed Batches:
 

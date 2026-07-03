@@ -24,7 +24,7 @@ Whenever possible, the system should preserve historical information rather than
 
 ## PB-001
 
-A Production Batch represents one freeze-dryer run.
+A Production Batch represents one freeze-drying production session for one Freeze Dryer load.
 
 ---
 
@@ -48,6 +48,10 @@ A Production Batch cannot contain more Trays than the assigned Freeze Dryer's co
 
 A Production Batch cannot be marked complete until every Tray within the batch has been completed.
 
+Production Batch completion requires explicit user confirmation.
+
+A Production Batch must not automatically become Completed only because every Tray is Complete.
+
 ---
 
 ## PB-005
@@ -64,6 +68,8 @@ When a Production Batch transitions from Draft to Running:
 
 * `startedAt` is set to the time production began.
 * Every Draft Tray in the Batch transitions to Running.
+* The first Drying Run is created automatically.
+* The first Drying Run records `startedAt`.
 
 Tray setup is complete after this transition.
 
@@ -76,6 +82,94 @@ Draft Trays may no longer be added, edited, or removed.
 A Freeze Dryer may have at most one Running Production Batch at a time.
 
 A Draft Production Batch cannot be started while its Freeze Dryer already has a Running Production Batch.
+
+---
+
+# Drying Run Rules
+
+## DR-001
+
+A Drying Run represents one freeze dryer cycle or timer interval within a Running Production Batch.
+
+---
+
+## DR-002
+
+A Drying Run belongs to exactly one Production Batch.
+
+---
+
+## DR-003
+
+A Production Batch may have one or more Drying Runs.
+
+Starting a Production Batch automatically creates the first Drying Run.
+
+---
+
+## DR-004
+
+Only one active Drying Run may exist for a Production Batch at a time.
+
+---
+
+## DR-005
+
+A Drying Run must record `startedAt`.
+
+`startedAt` represents the actual time the freeze dryer cycle started.
+
+---
+
+## DR-006
+
+Current Run Complete records `endedAt` on the active Drying Run.
+
+`endedAt` represents the actual time the freeze dryer cycle ended.
+
+---
+
+## DR-007
+
+Current Run Complete does not complete any Tray.
+
+Current Run Complete does not complete the Production Batch.
+
+---
+
+## DR-008
+
+Weight Checks may only be recorded after a Drying Run has ended and before another Drying Run starts.
+
+---
+
+## DR-009
+
+Before another Drying Run can start, every Running Tray must have a Weight Check for the completed Drying Run.
+
+Completed Trays are excluded from this requirement.
+
+---
+
+## DR-010
+
+A mistaken Drying Run should be marked Voided with notes rather than deleted.
+
+Voided Drying Runs remain historical records.
+
+---
+
+## DR-011
+
+Corrections to Drying Run timestamps follow the Audit History model.
+
+---
+
+## DR-012
+
+Total drying time is derived from the sum of non-voided Drying Run durations.
+
+Production Batch wall-clock duration must not be used as actual drying time.
 
 ---
 
@@ -197,6 +291,8 @@ A Tray has one recorded Starting Weight.
 
 Starting Weight is recorded when drying begins, not during Milestone 2 production setup.
 
+Starting Weight is required before the Production Batch can transition to Running.
+
 ---
 
 ## TR-007
@@ -250,6 +346,8 @@ The resulting product may be divided into one or more Packages.
 
 Each Weight Check belongs to exactly one Tray.
 
+Each Weight Check also belongs to exactly one Drying Run.
+
 ---
 
 ## WC-002
@@ -271,6 +369,21 @@ Weight Checks represent observations made during production.
 They should not be overwritten once recorded.
 
 Corrections should preserve the original value whenever practical.
+
+---
+
+## WC-005
+
+Weight Checks may only be recorded after Current Run Complete and before the next Drying Run starts.
+
+---
+
+## WC-006
+
+Weight Checks record:
+
+* observedAt, the time the Tray was weighed
+* recordedAt, the time the entry was saved
 
 ---
 

@@ -18,11 +18,11 @@ Freeze Dryer
     ▼
 Production Batch
     │
-    ▼
-Tray ◄── Recipe
-    │
     ├───────────────┐
     ▼               ▼
+Tray          Drying Run
+    │               │
+    ▼
 Weight Check   Packaging Operation
                        │
                        ▼
@@ -108,19 +108,21 @@ Detailed maintenance history is a future enhancement.
 
 # Production Batch
 
-A Production Batch represents one complete freeze-drying run.
+A Production Batch represents one complete freeze-drying production session for one Freeze Dryer load.
 
 It begins when the user starts production.
 
-It ends when every tray in that batch has completed drying.
+It ends when the user explicitly completes the Batch after every Tray in that Batch has completed drying.
 
 A production batch contains:
 
 * Freeze dryer
 * Started date (`startedAt`, set when production begins)
+* Completed date (`completedAt`, set when the user completes the Batch)
 * Operator (future)
 * Notes
 * One or more trays
+* One or more Drying Runs
 
 A production batch is never deleted.
 
@@ -189,26 +191,56 @@ Each tray owns the historical preparation information used for that tray.
 
 ---
 
+# Drying Run
+
+A Drying Run represents one freeze dryer cycle or timer interval within a Running Production Batch.
+
+A Production Batch may contain multiple Drying Runs.
+
+Starting a Production Batch automatically creates the first Drying Run.
+
+Each Drying Run contains:
+
+* Production Batch
+* Status
+* Started time (`startedAt`)
+* Ended time (`endedAt`, recorded by Current Run Complete)
+* Optional notes
+
+A Drying Run is not the same thing as a Production Batch.
+
+A Drying Run is not the same thing as Tray completion.
+
+Drying Runs preserve machine-cycle history and provide context for Weight Checks.
+
+If a Drying Run was started by mistake, it may be marked Voided with notes rather than deleted.
+
+Total drying time is derived from non-voided Drying Run durations.
+
+---
+
 # Weight Check
 
 A Weight Check records one measurement during the drying process.
 
 Each weight check contains:
 
-* Timestamp
-* Elapsed drying time
+* Tray
+* Drying Run
+* Observation timestamp
+* Recorded timestamp
 * Recorded weight
 * Optional notes
 
 A tray may have many weight checks.
+
+A Drying Run may have many Weight Checks.
 
 Weight checks preserve the complete drying history.
 
 Weight Checks are historical observations.
 
 They are part of the production timeline, not merely edits to a current weight field.
-
-Future versions may add explicit Drying Run or Drying Session records if the system needs to record each additional machine-run interval separately from weight observations.
 
 ---
 
@@ -350,6 +382,8 @@ A Production Batch belongs to one Freeze Dryer.
 
 A Production Batch contains one or more Trays.
 
+A Production Batch has one or more Drying Runs after Production starts.
+
 ---
 
 ## Tray
@@ -365,6 +399,8 @@ A completed Tray may belong to one Packaging Operation.
 ## Weight Check
 
 A Weight Check belongs to one Tray.
+
+A Weight Check belongs to one Drying Run.
 
 ---
 

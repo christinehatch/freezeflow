@@ -40,6 +40,7 @@ Examples include:
 
 - Tray
 - Weight Check
+- Drying Run
 - Production Batch
 - Package
 - Storage Location
@@ -86,6 +87,8 @@ Examples include:
 - Starting Weight
 - Weight Check
 - Final Dry Weight
+- Drying Run startedAt
+- Drying Run endedAt
 - Package Weight
 - Storage Location
 - Product Name

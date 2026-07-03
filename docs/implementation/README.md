@@ -138,12 +138,14 @@ Goal: Manage the active drying process.
 Includes:
 
 - Starting Weight
+- Drying Runs
+- Current Run Complete workflow
 - Weight Checks
 - Weight history
 - Weight trends
 - Final Dry Weight
 - Tray completion
-- Batch completion
+- User-confirmed Batch completion
 - Fresh-to-dry yield calculation foundations
 
 ---

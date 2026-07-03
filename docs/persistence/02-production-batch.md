@@ -19,7 +19,7 @@ A Production Batch organizes the production process but does not directly repres
 | batchNumber | Yes | No | Human-readable identifier |
 | status | Yes | System | Lifecycle state |
 | startedAt | No | System | Set when the Batch transitions to Running |
-| completedAt | No | System | Automatically set when the Batch completes |
+| completedAt | No | System | Set when the user completes the Batch |
 | notes | No | Yes | Optional production notes |
 
 \* A Freeze Dryer may only be changed while the Batch is still in Draft.
@@ -32,6 +32,7 @@ A Production Batch:
 
 - belongs to one Freeze Dryer
 - contains one or more Trays
+- has one or more Drying Runs after Production starts
 
 A Production Batch does not directly contain:
 
@@ -69,6 +70,7 @@ When a Production Batch transitions from Draft to Running:
 
 - `startedAt` is set to the transition time
 - every Draft Tray in the Batch transitions to Running
+- the first Drying Run is created automatically
 
 ---
 
@@ -76,9 +78,9 @@ When a Production Batch transitions from Draft to Running:
 
 A Production Batch is considered complete only when every Tray within the Batch has been completed.
 
-The system is responsible for determining when this condition has been met.
+The system is responsible for determining when this condition has been met and showing that the Batch is ready to complete.
 
-Users should not manually mark a Batch as Completed.
+Users must explicitly choose Complete Batch.
 
 ---
 
@@ -115,6 +117,8 @@ A Production Batch must contain at least one Tray before it can transition to Ru
 PB-003
 
 A Production Batch cannot be completed until every Tray is completed.
+
+Completion requires explicit user confirmation.
 
 ---
 

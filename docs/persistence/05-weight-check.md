@@ -16,6 +16,7 @@ Weight Checks are historical observations.
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
 | trayId | Yes | No | Parent Tray |
+| dryingRunId | Yes | No | Drying Run that prompted the Weight Check |
 | weightGrams | Yes | Yes* | Recorded weight |
 | observedAt | Yes | Yes* | When the weight was measured |
 | recordedAt | Yes | No | When the Weight Check was entered into Freezeflow |
@@ -30,8 +31,13 @@ Weight Checks are historical observations.
 A Weight Check:
 
 - belongs to exactly one Tray
+- belongs to exactly one Drying Run
 
 A Tray:
+
+- may have many Weight Checks
+
+A Drying Run:
 
 - may have many Weight Checks
 
@@ -95,6 +101,8 @@ Historical observations should never be silently reordered.
 
 Weight Checks may only be added while the parent Tray is actively drying.
 
+Weight Checks may only be added after the associated Drying Run has completed and before another Drying Run starts.
+
 Once a Tray has been completed:
 
 - new Weight Checks cannot be created
@@ -107,6 +115,8 @@ Once a Tray has been completed:
 WC-001
 
 Every Weight Check belongs to exactly one Tray.
+
+Every Weight Check belongs to exactly one Drying Run.
 
 ---
 
@@ -140,11 +150,23 @@ Weight Checks cannot be added after the Tray has been completed.
 
 WC-006
 
-Corrections preserve the original value through Audit History.
+Weight Checks may only be recorded for a completed, non-voided Drying Run.
 
 ---
 
 WC-007
+
+A Running Tray may have at most one Weight Check for a single Drying Run.
+
+---
+
+WC-008
+
+Corrections preserve the original value through Audit History.
+
+---
+
+WC-009
 
 Reports use the corrected canonical value while preserving historical corrections.
 
@@ -157,3 +179,7 @@ Weight Checks document the drying process over time.
 They provide historical evidence of drying progress and support determining when a Tray has reached its Final Dry Weight.
 
 Weight Checks are distinct from a Tray's Starting Weight and Final Dry Weight, which are recorded separately as part of the Tray's lifecycle.
+
+Weight Checks are also distinct from Drying Runs.
+
+The Drying Run records the machine-cycle interval; the Weight Check records the Tray observation after that interval.

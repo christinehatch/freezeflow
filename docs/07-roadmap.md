@@ -93,10 +93,12 @@ Implement drying progress.
 Includes:
 
 - Starting Weight
+- Drying Runs
+- Current Run Complete workflow
 - Weight Checks
 - Final Dry Weight
 - Tray completion
-- Batch completion
+- User-confirmed Batch completion
 
 Users can now fully record a production run.
 
@@ -106,6 +108,10 @@ Milestone 3 records the weight data required for fresh-to-dry yield:
 * Final Dry Weight (finished tray output)
 
 Yield itself is a derived production metric.
+
+Milestone 3 also records actual freeze dryer runtime through Drying Runs.
+
+Total drying time is derived from non-voided Drying Run durations, not Production Batch wall-clock duration.
 
 Individual tray moisture loss may be visible when a Tray completes.
 
@@ -305,7 +311,7 @@ User research has identified additional real-world concepts that may become firs
 These include:
 
 * Physical Tray tare weights and calibration notes
-* Drying Run or Drying Session records for additional machine-run intervals
+* Advanced Drying Run analytics or machine telemetry
 * Packaging Supplies such as Mylar bags, oxygen absorbers, and labels
 * Supply stock counts and reorder reminders
 * Guided product description builders for consistent naming and reporting

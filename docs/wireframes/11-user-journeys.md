@@ -74,11 +74,11 @@ The Freeze Dryer now shows an active Production Batch.
 
 ---
 
-# Journey 3 - Record Weight Checks
+# Journey 3 - Complete a Drying Run and Record Weight Checks
 
 ## Goal
 
-Record updated Tray weights during drying.
+Record updated Tray weights after the freeze dryer cycle ends.
 
 ### Steps
 
@@ -88,6 +88,10 @@ Dashboard
 Select Running Freeze Dryer
 
 Open Production Batch
+
+Select Current Run Complete
+
+Confirm or correct cycle end time
 
 Weigh Tray 1
 
@@ -102,6 +106,8 @@ Repeat for all Trays
 Review weight changes
 
 Mark completed Trays when appropriate
+
+Start another Drying Run if any Trays remain Running
 ```
 
 ### Success Criteria
@@ -109,6 +115,8 @@ Mark completed Trays when appropriate
 All Weight Checks are recorded with minimal navigation.
 
 The workflow feels continuous and efficient.
+
+Every Running Tray receives a Weight Check for the completed Drying Run before another Drying Run starts.
 
 ---
 
@@ -125,7 +133,9 @@ Production Batch
 
 Mark remaining Trays Complete
 
-Batch automatically becomes Complete
+Review Ready to Complete Batch state
+
+Select Complete Batch
 
 Navigate to Packaging
 ```

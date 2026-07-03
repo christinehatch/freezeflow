@@ -137,7 +137,7 @@ It should link to:
 
 ### Production Batches
 
-Production Batches is the list of freeze-dryer runs.
+Production Batches is the list of freeze-drying production sessions.
 
 It should link to each Production Batch detail screen.
 

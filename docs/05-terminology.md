@@ -16,9 +16,9 @@ Every feature, screen, API, and database model should use these terms consistent
 
 ## Production Batch
 
-A Production Batch represents one complete freeze-dryer run.
+A Production Batch represents one complete freeze-drying production session for one Freeze Dryer load.
 
-It begins when the user starts production and ends when every Tray has completed drying.
+It begins when the user starts production and ends when the user explicitly completes the Batch after every Tray has completed drying.
 
 A Production Batch is the primary production record.
 
@@ -96,13 +96,63 @@ Examples:
 
 ---
 
+## Drying Run
+
+A Drying Run represents one freeze dryer cycle or timer interval within a Running Production Batch.
+
+A Production Batch may contain multiple Drying Runs.
+
+Starting a Production Batch automatically creates the first Drying Run.
+
+Drying Runs record actual machine runtime through `startedAt` and `endedAt`.
+
+Total drying time is derived from non-voided Drying Run durations.
+
+---
+
+## Current Run Complete
+
+Current Run Complete is the user action that ends the active Drying Run.
+
+It means the freeze dryer cycle has ended and the user is ready to inspect or weigh Trays.
+
+Current Run Complete does not mean:
+
+* any Tray is complete
+* the Production Batch is complete
+* Weight Check entry is finished
+
+---
+
 ## Weight Check
 
 A Weight Check is a recorded weight measurement taken during the drying process.
 
 Multiple Weight Checks may exist for a single Tray.
 
+Every Weight Check belongs to one Tray and one Drying Run.
+
 Weight Checks preserve the drying history.
+
+Weight Checks are recorded after Current Run Complete and before another Drying Run starts.
+
+---
+
+## Complete Tray
+
+Complete Tray is the user action that marks one Tray as finished drying.
+
+Completing a Tray records Final Dry Weight and prevents additional Weight Checks for that Tray.
+
+Complete Tray is separate from Current Run Complete.
+
+---
+
+## Complete Batch
+
+Complete Batch is the user action that marks a Production Batch as finished after every Tray in the Batch has been completed.
+
+The system may show that a Batch is ready to complete, but the user must explicitly confirm completion.
 
 ---
 

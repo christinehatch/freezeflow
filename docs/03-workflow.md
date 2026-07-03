@@ -23,11 +23,19 @@ Create Draft Production Batch
       ↓
 Load Trays
       ↓
+Enter Starting Weights
+      ↓
 Start Production
+      ↓
+Drying Run Active
+      ↓
+Current Run Complete
       ↓
 Record Weight Checks
       ↓
-Complete Drying
+Complete Trays or Start Another Drying Run
+      ↓
+Complete Batch
       ↓
 (Optional) Combine Compatible Trays
       ↓
@@ -46,7 +54,7 @@ Each step builds upon the previous one while preserving the complete production 
 
 The user begins by creating a new production batch.
 
-The batch represents one freeze-dryer run.
+The batch represents one freeze-drying production session for one Freeze Dryer load.
 
 The user records information such as:
 
@@ -79,7 +87,7 @@ The user records:
 * Preparation details
 * Notes
 
-Starting Weight is recorded when drying begins, not during production setup.
+Starting Weight is recorded when drying begins, not during Milestone 2 production setup.
 
 During Milestone 2, users load Trays and organize the Production Batch without entering weight information.
 
@@ -95,13 +103,14 @@ The copied preparation information becomes part of the Tray's permanent producti
 
 # Workflow 3 — Start Production
 
-Once all required Trays have been added, the user starts the Production Batch.
+Once all required Trays have been added and Starting Weights have been recorded, the user starts the Production Batch.
 
 Starting Production transitions the Production Batch from the Draft state to the Running state.
 
 Before Production can begin:
 
 * The Production Batch must contain at least one Tray.
+* Every Tray must have a Starting Weight.
 * The user may continue editing the Production Batch while it is in the Draft state.
 
 Once Production has started:
@@ -109,48 +118,118 @@ Once Production has started:
 * Additional production setup is no longer permitted.
 * Every Draft Tray in the Batch transitions to Running.
 * `startedAt` is recorded on the Production Batch.
-* Weight Checks may begin.
+* The first Drying Run is created automatically.
+* The first Drying Run records `startedAt`.
 * The Production Batch becomes an active production record.
 
 The Freeze Dryer now has an active Running Production Batch until the Batch completes or is cancelled.
 
-The user then waits until the next scheduled Weight Check.
+The user then waits for the current freeze dryer cycle to finish.
 
 ---
 
-# Workflow 4 — Record Weight Checks
+# Workflow 4 — Complete the Current Drying Run
 
-At each inspection the user weighs every tray.
+When the freeze dryer cycle ends, the user marks the current run complete.
+
+The user-facing action is:
+
+```text
+Current Run Complete
+```
+
+Current Run Complete means the freeze dryer cycle has ended and the user is ready to inspect or weigh Trays.
+
+It does not mean:
+
+* any Tray is complete
+* the Production Batch is complete
+* Weight Check entry has already been finished
+
+When the user marks the Current Run Complete:
+
+* `endedAt` is recorded on the active Drying Run.
+* The Drying Run becomes historical production context.
+* Weight Checks may now be recorded for Running Trays.
+
+`DryingRun.endedAt` represents the actual time the freeze dryer cycle ended.
+
+If the user records the run late, the user may correct `endedAt` through the correction workflow.
+
+---
+
+# Workflow 5 — Record Weight Checks
+
+After a Drying Run has completed, the user weighs every Running Tray.
 
 For each tray the user records:
 
 * Current weight
-* Time elapsed
+* Observation time
 * Optional notes
 
-Weight checks continue until the tray weight stops changing.
+Every Running Tray must receive a Weight Check for the completed Drying Run before another Drying Run can begin.
+
+Completed Trays are excluded from later Weight Check requirements.
 
 The system preserves every recorded weight.
 
 Historical measurements are never replaced.
 
+Weight Checks continue across Drying Runs until the user decides each Tray is complete.
+
 ---
 
-# Workflow 5 — Complete a Tray
+# Workflow 6 — Complete a Tray
 
 Once the tray weight remains constant, the tray is considered complete.
 
 The system records:
 
 * Final dry weight
-* Total drying time
 * Number of weight checks
 
 Completed trays become available for packaging.
 
+Completing a Tray is an explicit user decision.
+
+The application may suggest that a Tray appears stable, but it must not automatically complete the Tray.
+
+Some Trays may complete while other Trays remain Running.
+
+Running Trays may continue into another Drying Run.
+
 ---
 
-# Workflow 6 — Package Finished Product
+# Workflow 7 — Continue Drying or Complete the Batch
+
+After Weight Checks have been recorded for the completed Drying Run, the user decides what happens next.
+
+If one or more Trays remain Running, the user may start another Drying Run.
+
+Starting another Drying Run:
+
+* creates a new Drying Run for the same Production Batch
+* records `startedAt`
+* includes only Trays that are still Running
+
+If every Tray has been marked Complete, the Production Batch becomes ready to complete.
+
+The Production Batch does not complete automatically.
+
+The user must explicitly choose:
+
+```text
+Complete Batch
+```
+
+Completing the Batch records `completedAt` and makes the Batch available for Packaging.
+
+Total drying time is derived from the sum of non-voided Drying Run durations, not from Production Batch wall-clock duration.
+
+---
+
+# Workflow 8 — Package Finished Product
 
 There are two common packaging paths.
 

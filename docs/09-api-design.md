@@ -145,12 +145,14 @@ Transitions a Draft Production Batch to the Running state.
 When production starts:
 
 * The Production Batch status becomes Running.
-* `startedAt` is set to the current timestamp.
+* `startedAt` is set to the provided actual start time, or the current timestamp if no start time is provided.
 * Every Draft Tray in the Batch transitions to Running.
+* The first Drying Run is created automatically.
+* The first Drying Run records `startedAt`.
 
 ### Request
 
-No request body is required.
+The request may include an optional `startedAt` value representing the actual production start time.
 
 ### Response
 
@@ -160,6 +162,7 @@ Returns the updated Production Batch.
 
 * The Production Batch must be in the Draft state.
 * The Production Batch must contain at least one Tray.
+* Every Tray in the Production Batch must have a Starting Weight.
 * The assigned Freeze Dryer must not already have a Running Production Batch.
 * The assigned Freeze Dryer must not be archived.
 * The Production Batch cannot already be Running, Completed, or Cancelled.
@@ -190,6 +193,136 @@ Returns the updated Production Batch.
 * Cancelled Production Batches cannot be cancelled again.
 
 If validation fails, the request returns an appropriate error response.
+
+---
+
+## Complete Production Batch
+
+```http
+POST /api/production-batches/{id}/complete
+```
+
+Completes a Running Production Batch after every Tray has been completed.
+
+### Behavior
+
+When the Batch completes:
+
+* The Production Batch status becomes Completed.
+* `completedAt` is recorded.
+* The Production Batch becomes a historical record ready for Packaging.
+
+### Validation
+
+* The Production Batch must be Running.
+* Every Tray in the Production Batch must be Completed.
+* There must be no Active Drying Run.
+* Completed, Cancelled, or Draft Batches cannot be completed.
+
+The system may show that the Batch is ready to complete, but completion requires this explicit user action.
+
+---
+
+# Drying Run Endpoints
+
+Drying Run endpoints manage freeze dryer machine-cycle intervals within a Running Production Batch.
+
+## Start Another Drying Run
+
+```http
+POST /api/production-batches/{id}/drying-runs
+```
+
+Starts another Drying Run for a Running Production Batch.
+
+The first Drying Run is created automatically by Start Production Batch.
+
+### Request
+
+The request may include:
+
+* `startedAt`, the actual time the freeze dryer cycle started
+* optional notes
+
+### Behavior
+
+When another Drying Run starts:
+
+* a new Drying Run is created
+* `startedAt` is recorded
+* the Drying Run status becomes Active
+
+### Validation
+
+* The Production Batch must be Running.
+* No Active Drying Run may already exist for the Production Batch.
+* At least one Tray in the Production Batch must still be Running.
+* Every Running Tray must have a Weight Check for the most recently completed non-voided Drying Run.
+
+Completed Trays are excluded from Weight Check requirements for later Drying Runs.
+
+---
+
+## Current Run Complete
+
+```http
+POST /api/drying-runs/{id}/complete
+```
+
+Marks the active Drying Run complete.
+
+This action represents the freeze dryer cycle ending.
+
+It does not complete any Tray or Production Batch.
+
+### Request
+
+The request may include:
+
+* `endedAt`, the actual time the freeze dryer cycle ended
+* optional notes
+
+### Behavior
+
+When Current Run Complete is recorded:
+
+* the Drying Run records `endedAt`
+* the Drying Run status becomes Complete
+* Weight Checks may be recorded for Running Trays
+
+### Validation
+
+* The Drying Run must be Active.
+* The parent Production Batch must be Running.
+* A completed Drying Run cannot be completed again.
+
+---
+
+## Void Drying Run
+
+```http
+POST /api/drying-runs/{id}/void
+```
+
+Marks a mistaken Drying Run as Voided while preserving the historical record.
+
+### Request
+
+The request should include notes explaining why the Drying Run was voided.
+
+### Behavior
+
+Voided Drying Runs remain visible in history but are excluded from derived drying-time calculations.
+
+---
+
+## List Drying Runs
+
+```http
+GET /api/production-batches/{id}/drying-runs
+```
+
+Returns Drying Runs for a Production Batch in chronological order.
 
 ---
 
@@ -338,6 +471,9 @@ Marks a Tray as completed.
 Validation:
 
 * final dry weight required
+* Tray must be Running
+* The active Drying Run, if any, must not be in progress
+* Completion is an explicit user action
 
 ---
 
@@ -352,6 +488,27 @@ POST /api/trays/{id}/weight-checks
 Adds a Weight Check.
 
 Historical checks remain unchanged.
+
+### Request
+
+The request includes:
+
+* `dryingRunId`
+* `weight`
+* `observedAt`
+* optional notes
+
+`observedAt` is the time the Tray was weighed.
+
+`recordedAt` is set by the server when the entry is saved.
+
+### Validation
+
+* The Tray must be Running.
+* The Drying Run must belong to the same Production Batch as the Tray.
+* The Drying Run must be Complete.
+* The Drying Run must not be Voided.
+* A Weight Check for the same Tray and Drying Run must not already exist.
 
 ---
 

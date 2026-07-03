@@ -43,6 +43,9 @@ Recipes (Optional Templates)
          Tray(s)
             │
             ▼
+      Drying Run(s)
+            │
+            ▼
      Weight Checks
             │
             ▼
@@ -82,13 +85,14 @@ Editing a Recipe never changes historical Production.
 
 ## Production Batches
 
-A Production Batch represents one freeze-dryer run.
+A Production Batch represents one freeze-drying production session for one Freeze Dryer load.
 
 Each Production Batch:
 
 * belongs to one Freeze Dryer
 * contains one or more Trays
 * tracks the overall production session
+* contains one or more Drying Runs
 
 Production Batches organize production but do not directly contain inventory.
 
@@ -123,6 +127,18 @@ Weight Checks record drying progress over time.
 They are append-only historical observations.
 
 Weight Checks determine when a Tray has reached its Final Dry Weight.
+
+## Drying Runs
+
+Drying Runs record freeze dryer machine-cycle intervals within a Running Production Batch.
+
+A Drying Run provides the cycle context for Weight Checks.
+
+Starting a Production Batch automatically creates the first Drying Run.
+
+Current Run Complete records the end of the active Drying Run and opens the Weight Check workflow.
+
+Total drying time is derived from non-voided Drying Run durations.
 
 ---
 
@@ -220,13 +236,14 @@ The architecture intentionally separates different responsibilities.
 | Production History    | Tray                |
 | Reusable Tray Setup   | Physical Tray       |
 | Freeze Dryer Capacity | Tray Slot           |
+| Machine Cycle Context | Drying Run          |
 | Drying Progress       | Weight Check        |
 | Packaging Event       | Packaging Operation |
 | Inventory             | Package             |
 | Physical Storage      | Storage Location    |
 | Historical Analysis   | Reports             |
 
-Future architecture may add Drying Run or Drying Session and Supply records.
+Future architecture may add Supply records.
 
 Those concepts should be introduced through documentation before implementation.
 

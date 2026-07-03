@@ -17,8 +17,9 @@ It serves as the foundation for database design, API development, and applicatio
 ```text
 Freeze Dryer ──< Tray Slot
 Freeze Dryer ──< Production Batch ──< Tray >── Recipe
+Production Batch ──< Drying Run
 Physical Tray ───────────────────────> Tray
-Tray ──< Weight Check
+Tray ──< Weight Check >── Drying Run
 Tray ──< Packaging Operation Tray >── Packaging Operation ──< Package >── Storage Location
 ```
 
@@ -108,7 +109,7 @@ Future versions may add tare weight, calibration notes, or other physical charac
 
 # Production Batch
 
-Represents one complete freeze dryer run.
+Represents one complete freeze-drying production session for one Freeze Dryer load.
 
 ## Fields
 
@@ -122,6 +123,8 @@ Represents one complete freeze dryer run.
 | notes         | Text                |
 
 `startedAt` is unset while the Batch is in Draft and is set when the Batch transitions to Running.
+
+`completedAt` is unset until every Tray has completed and the user explicitly completes the Batch.
 
 The system should suggest the next Batch Number when creating a Draft Production Batch.
 
@@ -159,6 +162,37 @@ The Physical Tray and Tray Slot preserve which reusable tray was placed in which
 
 ---
 
+# Drying Run
+
+Represents one freeze dryer cycle or timer interval within a Running Production Batch.
+
+## Fields
+
+| Field             | Type                |
+| ----------------- | ------------------- |
+| id                | UUID                |
+| productionBatchId | UUID                |
+| status            | Enum                |
+| startedAt         | DateTime            |
+| endedAt           | DateTime (optional) |
+| notes             | Text                |
+| createdAt         | DateTime            |
+| updatedAt         | DateTime            |
+
+Drying Run status values:
+
+* Active
+* Complete
+* Voided
+
+Starting a Production Batch automatically creates the first Drying Run.
+
+Only one Active Drying Run may exist for a Production Batch at a time.
+
+Total drying time is derived from the sum of non-voided Drying Run durations.
+
+---
+
 # Weight Check
 
 Represents one recorded weight during drying.
@@ -169,12 +203,15 @@ Represents one recorded weight during drying.
 | ------------ | -------- |
 | id           | UUID     |
 | trayId       | UUID     |
+| dryingRunId  | UUID     |
+| observedAt   | DateTime |
 | recordedAt   | DateTime |
-| elapsedHours | Decimal  |
 | weight       | Decimal  |
 | notes        | Text     |
 
 Weight Checks are append-only.
+
+Every Weight Check belongs to exactly one Tray and exactly one Drying Run.
 
 ---
 
@@ -369,6 +406,7 @@ The following constraints must always be enforced.
 * Every Tray records historical product and preparation information.
 * A Tray may optionally reference the Recipe it was created from.
 * Every Weight Check belongs to one Tray.
+* Every Weight Check belongs to one Drying Run.
 * Every Packaging Operation references one or more completed Trays.
 * Every Package belongs to one Storage Location.
 * Every Package belongs to one Packaging Operation.

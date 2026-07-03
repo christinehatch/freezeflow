@@ -33,9 +33,11 @@ If V1 accomplishes these goals well, it is considered successful.
 * Manage multiple Freeze Dryers
 * Create and manage Trays
 * Record Starting Weight
+* Track Drying Runs
 * Record Weight Checks
 * Record Final Dry Weight
 * Complete Trays
+* Complete Production Batches
 * Batch notes
 
 ---
@@ -71,6 +73,7 @@ Every Package can be traced back to:
 * Production Batch
 * Freeze Dryer
 * Weight Checks
+* Drying Runs
 * Preparation Information
 * Recipe Template, if used
 

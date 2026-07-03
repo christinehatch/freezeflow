@@ -37,6 +37,7 @@ The application may store current state on primary entities for simple daily use
 
 Examples of historical records include:
 
+* Drying Runs
 * Weight Checks
 * Packaging Operations
 * Storage Location History
@@ -96,9 +97,13 @@ Drying progress is not just one final value.
 
 It is a sequence of observations and decisions over time.
 
-Weight Checks are the primary Version 1 drying observations.
+Drying Runs preserve the freeze dryer machine-cycle intervals that occur within a Production Batch.
 
-Future versions may add explicit Drying Run or Drying Session records if the application needs to distinguish machine-run intervals from weight observations.
+Weight Checks are the primary Version 1 Tray weight observations.
+
+Every Weight Check belongs to one Tray and one Drying Run.
+
+Drying Run duration provides the basis for actual machine drying time.
 
 ## Packaging
 
