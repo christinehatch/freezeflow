@@ -20,6 +20,10 @@ Features should not be implemented simply because they are technically interesti
 
 Development should always prioritize reducing work for the user.
 
+Production tracking exists to create trustworthy inventory.
+
+Reports and metrics should support the user's workflow, but the core product value is being able to find finished food quickly and trust its history.
+
 ---
 
 # Milestones
@@ -96,7 +100,7 @@ Includes:
 - Drying Runs
 - Current Run Complete workflow
 - Weight Checks
-- Final Dry Weight
+- Finished Product Weight
 - Tray completion
 - User-confirmed Batch completion
 
@@ -105,7 +109,7 @@ Users can now fully record a production run.
 Milestone 3 records the weight data required for fresh-to-dry yield:
 
 * Starting Weight (fresh input)
-* Final Dry Weight (finished tray output)
+* Finished Product Weight (finished tray output)
 
 Yield itself is a derived production metric.
 
@@ -127,13 +131,14 @@ Includes:
 
 - Packaging Operations
 - Package creation
+- Package Types
 - Multiple Packages
 - Traceability
 - Initial Storage Location assignment
 
 Package attributes (sealed weight, oxygen absorber, notes) are recorded directly on each Package.
 
-Package Types as reusable templates are a future enhancement, not part of initial Milestone 4 implementation.
+Package Type should provide reusable package formats and defaults such as oxygen absorber size while remaining editable during packaging.
 
 ---
 
@@ -148,6 +153,13 @@ Includes:
 - Storage Locations
 - Storage movement
 - Package depletion
+
+Milestone 5 is a core product milestone.
+
+The primary user outcome is answering:
+
+* Where is this product?
+* How much do I have left?
 
 ---
 
@@ -182,7 +194,7 @@ Reporting answers questions such as:
 * How much finished dry product do I actually get from this fresh input?
 * Which products or preparation methods produce the best yield over time?
 
-Yield analysis depends on Starting Weight and Final Dry Weight recorded in Milestone 3.
+Yield analysis depends on Starting Weight and Finished Product Weight recorded in Milestone 3.
 
 Packaging data from Milestone 4 enables additional comparisons between tray output and sealed package output.
 
@@ -280,37 +292,13 @@ The following features are intentionally deferred until the production workflow 
 
 ---
 
-## Package Types
-
-Reusable packaging templates for common container formats.
-
-Examples:
-
-* 1 qt Mylar
-* 2 qt Mylar
-* Pint Jar
-* Half Gallon Jar
-
-A Package Type may eventually provide defaults such as:
-
-* oxygen absorber size
-* label behavior
-* expected sealed weight
-* packaging notes
-
-Package Types are a future enhancement.
-
-They are not part of Milestone 2 or Milestone 4 initial implementation.
-
----
-
 ## Future Domain Enhancements
 
 User research has identified additional real-world concepts that may become first-class records after the core V1 workflow is stable.
 
 These include:
 
-* Physical Tray tare weights and calibration notes
+* Physical Tray calibration notes
 * Advanced Drying Run analytics or machine telemetry
 * Packaging Supplies such as Mylar bags, oxygen absorbers, and labels
 * Supply stock counts and reorder reminders

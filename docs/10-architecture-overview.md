@@ -116,7 +116,9 @@ Physical Trays are reusable equipment records.
 
 Tray Slots are Freeze Dryer positions.
 
-Future versions may add tare weights or calibration notes to Physical Trays.
+Physical Trays may store optional tare weight.
+
+Future versions may add calibration notes to Physical Trays.
 
 ---
 
@@ -126,7 +128,7 @@ Weight Checks record drying progress over time.
 
 They are append-only historical observations.
 
-Weight Checks determine when a Tray has reached its Final Dry Weight.
+Weight Checks help the user determine when a Tray has reached its Finished Product Weight.
 
 ## Drying Runs
 
@@ -150,6 +152,22 @@ Packaging Operations exist primarily to preserve traceability.
 
 They are internal system records and are not a primary user-facing concept.
 
+For Version 1, a Packaging Operation may combine eligible Trays from the same Production Batch and Freeze Dryer.
+
+Packaging Operations should not mix Trays from different Freeze Dryers or different Production Batches.
+
+---
+
+## Package Types
+
+Package Types represent reusable packaging formats.
+
+Examples include Pint Jar, 1 qt Mylar, and 2 gallon Mylar.
+
+Package Types provide defaults such as oxygen absorber size while allowing Package-level values to remain editable.
+
+They support the Packaging workflow without becoming food inventory.
+
 ---
 
 ## Packages
@@ -159,6 +177,7 @@ Packages are the inventory units managed by Freezeflow.
 Each Package:
 
 * originates from one Packaging Operation
+* records one Package Type
 * belongs to one current Storage Location
 * has one Inventory Status
 
@@ -239,6 +258,7 @@ The architecture intentionally separates different responsibilities.
 | Machine Cycle Context | Drying Run          |
 | Drying Progress       | Weight Check        |
 | Packaging Event       | Packaging Operation |
+| Packaging Defaults    | Package Type        |
 | Inventory             | Package             |
 | Physical Storage      | Storage Location    |
 | Historical Analysis   | Reports             |

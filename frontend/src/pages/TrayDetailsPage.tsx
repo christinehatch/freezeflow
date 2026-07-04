@@ -81,8 +81,65 @@ export function TrayDetailsPage() {
 
       <section className="panel">
         <h3 className="section-title">Production</h3>
-        <p className="mt-3 text-slate-600">No drying history recorded.</p>
+        <dl className="mt-4 grid gap-4 md:grid-cols-3">
+          <div>
+            <dt className="label-text">Starting Weight</dt>
+            <dd>{formatWeight(tray.starting_weight_grams)}</dd>
+          </div>
+          <div>
+            <dt className="label-text">Latest Weight</dt>
+            <dd>{formatWeight(tray.latest_weight_grams)}</dd>
+          </div>
+          <div>
+            <dt className="label-text">Final Dry Weight</dt>
+            <dd>{formatWeight(tray.final_dry_weight_grams)}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="panel">
+        <h3 className="section-title">Weight History</h3>
+        {tray.weight_checks.length === 0 ? (
+          <p className="mt-3 text-slate-600">No Weight Checks recorded.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Drying Run</th>
+                  <th>Observed</th>
+                  <th>Weight</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tray.weight_checks.map((check, index) => (
+                  <tr key={check.id}>
+                    <td>Run {index + 1}</td>
+                    <td>{formatDate(check.observed_at)}</td>
+                    <td>{formatWeight(check.weight_grams)}</td>
+                    <td>{check.notes || "No notes"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatWeight(value: string | null) {
+  if (value === null) return "-";
+  return `${Number(value).toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  })} g`;
 }

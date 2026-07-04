@@ -125,6 +125,7 @@ export function ProductionPage() {
                   <th>Freeze Dryer</th>
                   <th>Status</th>
                   <th>Started</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +145,18 @@ export function ProductionPage() {
                       {batch.started_at
                         ? formatDate(batch.started_at)
                         : "Not started"}
+                    </td>
+                    <td>
+                      <Link
+                        className="secondary-action"
+                        to={`/production/${batch.id}`}
+                      >
+                        {batch.status === "Draft"
+                          ? "Continue / Start"
+                          : batch.status === "Running"
+                            ? "Open Workspace"
+                            : "View"}
+                      </Link>
                     </td>
                   </tr>
                 ))}

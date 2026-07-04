@@ -1,5 +1,7 @@
 from app.models.audit_entry import AuditEntry
+from app.models.drying_run import DryingRun
 from app.models.enums import (
+    DryingRunStatus,
     InventoryStatus,
     ProductionBatchStatus,
     TrayStatus,
@@ -20,6 +22,8 @@ from app.models.weight_check import WeightCheck
 
 __all__ = [
     "AuditEntry",
+    "DryingRun",
+    "DryingRunStatus",
     "FreezeDryer",
     "InventoryStatus",
     "Package",

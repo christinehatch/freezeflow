@@ -87,6 +87,10 @@ The user records:
 * Preparation details
 * Notes
 
+Preparation details should be fast, freeform, and tolerant of real-world shorthand.
+
+Recipes may provide reusable defaults, but the user should be able to directly record what actually happened on the Tray.
+
 Starting Weight is recorded when drying begins, not during Milestone 2 production setup.
 
 During Milestone 2, users load Trays and organize the Production Batch without entering weight information.
@@ -182,12 +186,11 @@ Weight Checks continue across Drying Runs until the user decides each Tray is co
 
 # Workflow 6 — Complete a Tray
 
-Once the tray weight remains constant, the tray is considered complete.
+Once the tray weight remains constant and the user decides the food is finished, the tray may be marked complete.
 
 The system records:
 
-* Final dry weight
-* Number of weight checks
+* Finished Product Weight
 
 Completed trays become available for packaging.
 
@@ -198,6 +201,8 @@ The application may suggest that a Tray appears stable, but it must not automati
 Some Trays may complete while other Trays remain Running.
 
 Running Trays may continue into another Drying Run.
+
+Packaging does not begin until every Tray in the Production Batch has completed and the Production Batch has been explicitly completed.
 
 ---
 
@@ -254,11 +259,9 @@ The user does not manage the Packaging Operation directly.
 
 If multiple completed trays contain the same product, the user may combine them before packaging.
 
-Examples include:
+Eligible trays should come from the same Production Batch and Freeze Dryer.
 
-* Multiple trays from the same production batch
-* Trays from different production batches
-* Trays from different freeze dryers
+The application should not combine trays from different Freeze Dryers or different Production Batches in Version 1.
 
 The user selects which completed trays will be packaged together.
 
@@ -280,8 +283,9 @@ The selected tray contents are divided into one or more storage bags.
 
 For every package the user records:
 
+* Package Type
 * Sealed weight
-* Oxygen absorber
+* Oxygen absorber, suggested from Package Type when available
 * Package date
 * Notes
 
@@ -369,7 +373,7 @@ It answers: "How much finished dry product do I actually get from this fresh inp
 
 Yield reporting belongs in Milestone 7 (Reporting).
 
-Milestone 3 records the underlying weights (Starting Weight and Final Dry Weight).
+Milestone 3 records the underlying weights (Starting Weight and Finished Product Weight).
 
 Milestone 4 adds packaged output, which enables related packaging-efficiency comparisons in reports.
 
@@ -447,7 +451,6 @@ Future versions may add additional workflows without changing the existing produ
 Examples include:
 
 * Recipe management
-* Package Types
 * QR code labels
 * Barcode scanning
 * Mobile weight entry

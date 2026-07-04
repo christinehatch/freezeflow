@@ -23,6 +23,7 @@ def test_alembic_upgrade_creates_persistence_tables(tmp_path, monkeypatch) -> No
     assert {
         "audit_entries",
         "freeze_dryers",
+        "drying_runs",
         "packages",
         "packaging_operation_trays",
         "packaging_operations",
@@ -35,5 +36,8 @@ def test_alembic_upgrade_creates_persistence_tables(tmp_path, monkeypatch) -> No
         "trays",
         "weight_checks",
     }.issubset(set(inspector.get_table_names()))
+    assert "tare_weight_grams" in [
+        column["name"] for column in inspector.get_columns("physical_trays")
+    ]
 
     get_settings.cache_clear()

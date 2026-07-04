@@ -5,26 +5,47 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.responses import empty_success, raise_api_error, success
-from app.api.serializers import production_batch_data, tray_data
+from app.api.serializers import (
+    drying_run_data,
+    production_batch_data,
+    tray_data,
+    weight_check_data,
+)
 from app.database.session import get_db
 from app.schemas import (
+    DryingRunComplete,
+    DryingRunStart,
+    DryingRunVoid,
     ProductionBatchCreate,
+    ProductionBatchStart,
     ProductionBatchUpdate,
+    TrayComplete,
     TrayCreate,
+    TrayStartingWeightUpdate,
     TrayUpdate,
+    WeightCheckCreate,
 )
 from app.services.errors import BusinessRuleError
 from app.services.production import (
     add_tray_to_batch,
     cancel_production_batch,
+    complete_drying_run,
+    complete_production_batch,
+    complete_tray,
     create_production_batch,
     delete_tray,
     get_production_batch,
     get_tray,
+    list_drying_runs,
     list_production_batches,
+    list_weight_checks,
+    record_starting_weight,
+    record_weight_check,
+    start_drying_run,
     start_production_batch,
     update_production_batch,
     update_tray,
+    void_drying_run,
 )
 
 router = APIRouter(tags=["production"])
@@ -78,9 +99,10 @@ def update_production_batch_endpoint(
 def start_production_batch_endpoint(
     batch_id: UUID,
     db: DBSession,
+    data: ProductionBatchStart | None = None,
 ) -> dict[str, object]:
     try:
-        batch = start_production_batch(db, batch_id)
+        batch = start_production_batch(db, batch_id, data)
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(production_batch_data(batch))
@@ -96,6 +118,73 @@ def cancel_production_batch_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(production_batch_data(batch))
+
+
+@router.post("/production-batches/{batch_id}/complete")
+def complete_production_batch_endpoint(
+    batch_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        batch = complete_production_batch(db, batch_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(production_batch_data(batch))
+
+
+@router.get("/production-batches/{batch_id}/drying-runs")
+def list_drying_runs_endpoint(
+    batch_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        drying_runs = list_drying_runs(db, batch_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success([drying_run_data(drying_run) for drying_run in drying_runs])
+
+
+@router.post("/production-batches/{batch_id}/drying-runs", status_code=201)
+def start_drying_run_endpoint(
+    batch_id: UUID,
+    data: DryingRunStart,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        drying_run = start_drying_run(db, batch_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(drying_run_data(drying_run))
+
+
+@router.post("/drying-runs/{drying_run_id}/complete")
+def complete_drying_run_endpoint(
+    drying_run_id: UUID,
+    db: DBSession,
+    data: DryingRunComplete | None = None,
+) -> dict[str, object]:
+    try:
+        drying_run = complete_drying_run(
+            db,
+            drying_run_id,
+            data or DryingRunComplete(),
+        )
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(drying_run_data(drying_run))
+
+
+@router.post("/drying-runs/{drying_run_id}/void")
+def void_drying_run_endpoint(
+    drying_run_id: UUID,
+    data: DryingRunVoid,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        drying_run = void_drying_run(db, drying_run_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(drying_run_data(drying_run))
 
 
 @router.post("/production-batches/{batch_id}/trays", status_code=201)
@@ -131,6 +220,59 @@ def update_tray_endpoint(
 ) -> dict[str, object]:
     try:
         tray = update_tray(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/trays/{tray_id}/starting-weight")
+def record_starting_weight_endpoint(
+    tray_id: UUID,
+    data: TrayStartingWeightUpdate,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = record_starting_weight(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/trays/{tray_id}/weight-checks", status_code=201)
+def record_weight_check_endpoint(
+    tray_id: UUID,
+    data: WeightCheckCreate,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        weight_check = record_weight_check(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(weight_check_data(weight_check))
+
+
+@router.get("/trays/{tray_id}/weight-checks")
+def list_weight_checks_endpoint(
+    tray_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        weight_checks = list_weight_checks(db, tray_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(
+        [weight_check_data(weight_check) for weight_check in weight_checks]
+    )
+
+
+@router.post("/trays/{tray_id}/complete")
+def complete_tray_endpoint(
+    tray_id: UUID,
+    data: TrayComplete,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = complete_tray(db, tray_id, data)
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(tray_data(tray))

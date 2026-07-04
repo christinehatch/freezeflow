@@ -13,6 +13,7 @@ from app.models.enums import ProductionBatchStatus, enum_values
 from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
+    from app.models.drying_run import DryingRun
     from app.models.freeze_dryer import FreezeDryer
     from app.models.tray import Tray
 
@@ -45,3 +46,6 @@ class ProductionBatch(IdMixin, Base):
         back_populates="production_batches"
     )
     trays: Mapped[list[Tray]] = relationship(back_populates="production_batch")
+    drying_runs: Mapped[list[DryingRun]] = relationship(
+        back_populates="production_batch"
+    )

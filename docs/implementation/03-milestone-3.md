@@ -25,7 +25,7 @@ Implement:
 - Historical Weight Check timeline
 - Latest Weight display
 - Weight trends
-- Final Dry Weight
+- Finished Product Weight (persisted as Final Dry Weight)
 - Manual Tray completion
 - Tray completion validation
 - Production Batch completion when every Tray is complete
@@ -49,7 +49,7 @@ This milestone should support:
 - Showing current Tray drying status.
 - Marking Trays Complete when the user decides drying is finished.
 - Starting another Drying Run when one or more Trays still need more drying.
-- Recording Final Dry Weight when a Tray is completed.
+- Recording Finished Product Weight when a Tray is completed.
 - Completing the Production Batch through explicit user confirmation after every Tray has completed.
 
 Milestone 3 should keep the user in the Production Batch workspace for routine weight entry.
@@ -99,7 +99,9 @@ Record Weight Checks for Trays
         ↓
 Review latest weights and trends
         ↓
-Mark individual Trays Complete or run again
+Mark individual Trays Complete when appropriate
+        ↓
+Start another Drying Run if any Tray is still Running
         ↓
 Repeat Drying Runs until all Trays are Complete
         ↓
@@ -246,7 +248,7 @@ Weight history should include:
 
 - Starting Weight
 - each Weight Check
-- Final Dry Weight after completion
+- Finished Product Weight after completion
 - optional notes attached to observations
 
 The Tray Details screen is the authoritative historical view for a single Tray.
@@ -290,13 +292,15 @@ The interface should make the difference between Starting Weight and later Weigh
 
 ---
 
-# Final Dry Weight
+# Finished Product Weight
 
-Each Tray records one Final Dry Weight.
+Each Tray records one Finished Product Weight.
 
-Final Dry Weight is the last dry food weight recorded before the Tray is marked Complete.
+The user-facing label should be Finished Product Weight.
 
-Final Dry Weight represents food weight only.
+Final Dry Weight is the persisted production concept for the last dry food weight recorded before the Tray is marked Complete.
+
+Finished Product Weight represents food weight only.
 
 It does not include:
 
@@ -305,9 +309,9 @@ It does not include:
 - labels
 - storage containers
 
-When a user marks a Tray Complete, the application must record Final Dry Weight.
+When a user marks a Tray Complete, the application must record Finished Product Weight.
 
-Final Dry Weight may be copied from the latest Weight Check when appropriate, but the user should understand and confirm the value used to complete the Tray.
+Finished Product Weight may be copied from the latest Weight Check when appropriate, but the user should understand and confirm the value used to complete the Tray.
 
 ---
 
@@ -319,7 +323,7 @@ The application may suggest completion when weight appears stable, but it must n
 
 When a Tray is completed:
 
-- Final Dry Weight is recorded.
+- Finished Product Weight is recorded.
 - `completedAt` is recorded.
 - Tray status becomes Completed.
 - additional Weight Checks are no longer allowed.
@@ -327,6 +331,8 @@ When a Tray is completed:
 Completed Trays remain historical production records.
 
 Completed Trays become eligible for Packaging in Milestone 4.
+
+Packaging does not begin until every Tray in the Production Batch has completed and the user has completed the Production Batch.
 
 ---
 
@@ -352,12 +358,12 @@ Packaging itself belongs to Milestone 4.
 
 # Yield Foundations
 
-Fresh-to-dry yield compares Starting Weight to Final Dry Weight for a Tray.
+Fresh-to-dry yield compares Starting Weight to Finished Product Weight for a Tray.
 
 Milestone 3 records the structured data required to calculate yield:
 
 - Starting Weight
-- Final Dry Weight
+- Finished Product Weight
 
 Yield is a derived production metric.
 
@@ -418,7 +424,7 @@ Tray Details should show:
 
 - Weight Check history
 - Starting Weight
-- Final Dry Weight
+- Finished Product Weight
 - preparation information
 - notes
 - completion information
@@ -440,7 +446,7 @@ Expected actions include:
 - record Starting Weight for a Tray
 - record Weight Check for a Tray
 - list Weight Checks for a Tray
-- complete Tray with Final Dry Weight
+- complete Tray with Finished Product Weight
 - complete Production Batch after every Tray is Complete
 
 Endpoints should be workflow-oriented and consistent with the API Design document.
@@ -509,8 +515,8 @@ Implement validation for:
 - Weight Check records `observedAt` and `recordedAt`.
 - Weight Checks cannot be added after the Tray is Completed.
 - Weight Checks cannot be added to Draft, Packaged, or Cancelled Trays.
-- Final Dry Weight is required when completing a Tray.
-- Final Dry Weight is numeric.
+- Finished Product Weight is required when completing a Tray.
+- Finished Product Weight is numeric.
 - Tray completion requires explicit user action.
 - Production Batch cannot complete before every Tray is Complete.
 - Production Batch completion requires explicit user action.
@@ -538,7 +544,7 @@ Create tests for:
 - latest weight display behavior
 - weight difference calculations
 - preventing Weight Checks after Tray completion
-- completing a Tray with Final Dry Weight
+- completing a Tray with Finished Product Weight
 - completing a Production Batch by explicit user action when all Trays are Complete
 - preserving historical Weight Checks
 - rejecting invalid lifecycle transitions
@@ -563,7 +569,7 @@ At the completion of Milestone 3:
 - Users can review Weight Check history.
 - Users can see latest weights and basic weight trends.
 - Users can manually mark Trays Complete.
-- Final Dry Weight is recorded for completed Trays.
+- Finished Product Weight is recorded for completed Trays.
 - A Production Batch becomes ready to complete when every Tray is Complete.
 - A Production Batch becomes Completed only when the user explicitly chooses Complete Batch.
 - Fresh-to-dry yield foundations are available for later Reporting.

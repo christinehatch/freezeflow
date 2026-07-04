@@ -88,7 +88,7 @@ Starting Weight
 
 34.2 oz
 
-Final Dry Weight
+Finished Product Weight
 
 8.1 oz
 

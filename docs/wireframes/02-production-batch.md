@@ -447,7 +447,7 @@ Selecting a Tray opens the Tray Details screen, where the user can view:
 * Weight Check history
 * Drying Run context
 * Starting Weight
-* Final Dry Weight
+* Finished Product Weight
 * Product information
 * Preparation details
 * Notes

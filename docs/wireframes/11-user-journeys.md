@@ -165,8 +165,11 @@ Create one or more Packages
 
 Enter:
 
+* Package Type
 * Package Weight
 * Storage Location
+
+Review or edit suggested oxygen absorber
 
 Review weight comparison
 
@@ -176,6 +179,8 @@ Complete Packaging
 ### Success Criteria
 
 The user creates finished Packages without needing to understand Packaging Operations.
+
+The user only combines Trays that belong to the same Production Batch and Freeze Dryer.
 
 ---
 

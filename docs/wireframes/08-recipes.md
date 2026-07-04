@@ -37,6 +37,10 @@ A user should be able to:
 
 Recipes should remain simple and easy to maintain.
 
+Preparation entry during Production should remain primary.
+
+Recipes provide reusable defaults, but users should be able to capture actual preparation details directly on the Tray without first maintaining a structured Recipe.
+
 ---
 
 # Screen Layout
@@ -143,6 +147,10 @@ Recipes should emphasize preparation instructions.
 
 Historical production information belongs to Production and Tray Details, not Recipes.
 
+Recipes should not become highly structured preparation forms.
+
+The user may describe preparation in natural language, including source, cut, seasoning, cooking method, and notes.
+
 ---
 
 # Recipe Fields
@@ -157,7 +165,7 @@ A Recipe may include:
 Recipes intentionally avoid production-specific information such as:
 
 * Starting Weight
-* Final Dry Weight
+* Finished Product Weight
 * Weight Checks
 * Freeze Dryer
 * Storage Location

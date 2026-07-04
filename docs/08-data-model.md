@@ -21,6 +21,7 @@ Production Batch ──< Drying Run
 Physical Tray ───────────────────────> Tray
 Tray ──< Weight Check >── Drying Run
 Tray ──< Packaging Operation Tray >── Packaging Operation ──< Package >── Storage Location
+Package Type ───────────────────────────────────────────────> Package
 ```
 
 A Packaging Operation may contain one or more completed Trays.
@@ -98,12 +99,15 @@ Represents one reusable removable tray owned by the user.
 | --------- | ------- |
 | id        | UUID    |
 | label     | String  |
+| tareWeightGrams | Decimal |
 | notes     | Text    |
 | archived  | Boolean |
 
 Physical Trays exist independently from Freeze Dryers and Production Batches.
 
-Future versions may add tare weight, calibration notes, or other physical characteristics.
+Physical Trays may store an optional tare weight in grams for reusable tray setup.
+
+Future versions may add calibration notes or other physical characteristics.
 
 ---
 
@@ -255,6 +259,33 @@ Business Rules:
 
 ---
 
+# Package Type
+
+Represents one reusable packaging format.
+
+Package Types provide defaults during Packaging while allowing per-Package overrides.
+
+## Fields
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| name | String |
+| defaultOxygenAbsorber | String |
+| notes | Text |
+| archived | Boolean |
+| createdAt | DateTime |
+| updatedAt | DateTime |
+
+Examples:
+
+* Pint Jar
+* 1 qt Mylar
+* 2 qt Mylar
+* 2 gallon Mylar
+
+---
+
 # Package
 
 Represents one sealed storage package.
@@ -265,6 +296,7 @@ Represents one sealed storage package.
 | -------------------- | -------- |
 | id                   | UUID     |
 | packagingOperationId | UUID     |
+| packageTypeId        | UUID     |
 | packageDate          | DateTime |
 | packageWeight        | Decimal  |
 | oxygenAbsorber       | String   |
@@ -378,6 +410,18 @@ Many Packages
 
 ---
 
+## Package Type
+
+1 Package Type
+
+↓
+
+Many Packages
+
+The relationship preserves which package format was selected while allowing Package-level details such as oxygen absorber and sealed weight to remain part of the Package record.
+
+---
+
 ## Package
 
 1 Package
@@ -408,6 +452,7 @@ The following constraints must always be enforced.
 * Every Weight Check belongs to one Tray.
 * Every Weight Check belongs to one Drying Run.
 * Every Packaging Operation references one or more completed Trays.
+* Every Package has a Package Type.
 * Every Package belongs to one Storage Location.
 * Every Package belongs to one Packaging Operation.
 * A Tray may only appear in one Packaging Operation.

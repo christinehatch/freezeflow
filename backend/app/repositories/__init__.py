@@ -1,4 +1,5 @@
 from app.repositories.audit_entries import audit_entry_repository
+from app.repositories.drying_runs import drying_run_repository
 from app.repositories.freeze_dryers import freeze_dryer_repository
 from app.repositories.packages import package_repository
 from app.repositories.packaging_operations import (
@@ -18,6 +19,7 @@ from app.repositories.weight_checks import weight_check_repository
 
 __all__ = [
     "audit_entry_repository",
+    "drying_run_repository",
     "freeze_dryer_repository",
     "package_repository",
     "packaging_operation_repository",

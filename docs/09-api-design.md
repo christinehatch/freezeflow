@@ -537,10 +537,11 @@ The server creates the internal Packaging Operation, records the source Trays, a
 The request includes:
 
 * selected trays
+* package type for each Package
 * package weights
 * storage locations
 * sealed weights
-* oxygen absorber information
+* oxygen absorber information, defaulted from Package Type when available
 * notes
 
 Example request:
@@ -550,16 +551,19 @@ Example request:
   "trayIds": ["tray1", "tray2", "tray3", "tray4"],
   "packages": [
     {
+      "packageTypeId": "package-type-1",
       "weight": 10.7,
       "oxygenAbsorber": "300cc",
       "storageLocationId": "storage-location-1"
     },
     {
+      "packageTypeId": "package-type-1",
       "weight": 10.6,
       "oxygenAbsorber": "300cc",
       "storageLocationId": "storage-location-1"
     },
     {
+      "packageTypeId": "package-type-1",
       "weight": 10.7,
       "oxygenAbsorber": "300cc",
       "storageLocationId": "storage-location-2"
@@ -569,6 +573,30 @@ Example request:
 ```
 
 Business Rules determine whether the request is valid.
+
+---
+
+## Package Types
+
+```http
+GET /api/v1/package-types
+```
+
+Returns active Package Types available during Packaging.
+
+```http
+POST /api/v1/package-types
+```
+
+Creates a reusable Package Type.
+
+```http
+PATCH /api/v1/package-types/{id}
+```
+
+Updates or archives a Package Type.
+
+Historical Packages preserve the Package Type selected at packaging time.
 
 ---
 

@@ -1,10 +1,10 @@
 # ❄️ Freezeflow
 
-> Freezeflow helps freeze-drying enthusiasts capture every batch, understand every result, and continuously improve their process through trustworthy records and meaningful insights.
+> Freezeflow helps freeze-drying enthusiasts turn production history into trustworthy, searchable inventory.
 
 Freezeflow is a software platform that tracks the complete lifecycle of freeze-dried products—from fresh food preparation through long-term storage.
 
-Rather than simply tracking inventory, Freezeflow preserves the entire production history of every batch, allowing users to understand how products were prepared, how they dried, how they were packaged, and where they are stored.
+Freezeflow preserves the entire production history of every batch so finished inventory can be found, trusted, and traced back to how it was prepared, dried, and packaged.
 
 ---
 
@@ -14,7 +14,7 @@ Most inventory systems only answer one question:
 
 > **"Where is my product?"**
 
-Freezeflow answers much more:
+Freezeflow's primary job is to answer that question quickly, while preserving the production context needed to trust the answer:
 
 * How was this product prepared?
 * Which freeze dryer was used?
@@ -23,7 +23,7 @@ Freezeflow answers much more:
 * Which trays produced this package?
 * Where is it stored?
 * Has it been used?
-* Which machine performs better over time?
+* Which machine was used?
 
 Every stage of production becomes part of the permanent record.
 
@@ -51,14 +51,13 @@ Searching for "Chicken" should immediately show every stored package and its loc
 
 ### Improve Future Batches
 
-Historical production data should help answer questions like:
+Historical production data should support practical questions like:
 
 * Which foods dry the fastest?
 * Which preparation methods work best?
-* Which freeze dryer is more efficient?
 * What is the average moisture loss for strawberries?
 
-The system should become more valuable over time as more data is collected.
+The system should become more valuable over time, but reporting should support the inventory and production workflow rather than turn routine freeze drying into data entry for its own sake.
 
 ---
 
@@ -147,8 +146,9 @@ Depleted
 ## Packaging
 
 * Combine compatible trays
+* Select Package Types
 * Record package weights
-* Record oxygen absorber information
+* Suggest oxygen absorber information
 * Preserve sealed storage weight
 
 ## Inventory

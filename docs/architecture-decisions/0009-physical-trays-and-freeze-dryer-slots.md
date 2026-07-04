@@ -79,6 +79,8 @@ Milestone 2 should document and support the basic setup model needed to create D
 
 Starting Weight, Weight Checks, tray completion, and automatic tare-weight calculations remain deferred to later milestones unless separately documented.
 
+Physical Tray setup may store optional tare weight metadata without automatically changing production weight records.
+
 ---
 
 # Alternatives Considered

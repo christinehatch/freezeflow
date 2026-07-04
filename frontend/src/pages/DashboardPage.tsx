@@ -15,6 +15,7 @@ export function DashboardPage() {
   const freezeDryers = freezeDryersQuery.data ?? [];
   const batches = batchesQuery.data ?? [];
   const runningBatches = batches.filter((batch) => batch.status === "Running");
+  const draftBatches = batches.filter((batch) => batch.status === "Draft");
   const activeBatchIds = new Set(runningBatches.map((batch) => batch.id));
   const recentBatches = getRecentBatches(batches, activeBatchIds);
   const activeDryerIds = new Set(
@@ -83,6 +84,9 @@ export function DashboardPage() {
               const activeBatch = runningBatches.find(
                 (batch) => batch.freeze_dryer_id === freezeDryer.id,
               );
+              const queuedBatch = draftBatches.find(
+                (batch) => batch.freeze_dryer_id === freezeDryer.id,
+              );
               const canCreate =
                 !freezeDryer.archived && !activeDryerIds.has(freezeDryer.id);
               return (
@@ -93,15 +97,20 @@ export function DashboardPage() {
                         {freezeDryer.name}
                       </h4>
                       <p className="mt-1 text-sm text-slate-600">
-                        Status: {activeBatch ? "Running" : "Idle"}
+                        Status:{" "}
+                        {activeBatch ? "Running" : queuedBatch ? "Queued" : "Idle"}
                       </p>
                     </div>
-                    <StatusPill status={activeBatch ? "Running" : "Idle"} />
+                    <StatusPill
+                      status={activeBatch ? "Running" : queuedBatch ? "Queued" : "Idle"}
+                    />
                   </div>
                   <p className="mt-4 text-sm text-slate-700">
                     {activeBatch
                       ? `Active Batch: ${activeBatch.batch_number}`
-                      : "No active Production Batch"}
+                      : queuedBatch
+                        ? `Queued Batch: ${queuedBatch.batch_number}`
+                        : "No active Production Batch"}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
                     {activeBatch ? (
@@ -110,6 +119,13 @@ export function DashboardPage() {
                         to={`/production/${activeBatch.id}`}
                       >
                         Open Current Batch
+                      </Link>
+                    ) : queuedBatch ? (
+                      <Link
+                        className="secondary-action"
+                        to={`/production/${queuedBatch.id}`}
+                      >
+                        Continue / Start Batch
                       </Link>
                     ) : (
                       <Link
@@ -197,7 +213,7 @@ function formatStarted(startedAt: string | null) {
   }).format(new Date(startedAt));
 }
 
-function StatusPill({ status }: { status: "Running" | "Idle" }) {
+function StatusPill({ status }: { status: "Running" | "Queued" | "Idle" }) {
   return (
     <span className={status === "Running" ? "pill-running" : "pill-idle"}>
       {status}

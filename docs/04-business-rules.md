@@ -297,7 +297,9 @@ Starting Weight is required before the Production Batch can transition to Runnin
 
 ## TR-007
 
-A Tray has one recorded final dry weight.
+A Tray has one recorded Finished Product Weight.
+
+The persisted production concept may be named Final Dry Weight, but the user-facing label should emphasize the finished food weight rather than the reusable tray.
 
 ---
 
@@ -421,6 +423,8 @@ Only compatible products should be included in the same Packaging Operation.
 
 Compatibility is determined by the user.
 
+For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch and Freeze Dryer.
+
 The system may provide suggestions but should not automatically combine products.
 
 ---
@@ -458,6 +462,14 @@ Each Package records its final sealed weight.
 ---
 
 ## PK-011
+
+Each Package records a Package Type.
+
+Package Type may provide a default oxygen absorber size, but the user may override the oxygen absorber recorded on the Package.
+
+---
+
+## PK-012
 
 Packages are the primary inventory units.
 
@@ -606,7 +618,7 @@ They contribute to traceability and historical understanding alongside structure
 
 ## YD-001
 
-Fresh-to-dry yield compares Starting Weight to Final Dry Weight for a Tray.
+Fresh-to-dry yield compares Starting Weight to Finished Product Weight for a Tray.
 
 It answers how much finished dry product resulted from the fresh input loaded onto the tray.
 
@@ -614,7 +626,7 @@ It answers how much finished dry product resulted from the fresh input loaded on
 
 ## YD-002
 
-Yield depends on Starting Weight and Final Dry Weight.
+Yield depends on Starting Weight and Finished Product Weight.
 
 Both values are recorded in Milestone 3.
 
@@ -718,6 +730,4 @@ New functionality should extend the workflow without violating production histor
 
 Any rule changes should be documented before implementation.
 
-Future enhancements may include Package Types as reusable packaging templates with defaults for oxygen absorber, label behavior, expected weight, and packaging notes.
-
-Package Types are not part of Milestone 2.
+Future enhancements may include deeper packaging supply tracking such as stock counts, reorder reminders, and package label automation.

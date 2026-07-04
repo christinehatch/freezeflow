@@ -170,7 +170,7 @@ Users should be able to answer:
 * What is the average fresh-to-dry yield?
 * When was the last batch?
 
-Fresh-to-dry yield compares Starting Weight to Final Dry Weight.
+Fresh-to-dry yield compares Starting Weight to Finished Product Weight.
 
 Yield analysis belongs in Reporting (Milestone 7).
 

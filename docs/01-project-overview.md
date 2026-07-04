@@ -6,11 +6,11 @@
 
 Freezeflow is a production management and inventory system designed specifically for freeze drying.
 
-Freezeflow helps freeze-drying enthusiasts capture every batch, understand every result, and continuously improve their process through trustworthy records and meaningful insights.
+Freezeflow helps freeze-drying enthusiasts create trustworthy, searchable inventory by preserving the production history behind every package.
 
 Unlike traditional inventory systems, Freezeflow captures the complete lifecycle of every product—from fresh food preparation through freeze drying, packaging, storage, and eventual use.
 
-The goal is to preserve production history, simplify inventory management, and provide meaningful insights that improve future batches.
+The goal is to make finished food easy to find and trust while preserving enough production history to understand how it was prepared, dried, packaged, and stored.
 
 Freezeflow is designed around the real-world workflow of freeze drying rather than forcing users to adapt to generic inventory software.
 
@@ -65,11 +65,10 @@ Finding inventory should require only a simple search.
 
 ## 3. Improve Production
 
-Historical production data should help users improve future batches.
+Historical production data should help users improve future batches without making reporting the focus of everyday use.
 
 Examples include:
 
-* comparing freeze dryer performance
 * comparing preparation methods
 * understanding drying times
 * calculating product yield
@@ -137,7 +136,7 @@ Every design decision should follow these principles.
 
 ## The User Is the Scientist
 
-Freezeflow should support the user's curiosity about their own process.
+Freezeflow should support the user's curiosity about their own process while keeping the immediate goal clear: create finished inventory that can be found and trusted later.
 
 The product should help users answer questions such as:
 
@@ -146,7 +145,7 @@ The product should help users answer questions such as:
 * Did pre-freezing help?
 * Why is one Freeze Dryer slower than another?
 
-Freezeflow should amplify user judgment rather than replace it.
+Freezeflow should amplify user judgment rather than replace it, and should not prioritize production metrics over practical inventory confidence.
 
 ---
 

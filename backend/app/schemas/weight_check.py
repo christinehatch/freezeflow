@@ -8,21 +8,25 @@ from app.schemas.base import ReadSchema
 
 
 class WeightCheckCreate(BaseModel):
-    tray_id: UUID
+    drying_run_id: UUID
     weight_grams: Decimal
     observed_at: datetime
-    recorded_at: datetime | None = None
     notes: str | None = None
 
 
 class WeightCheckUpdate(BaseModel):
-    tray_id: UUID | None = None
+    drying_run_id: UUID | None = None
     weight_grams: Decimal | None = None
     observed_at: datetime | None = None
     recorded_at: datetime | None = None
     notes: str | None = None
 
 
-class WeightCheckRead(WeightCheckCreate, ReadSchema):
+class WeightCheckRead(ReadSchema):
     id: UUID
+    tray_id: UUID
+    drying_run_id: UUID
+    weight_grams: Decimal
+    observed_at: datetime
     recorded_at: datetime
+    notes: str | None = None

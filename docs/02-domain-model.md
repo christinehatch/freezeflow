@@ -83,6 +83,10 @@ After the Tray is created, it no longer depends on the current state of the Reci
 
 Recipes may be reused across many Trays.
 
+Recipes should reduce repeated typing, not replace the user's actual production notes.
+
+Tray Preparation is the source of truth for what was actually made.
+
 ---
 
 # Freeze Dryer
@@ -181,6 +185,12 @@ Freeform notes are first-class production history.
 
 They may include shorthand, corrections, calculations, observations, and imperfect records.
 
+Preparation should remain flexible and notebook-like.
+
+Examples may include source, cut, seasoning, cooking method, whether the food was store-bought or home-processed, whether it was blanched or pre-frozen, and any other detail the user considers relevant.
+
+Freezeflow should not force preparation into many required structured fields.
+
 Starting weight is recorded when drying begins (Milestone 3), not during Milestone 2 tray setup.
 
 Each tray belongs to exactly one production batch.
@@ -254,6 +264,10 @@ Users do not manage Packaging Operations directly.
 
 Only compatible trays should be included in the same Packaging Operation.
 
+For Version 1, compatible trays must come from the same Production Batch and Freeze Dryer.
+
+The user may still decide which eligible trays should be packaged together.
+
 Examples:
 
 * Six trays of Taco Chicken
@@ -278,6 +292,7 @@ A Package represents one sealed storage bag.
 A package records:
 
 * Package date
+* Package Type
 * Package weight
 * Oxygen absorber
 * Notes
@@ -290,7 +305,9 @@ Packages are preservation records before they are inventory search results.
 
 They may carry notes such as rerun history, trust warnings, or special handling observations.
 
-Future versions may introduce Package Types as reusable templates (for example, 1 qt Mylar or Pint Jar) that provide defaults for oxygen absorber, label behavior, expected weight, and packaging notes.
+Package Types are reusable packaging formats such as Pint, Quart, 1 qt Mylar, or 2 gallon Mylar.
+
+A Package Type may provide defaults such as oxygen absorber size, label behavior, expected sealed weight, and packaging notes.
 
 Package Types are not part of Milestone 2.
 

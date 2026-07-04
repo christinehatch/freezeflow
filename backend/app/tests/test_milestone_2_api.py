@@ -54,6 +54,14 @@ def _add_tray(
     return response.json()["data"]
 
 
+def _record_starting_weight(client: TestClient, tray_id: str) -> None:
+    response = client.post(
+        f"/api/v1/trays/{tray_id}/starting-weight",
+        json={"starting_weight_grams": "907.000"},
+    )
+    assert response.status_code == 200
+
+
 def test_freeze_dryer_management_configures_tray_slots(client: TestClient) -> None:
     freeze_dryer = _create_freeze_dryer(client, tray_slot_count=3)
 
@@ -75,17 +83,24 @@ def test_freeze_dryer_management_configures_tray_slots(client: TestClient) -> No
 
 
 def test_physical_tray_setup(client: TestClient) -> None:
-    physical_tray = _create_physical_tray(client, "Tray 1")
+    response = client.post(
+        "/api/v1/physical-trays",
+        json={"label": "Tray 1", "tare_weight_grams": "68.039"},
+    )
+    assert response.status_code == 201
+    physical_tray = response.json()["data"]
     assert physical_tray["label"] == "Tray 1"
+    assert physical_tray["tare_weight_grams"] == 68.039
 
     duplicate_response = client.post("/api/v1/physical-trays", json={"label": "Tray 1"})
     assert duplicate_response.status_code == 400
 
     update_response = client.patch(
         f"/api/v1/physical-trays/{physical_tray['id']}",
-        json={"notes": "Sits slightly high."},
+        json={"tare_weight_grams": "70.000", "notes": "Sits slightly high."},
     )
     assert update_response.status_code == 200
+    assert update_response.json()["data"]["tare_weight_grams"] == 70.0
     assert update_response.json()["data"]["notes"] == "Sits slightly high."
 
 
@@ -103,6 +118,7 @@ def test_create_batch_select_trays_and_start_production(client: TestClient) -> N
     assert tray["status"] == "Draft"
     assert tray["tray_slot"]["slot_number"] == 1
     assert tray["physical_tray"]["label"] == "Tray 1"
+    _record_starting_weight(client, str(tray["id"]))
 
     start_response = client.post(f"/api/v1/production-batches/{batch_id}/start")
 
@@ -170,6 +186,34 @@ def test_physical_tray_is_unique_within_batch(client: TestClient) -> None:
     assert "Physical Tray already selected" in response.json()["detail"]["message"]
 
 
+def test_physical_tray_cannot_be_used_in_another_draft_batch(
+    client: TestClient,
+) -> None:
+    freeze_dryer = _create_freeze_dryer(client)
+    physical_tray = _create_physical_tray(client, "Tray 1")
+    first_batch_id = _create_batch(client, str(freeze_dryer["id"]))
+    second_batch_id = _create_batch(client, str(freeze_dryer["id"]))
+
+    _add_tray(
+        client,
+        first_batch_id,
+        str(freeze_dryer["tray_slots"][0]["id"]),
+        str(physical_tray["id"]),
+    )
+    response = client.post(
+        f"/api/v1/production-batches/{second_batch_id}/trays",
+        json={
+            "tray_slot_id": freeze_dryer["tray_slots"][1]["id"],
+            "physical_tray_id": physical_tray["id"],
+            "product_name": "Blueberries",
+            "preparation": "Halved.",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "Draft or Running Production Batch" in response.json()["detail"]["message"]
+
+
 def test_selected_trays_cannot_exceed_freeze_dryer_slot_count(
     client: TestClient,
 ) -> None:
@@ -209,6 +253,7 @@ def test_tray_setup_locks_after_start(client: TestClient) -> None:
         str(physical_tray["id"]),
         "Skittles",
     )
+    _record_starting_weight(client, str(tray["id"]))
 
     client.post(f"/api/v1/production-batches/{batch_id}/start")
 

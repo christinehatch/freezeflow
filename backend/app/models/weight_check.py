@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, Text
+from sqlalchemy import DateTime, ForeignKey, Numeric, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -13,15 +13,28 @@ from app.database.types import GUID
 from app.models.mixins import IdMixin, utc_now
 
 if TYPE_CHECKING:
+    from app.models.drying_run import DryingRun
     from app.models.tray import Tray
 
 
 class WeightCheck(IdMixin, Base):
     __tablename__ = "weight_checks"
+    __table_args__ = (
+        UniqueConstraint(
+            "tray_id",
+            "drying_run_id",
+            name="uq_weight_checks_tray_drying_run",
+        ),
+    )
 
     tray_id: Mapped[UUID] = mapped_column(
         GUID(),
         ForeignKey("trays.id"),
+        nullable=False,
+    )
+    drying_run_id: Mapped[UUID] = mapped_column(
+        GUID(),
+        ForeignKey("drying_runs.id"),
         nullable=False,
     )
     observed_at: Mapped[datetime] = mapped_column(
@@ -36,3 +49,4 @@ class WeightCheck(IdMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     tray: Mapped[Tray] = relationship(back_populates="weight_checks")
+    drying_run: Mapped[DryingRun] = relationship(back_populates="weight_checks")

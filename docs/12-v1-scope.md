@@ -35,7 +35,7 @@ If V1 accomplishes these goals well, it is considered successful.
 * Record Starting Weight
 * Track Drying Runs
 * Record Weight Checks
-* Record Final Dry Weight
+* Record Finished Product Weight
 * Complete Trays
 * Complete Production Batches
 * Batch notes
@@ -46,6 +46,7 @@ If V1 accomplishes these goals well, it is considered successful.
 
 * Select completed Trays
 * Create one or more Packages
+* Select Package Types
 * Record Package Weight
 * Assign Storage Locations
 * Automatic Packaging Operation creation

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -16,6 +17,7 @@ class PhysicalTray(IdMixin, Base):
     __tablename__ = "physical_trays"
 
     label: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    tare_weight_grams: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
     notes: Mapped[str | None] = mapped_column(Text)
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 

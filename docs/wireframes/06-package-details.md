@@ -84,7 +84,7 @@ Harvest Right #1
 
 Batch #24
 
-Final Dry Weight: 8.2 oz
+Finished Product Weight: 8.2 oz
 
 --------------------------------------------------
 
@@ -94,7 +94,7 @@ Harvest Right #1
 
 Batch #24
 
-Final Dry Weight: 8.1 oz
+Finished Product Weight: 8.1 oz
 
 --------------------------------------------------
 
@@ -104,7 +104,7 @@ Harvest Right #1
 
 Batch #24
 
-Final Dry Weight: 8.3 oz
+Finished Product Weight: 8.3 oz
 
 --------------------------------------------------
 
@@ -114,7 +114,7 @@ Harvest Right #1
 
 Batch #24
 
-Final Dry Weight: 8.2 oz
+Finished Product Weight: 8.2 oz
 
 [ View Tray Details ]
 
@@ -191,7 +191,7 @@ Each Tray should display:
 * Physical Tray
 * Production Batch
 * Freeze Dryer
-* Final Dry Weight
+* Finished Product Weight
 
 Each Tray should be clickable.
 

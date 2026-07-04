@@ -18,6 +18,10 @@ class ProductionBatchUpdate(BaseModel):
     notes: str | None = None
 
 
+class ProductionBatchStart(BaseModel):
+    started_at: datetime | None = None
+
+
 class ProductionBatchRead(ReadSchema):
     id: UUID
     freeze_dryer_id: UUID

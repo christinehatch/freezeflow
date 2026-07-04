@@ -8,6 +8,12 @@ import {
   ProductionBatch,
   productionApi,
 } from "../api/client";
+import {
+  WEIGHT_UNIT_OPTIONS,
+  WeightUnit,
+  formatGrams,
+  toGrams,
+} from "../utils/weights";
 
 export function FreezeDryersPage() {
   const queryClient = useQueryClient();
@@ -15,6 +21,9 @@ export function FreezeDryersPage() {
   const [notes, setNotes] = useState("");
   const [traySlotCount, setTraySlotCount] = useState("4");
   const [physicalTrayLabel, setPhysicalTrayLabel] = useState("");
+  const [physicalTrayTareWeight, setPhysicalTrayTareWeight] = useState("");
+  const [physicalTrayTareWeightUnit, setPhysicalTrayTareWeightUnit] =
+    useState<WeightUnit>("g");
   const [physicalTrayNotes, setPhysicalTrayNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const freezeDryersQuery = useQuery({
@@ -49,6 +58,8 @@ export function FreezeDryersPage() {
     },
     onSuccess: () => {
       setPhysicalTrayLabel("");
+      setPhysicalTrayTareWeight("");
+      setPhysicalTrayTareWeightUnit("g");
       setPhysicalTrayNotes("");
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ["physical-trays"] });
@@ -58,6 +69,7 @@ export function FreezeDryersPage() {
   const batches = batchesQuery.data ?? [];
   const physicalTrays = physicalTraysQuery.data ?? [];
   const activeBatches = batches.filter((batch) => batch.status === "Running");
+  const draftBatches = batches.filter((batch) => batch.status === "Draft");
   const activeDryers = freezeDryers.filter(
     (freezeDryer) => !freezeDryer.archived,
   );
@@ -78,6 +90,10 @@ export function FreezeDryersPage() {
     event.preventDefault();
     savePhysicalTray.mutate({
       label: physicalTrayLabel,
+      tare_weight_grams:
+        physicalTrayTareWeight === ""
+          ? null
+          : toGrams(physicalTrayTareWeight, physicalTrayTareWeightUnit),
       notes: physicalTrayNotes.trim() === "" ? null : physicalTrayNotes,
     });
   }
@@ -138,12 +154,14 @@ export function FreezeDryersPage() {
             <h3 className="section-title">Physical Trays</h3>
             <p className="mt-2 text-sm text-slate-600">
               Reusable trays owned by the client. They can be selected for any
-              Freeze Dryer slot during Production Batch setup.
+              Freeze Dryer slot during Production Batch setup. Tare Weight is
+              reusable tray setup; production food weights are recorded on the
+              selected slot inside a Production Batch.
             </p>
           </div>
         </div>
         <form
-          className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_auto]"
+          className="mt-4 grid gap-4 md:grid-cols-[1fr_10rem_2fr_auto]"
           onSubmit={handleCreatePhysicalTray}
         >
           <label className="field">
@@ -153,6 +171,15 @@ export function FreezeDryersPage() {
               value={physicalTrayLabel}
               onChange={(event) => setPhysicalTrayLabel(event.target.value)}
               placeholder="Tray 1"
+            />
+          </label>
+          <label className="field">
+            <span>Tare Weight</span>
+            <WeightInput
+              unit={physicalTrayTareWeightUnit}
+              value={physicalTrayTareWeight}
+              onUnitChange={setPhysicalTrayTareWeightUnit}
+              onValueChange={setPhysicalTrayTareWeight}
             />
           </label>
           <label className="field">
@@ -201,6 +228,9 @@ export function FreezeDryersPage() {
                 )}
                 freezeDryer={freezeDryer}
                 key={freezeDryer.id}
+                queuedBatch={draftBatches.find(
+                  (batch) => batch.freeze_dryer_id === freezeDryer.id,
+                )}
               />
             ))}
           </div>
@@ -227,9 +257,11 @@ export function FreezeDryersPage() {
 function FreezeDryerCard({
   activeBatch,
   freezeDryer,
+  queuedBatch,
 }: {
   activeBatch?: ProductionBatch;
   freezeDryer: FreezeDryer;
+  queuedBatch?: ProductionBatch;
 }) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -344,13 +376,15 @@ function FreezeDryerCard({
           </p>
         </div>
         <span className={activeBatch ? "pill-running" : "pill-idle"}>
-          {activeBatch ? "Running" : "Idle"}
+          {activeBatch ? "Running" : queuedBatch ? "Queued" : "Idle"}
         </span>
       </div>
       <p className="mt-4 text-sm text-slate-700">
         {activeBatch
           ? `Active Batch: ${activeBatch.batch_number}`
-          : "No active Production Batch"}
+          : queuedBatch
+            ? `Queued Batch: ${queuedBatch.batch_number}`
+            : "No active Production Batch"}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
         {activeBatch ? (
@@ -359,6 +393,13 @@ function FreezeDryerCard({
             to={`/production/${activeBatch.id}`}
           >
             Open Current Batch
+          </Link>
+        ) : queuedBatch ? (
+          <Link
+            className="secondary-action"
+            to={`/production/${queuedBatch.id}`}
+          >
+            Continue / Start Batch
           </Link>
         ) : (
           <Link
@@ -427,6 +468,10 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(physicalTray.label);
+  const [tareWeight, setTareWeight] = useState(
+    physicalTray.tare_weight_grams ?? "",
+  );
+  const [tareWeightUnit, setTareWeightUnit] = useState<WeightUnit>("g");
   const [notes, setNotes] = useState(physicalTray.notes ?? "");
   const updatePhysicalTray = useMutation({
     mutationFn: ({
@@ -434,7 +479,12 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
       body,
     }: {
       id: string;
-      body: { label?: string; notes?: string | null; archived?: boolean };
+      body: {
+        label?: string;
+        tare_weight_grams?: string | null;
+        notes?: string | null;
+        archived?: boolean;
+      };
     }) => productionApi.updatePhysicalTray(id, body),
     onSuccess: () => {
       setIsEditing(false);
@@ -452,6 +502,8 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
             id: physicalTray.id,
             body: {
               label,
+              tare_weight_grams:
+                tareWeight === "" ? null : toGrams(tareWeight, tareWeightUnit),
               notes: notes.trim() === "" ? null : notes,
             },
           });
@@ -463,6 +515,15 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
             required
             value={label}
             onChange={(event) => setLabel(event.target.value)}
+          />
+        </label>
+        <label className="field mt-3">
+          <span>Tare Weight</span>
+          <WeightInput
+            unit={tareWeightUnit}
+            value={tareWeight}
+            onUnitChange={setTareWeightUnit}
+            onValueChange={setTareWeight}
           />
         </label>
         <label className="field mt-3">
@@ -480,6 +541,8 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
             className="quiet-action"
             onClick={() => {
               setLabel(physicalTray.label);
+              setTareWeight(physicalTray.tare_weight_grams ?? "");
+              setTareWeightUnit("g");
               setNotes(physicalTray.notes ?? "");
               setIsEditing(false);
             }}
@@ -496,6 +559,9 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
     <div className="row-line">
       <div>
         <p className="font-semibold">{physicalTray.label}</p>
+        <p className="text-sm text-slate-600">
+          Tare Weight: {formatGrams(physicalTray.tare_weight_grams, 3)}
+        </p>
         <p className="text-sm text-slate-600">
           {physicalTray.notes || "No notes"}
         </p>
@@ -522,6 +588,43 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
           {physicalTray.archived ? "Restore" : "Archive"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function WeightInput({
+  unit,
+  value,
+  onUnitChange,
+  onValueChange,
+}: {
+  unit: WeightUnit;
+  value: string;
+  onUnitChange: (unit: WeightUnit) => void;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      <input
+        className="table-input"
+        min="0"
+        placeholder={unit}
+        step="0.001"
+        type="number"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+      <select
+        className="table-input"
+        value={unit}
+        onChange={(event) => onUnitChange(event.target.value as WeightUnit)}
+      >
+        {WEIGHT_UNIT_OPTIONS.map((weightUnit) => (
+          <option key={weightUnit.value} value={weightUnit.value}>
+            {weightUnit.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

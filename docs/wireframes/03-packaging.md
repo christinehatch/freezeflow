@@ -20,6 +20,7 @@ A user should be able to:
 
 * See every completed Tray waiting to be packaged.
 * Select compatible Trays.
+* Select Package Types.
 * Create one or more finished Packages.
 * Record package weights.
 * Assign Storage Locations.
@@ -68,6 +69,10 @@ Total Dry Weight
 Packages
 
 Package 1
+
+Package Type
+
+[ 1 qt Mylar v ]
 
 Package Weight
 
@@ -154,6 +159,12 @@ Completed Trays should remain visible until they have been packaged.
 
 Once packaged, they should disappear from this screen.
 
+For Version 1, selectable Trays should be grouped by Production Batch and Freeze Dryer.
+
+The user may select multiple eligible Trays from the same group.
+
+The user should not be able to combine Trays from different Production Batches or different Freeze Dryers in one Packaging Operation.
+
 ---
 
 # Package Creation
@@ -168,6 +179,10 @@ Examples:
 * 8 Trays -> 12 Packages
 
 The interface should never assume a fixed relationship.
+
+Each Package should have a Package Type.
+
+Package Type should prefill sensible defaults, such as oxygen absorber size, while allowing the user to edit the Package-level value.
 
 ---
 
@@ -315,4 +330,4 @@ Future versions may include:
 * Suggested package sizes
 * Smart Storage Location recommendations
 * Bluetooth scale integration
-* Package templates
+* Packaging supply stock tracking

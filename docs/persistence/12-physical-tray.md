@@ -16,10 +16,11 @@ For example, a user may own twelve Physical Trays while a Freeze Dryer has four 
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
 | label | Yes | Yes | User-facing tray identifier |
+| tareWeightGrams | No | Yes | Optional reusable tray tare weight, stored in grams |
 | notes | No | Yes | Optional equipment notes |
 | archived | Yes | Yes | Indicates whether the Physical Tray is available for future Production Batches |
 
-Future fields may include tare weight, calibration notes, material, or behavior notes.
+Future fields may include calibration notes, material, or behavior notes.
 
 ---
 
@@ -30,6 +31,7 @@ A Physical Tray:
 - may be referenced by many Trays over time
 - does not belong permanently to one Freeze Dryer
 - may be selected for one Tray Slot during Draft Production Batch setup
+- may store an optional tare weight for reusable tray setup
 
 ---
 
@@ -38,6 +40,8 @@ A Physical Tray:
 Historical Trays preserve which Physical Tray was used during a Production Batch.
 
 Changing or archiving a Physical Tray must not alter historical Production Batch records.
+
+Changing a Physical Tray tare weight does not rewrite historical Tray weights or Weight Checks.
 
 ---
 

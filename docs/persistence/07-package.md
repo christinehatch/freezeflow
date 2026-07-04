@@ -18,6 +18,7 @@ Packages preserve the connection between inventory and historical production thr
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
 | packagingOperationId | Yes | No | Parent Packaging Operation |
+| packageTypeId | Yes | Yes* | Selected Package Type |
 | storageLocationId | Yes | Yes* | Current Storage Location |
 | packageWeightGrams | Yes | Yes* | Total sealed package weight |
 | oxygenAbsorber | No | Yes | Optional oxygen absorber information |
@@ -33,6 +34,7 @@ Packages preserve the connection between inventory and historical production thr
 A Package:
 
 - belongs to one Packaging Operation
+- belongs to one Package Type
 - belongs to one current Storage Location
 - has many Storage Location History records
 
@@ -124,47 +126,53 @@ Packages created during the same Packaging Operation share the same packaging ti
 
 PA-003
 
-Every Package belongs to exactly one current Storage Location.
+Every Package belongs to exactly one Package Type.
 
 ---
 
 PA-004
 
-A Package represents one sealed unit.
+Every Package belongs to exactly one current Storage Location.
 
 ---
 
 PA-005
 
-Packages cannot be split after creation.
+A Package represents one sealed unit.
 
 ---
 
 PA-006
 
-Packages cannot be merged together.
+Packages cannot be split after creation.
 
 ---
 
 PA-007
 
-Moving a Package preserves its production history.
+Packages cannot be merged together.
 
 ---
 
 PA-008
 
-Packages are never deleted.
+Moving a Package preserves its production history.
 
 ---
 
 PA-009
 
-Inventory is tracked at the Package level.
+Packages are never deleted.
 
 ---
 
 PA-010
+
+Inventory is tracked at the Package level.
+
+---
+
+PA-011
 
 Marking a Package as Depleted removes it from active inventory but preserves its historical record.
 

@@ -142,7 +142,7 @@ Weight Checks are recorded after Current Run Complete and before another Drying 
 
 Complete Tray is the user action that marks one Tray as finished drying.
 
-Completing a Tray records Final Dry Weight and prevents additional Weight Checks for that Tray.
+Completing a Tray records Finished Product Weight and prevents additional Weight Checks for that Tray.
 
 Complete Tray is separate from Current Run Complete.
 
@@ -194,6 +194,10 @@ A Recipe may include:
 
 A Recipe may be reused across many Trays.
 
+Recipes provide defaults.
+
+They are not a replacement for the actual preparation notes recorded on a Tray.
+
 When a Tray is created from a Recipe, the relevant Recipe information is copied onto the Tray.
 
 The copied preparation information becomes the historical record for that Tray.
@@ -209,6 +213,17 @@ Tray Preparation is the historical preparation information stored on a Tray.
 It records what was actually prepared for that specific Tray.
 
 Tray Preparation may be copied from a Recipe or entered directly by the user.
+
+Tray Preparation should support freeform notebook-style entry.
+
+Examples may include:
+
+* product source
+* cut or size
+* seasoning
+* cooking method
+* store-bought or home-processed notes
+* blanching, pre-freezing, or other preparation details
 
 ---
 
@@ -335,11 +350,15 @@ The weight of a Tray after drying has completed.
 
 This value is used to determine moisture loss and fresh-to-dry yield.
 
+The preferred user-facing label is **Finished Product Weight** because the user is weighing finished food, not the reusable tray.
+
+Within persistence and older documentation this may appear as Final Dry Weight.
+
 ---
 
 ## Yield
 
-Fresh-to-dry yield compares Starting Weight to Final Dry Weight.
+Fresh-to-dry yield compares Starting Weight to Finished Product Weight.
 
 It answers how much finished dry product resulted from the fresh input loaded onto a Tray.
 
@@ -374,11 +393,9 @@ Examples include:
 * Pint Jar
 * Half Gallon Jar
 
-Package Types are a future concept.
+They provide defaults such as oxygen absorber size, label behavior, expected sealed weight, or packaging notes.
 
-They may eventually provide defaults such as oxygen absorber size, label behavior, expected sealed weight, or packaging notes.
-
-Milestone 4 records package attributes directly on each Package.
+Package Types are part of the Packaging workflow.
 
 Package Types are not implemented in Milestone 2.
 
@@ -432,7 +449,8 @@ The following terms should be used consistently throughout the project.
 | Tray             | Shelf                          |
 | Weight Check     | Reading                        |
 | Starting Weight  | Wet Weight, Fresh Weight       |
-| Final Dry Weight | Finished Weight                |
+| Finished Product Weight | Tray Weight, Finished Weight   |
+| Final Dry Weight | Tray Weight in user-facing UI  |
 | Yield            | Dry yield, Moisture loss alone |
 | Package          | Bag, Pouch                     |
 | Package Type     | Container, Bag size            |

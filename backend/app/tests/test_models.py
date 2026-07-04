@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.models import (
+    DryingRun,
+    DryingRunStatus,
     FreezeDryer,
     InventoryStatus,
     Package,
@@ -39,7 +41,7 @@ def test_model_creation_and_relationships(db_session) -> None:
         slot_number=1,
         label="Slot 1",
     )
-    physical_tray = PhysicalTray(label="Tray 1")
+    physical_tray = PhysicalTray(label="Tray 1", tare_weight_grams=Decimal("68.000"))
     db_session.add_all([tray_slot, physical_tray])
     db_session.flush()
 
@@ -50,6 +52,15 @@ def test_model_creation_and_relationships(db_session) -> None:
         status=ProductionBatchStatus.RUNNING,
     )
     db_session.add(production_batch)
+    db_session.flush()
+
+    drying_run = DryingRun(
+        production_batch_id=production_batch.id,
+        status=DryingRunStatus.COMPLETE,
+        started_at=now,
+        ended_at=now,
+    )
+    db_session.add(drying_run)
     db_session.flush()
 
     tray = Tray(
@@ -69,6 +80,7 @@ def test_model_creation_and_relationships(db_session) -> None:
 
     weight_check = WeightCheck(
         tray_id=tray.id,
+        drying_run_id=drying_run.id,
         observed_at=now,
         weight_grams=Decimal("250.000"),
     )
@@ -102,10 +114,12 @@ def test_model_creation_and_relationships(db_session) -> None:
     assert freeze_dryer.production_batches == [production_batch]
     assert freeze_dryer.tray_slots == [tray_slot]
     assert production_batch.trays == [tray]
+    assert production_batch.drying_runs == [drying_run]
     assert tray.tray_slot == tray_slot
     assert tray.physical_tray == physical_tray
     assert tray.recipe == recipe
     assert tray.weight_checks == [weight_check]
+    assert drying_run.weight_checks == [weight_check]
     assert tray.packaging_operation_link == packaging_link
     assert packaging_operation.tray_links == [packaging_link]
     assert packaging_operation.packages == [package]

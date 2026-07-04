@@ -240,7 +240,7 @@ This milestone does not implement:
 
 - Weight Checks
 - Starting Weight
-- Final Dry Weight
+- Finished Product Weight
 - Tray Completion
 - Batch Completion
 - Packaging

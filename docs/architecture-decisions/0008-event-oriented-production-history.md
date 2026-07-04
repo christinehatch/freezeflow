@@ -87,7 +87,9 @@ User research also revealed related setup concepts: reusable numbered Physical T
 
 Freezeflow keeps Tray as the production record and uses Physical Tray and Tray Slot to preserve the equipment selected for that production event.
 
-Future Physical Tray enhancements may store tare weight, calibration notes, preferred machine, and physical characteristics.
+Physical Tray setup may store tare weight.
+
+Future Physical Tray enhancements may store calibration notes, preferred machine, and physical characteristics.
 
 Until tare behavior is documented, Tray weight values follow ADR-0003 and represent food weight only.
 
@@ -157,6 +159,6 @@ Freezeflow screens should show current state clearly while allowing users to ins
 
 Reports should be derived from historical records and canonical current values rather than from freeform assumptions.
 
-Future features such as physical tray tare weights, machine maintenance history, rerun tracking, supply inventory, and intelligent product suggestions should extend the event-oriented model instead of replacing it.
+Future features such as physical tray calibration, machine maintenance history, rerun tracking, supply inventory, and intelligent product suggestions should extend the event-oriented model instead of replacing it.
 
 Implementation should avoid flattening meaningful workflow events into one mutable field when the event itself matters for traceability.

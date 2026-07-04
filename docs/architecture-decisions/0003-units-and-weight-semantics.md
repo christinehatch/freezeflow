@@ -38,10 +38,13 @@ Version 1 supports:
 
 * Grams (g)
 * Ounces (oz)
+* Pounds (lb)
 
 Changing the preferred display unit affects presentation only.
 
 Stored values are never converted or modified.
+
+Fluid ounces are a volume unit, not a weight unit. Freezeflow does not convert fluid ounces to weight without product-specific density rules.
 
 ---
 
@@ -107,6 +110,10 @@ Weight Checks are used to determine when drying has stabilized.
 The Final Dry Weight is the last recorded food weight before a Tray is marked Complete.
 
 Each Tray has exactly one Final Dry Weight.
+
+The preferred user-facing label is Finished Product Weight.
+
+Final Dry Weight remains the persisted production concept for yield and historical calculations.
 
 This value represents only the dried food.
 

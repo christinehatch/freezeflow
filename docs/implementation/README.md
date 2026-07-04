@@ -143,7 +143,7 @@ Includes:
 - Weight Checks
 - Weight history
 - Weight trends
-- Final Dry Weight
+- Finished Product Weight (persisted as Final Dry Weight)
 - Tray completion
 - User-confirmed Batch completion
 - Fresh-to-dry yield calculation foundations
@@ -161,14 +161,11 @@ Includes:
 - Packaging Operations
 - Package creation
 - Multi-tray packaging
+- Package Types, such as 1 qt Mylar or Pint Jar
 - Oxygen absorber tracking
 - Package notes
 - Package labels
 - Package weights
-
-Future enhancement:
-
-- Package Types, such as 1 qt Mylar or Pint Jar
 
 ---
 

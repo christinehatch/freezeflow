@@ -2,7 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { PhysicalTray, Tray, TraySlot, productionApi } from "../api/client";
+import {
+  DryingRun,
+  PhysicalTray,
+  ProductionBatch,
+  Tray,
+  TraySlot,
+  productionApi,
+} from "../api/client";
+import {
+  WEIGHT_UNIT_OPTIONS,
+  WeightUnit,
+  formatGrams,
+  toGrams,
+} from "../utils/weights";
 
 export function ProductionBatchPage() {
   const { batchId } = useParams();
@@ -11,6 +24,8 @@ export function ProductionBatchPage() {
   const [isEditingBatch, setIsEditingBatch] = useState(false);
   const [batchFreezeDryerId, setBatchFreezeDryerId] = useState("");
   const [batchNotes, setBatchNotes] = useState("");
+  const [draftPhysicalTraySelections, setDraftPhysicalTraySelections] =
+    useState<Record<string, string>>({});
   const batchQuery = useQuery({
     queryKey: ["production-batch", batchId],
     queryFn: () => productionApi.getProductionBatch(batchId ?? ""),
@@ -24,6 +39,10 @@ export function ProductionBatchPage() {
     queryKey: ["physical-trays"],
     queryFn: productionApi.listPhysicalTrays,
   });
+  const batchesQuery = useQuery({
+    queryKey: ["production-batches"],
+    queryFn: productionApi.listProductionBatches,
+  });
   const startBatch = useMutation({
     mutationFn: productionApi.startProductionBatch,
     onError: (mutationError) => {
@@ -33,6 +52,27 @@ export function ProductionBatchPage() {
   });
   const cancelBatch = useMutation({
     mutationFn: productionApi.cancelProductionBatch,
+    onError: (mutationError) => {
+      setError(mutationError.message);
+    },
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+  const completeBatch = useMutation({
+    mutationFn: productionApi.completeProductionBatch,
+    onError: (mutationError) => {
+      setError(mutationError.message);
+    },
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+  const completeDryingRun = useMutation({
+    mutationFn: productionApi.completeDryingRun,
+    onError: (mutationError) => {
+      setError(mutationError.message);
+    },
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+  const startDryingRun = useMutation({
+    mutationFn: productionApi.startDryingRun,
     onError: (mutationError) => {
       setError(mutationError.message);
     },
@@ -60,8 +100,21 @@ export function ProductionBatchPage() {
   const isDraft = batch?.status === "Draft";
   const freezeDryers = freezeDryersQuery.data ?? [];
   const physicalTrays = physicalTraysQuery.data ?? [];
+  const unavailablePhysicalTrayIds = new Set(
+    (batchesQuery.data ?? [])
+      .filter(
+        (productionBatch) =>
+          productionBatch.id !== batch?.id &&
+          (productionBatch.status === "Draft" ||
+            productionBatch.status === "Running"),
+      )
+      .flatMap((productionBatch) =>
+        productionBatch.trays.map((tray) => tray.physical_tray_id),
+      ),
+  );
   const activePhysicalTrays = physicalTrays.filter(
-    (physicalTray) => !physicalTray.archived,
+    (physicalTray) =>
+      !physicalTray.archived && !unavailablePhysicalTrayIds.has(physicalTray.id),
   );
   const selectableFreezeDryers = freezeDryers.filter(
     (freezeDryer) =>
@@ -71,8 +124,40 @@ export function ProductionBatchPage() {
     batch?.freeze_dryer.tray_slots
       .filter((traySlot) => !traySlot.archived)
       .sort((a, b) => a.slot_number - b.slot_number) ?? [];
-  const selectedPhysicalTrayIds = new Set(
-    batch?.trays.map((tray) => tray.physical_tray_id) ?? [],
+  const selectedPhysicalTrayIds = new Set([
+    ...(batch?.trays.map((tray) => tray.physical_tray_id) ?? []),
+    ...Object.values(draftPhysicalTraySelections).filter(
+      (physicalTrayId) => physicalTrayId !== "",
+    ),
+  ]);
+  const activeDryingRun = batch?.drying_runs.find(
+    (dryingRun) => dryingRun.status === "Active",
+  );
+  const completedDryingRuns =
+    batch?.drying_runs.filter((dryingRun) => dryingRun.status === "Complete") ??
+    [];
+  const latestCompletedDryingRun =
+    completedDryingRuns[completedDryingRuns.length - 1];
+  const hasSelectedTrays = Boolean(batch && batch.trays.length > 0);
+  const allTraysHaveStartingWeight = Boolean(
+    batch &&
+    batch.trays.length > 0 &&
+    batch.trays.every((tray) => tray.starting_weight_grams !== null),
+  );
+  const runningTrays =
+    batch?.trays.filter((tray) => tray.status === "Running") ?? [];
+  const allRunningTraysHaveLatestWeightCheck = Boolean(
+    latestCompletedDryingRun &&
+    runningTrays.every((tray) =>
+      tray.weight_checks.some(
+        (check) => check.drying_run_id === latestCompletedDryingRun.id,
+      ),
+    ),
+  );
+  const allTraysComplete = Boolean(
+    batch &&
+    batch.trays.length > 0 &&
+    batch.trays.every((tray) => tray.status === "Completed"),
   );
 
   function handleBatchUpdate(event: FormEvent<HTMLFormElement>) {
@@ -242,6 +327,8 @@ export function ProductionBatchPage() {
                   <th>Physical Tray</th>
                   <th>Product</th>
                   <th>Preparation</th>
+                  <th>Starting Weight</th>
+                  <th>Latest Weight</th>
                   <th>Notes</th>
                   <th>Status</th>
                   <th></th>
@@ -259,6 +346,15 @@ export function ProductionBatchPage() {
                       key={traySlot.id}
                       physicalTrays={activePhysicalTrays}
                       selectedPhysicalTrayIds={selectedPhysicalTrayIds}
+                      onPhysicalTraySelectionChange={(
+                        traySlotId,
+                        physicalTrayId,
+                      ) =>
+                        setDraftPhysicalTraySelections((currentSelections) => ({
+                          ...currentSelections,
+                          [traySlotId]: physicalTrayId,
+                        }))
+                      }
                       tray={tray}
                       traySlot={traySlot}
                     />
@@ -270,11 +366,34 @@ export function ProductionBatchPage() {
         )}
       </section>
 
+      {batch.status === "Running" || batch.status === "Completed" ? (
+        <DryingWorkflowPanel
+          activeDryingRun={activeDryingRun}
+          allRunningTraysHaveLatestWeightCheck={
+            allRunningTraysHaveLatestWeightCheck
+          }
+          allTraysComplete={allTraysComplete}
+          batch={batch}
+          completeBatch={() => completeBatch.mutate(batch.id)}
+          completeDryingRun={(dryingRun) =>
+            completeDryingRun.mutate({ id: dryingRun.id })
+          }
+          latestCompletedDryingRun={latestCompletedDryingRun}
+          startDryingRun={() =>
+            startDryingRun.mutate({ batchId: batch.id, body: {} })
+          }
+        />
+      ) : null}
+
       <section className="flex flex-wrap gap-3">
         {isDraft ? (
           <button
             className="primary-action"
-            disabled={startBatch.isPending}
+            disabled={
+              startBatch.isPending ||
+              !hasSelectedTrays ||
+              !allTraysHaveStartingWeight
+            }
             onClick={() => startBatch.mutate(batch.id)}
             type="button"
           >
@@ -297,6 +416,13 @@ export function ProductionBatchPage() {
         ) : null}
       </section>
 
+      {isDraft && hasSelectedTrays && !allTraysHaveStartingWeight ? (
+        <p className="text-sm text-slate-600">
+          Enter a Starting Weight for every selected Tray before starting
+          Production.
+        </p>
+      ) : null}
+
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
     </div>
   );
@@ -307,6 +433,7 @@ function SlotSetupRow({
   editable,
   physicalTrays,
   selectedPhysicalTrayIds,
+  onPhysicalTraySelectionChange,
   tray,
   traySlot,
 }: {
@@ -314,6 +441,10 @@ function SlotSetupRow({
   editable: boolean;
   physicalTrays: PhysicalTray[];
   selectedPhysicalTrayIds: Set<string>;
+  onPhysicalTraySelectionChange: (
+    traySlotId: string,
+    physicalTrayId: string,
+  ) => void;
   tray?: Tray;
   traySlot: TraySlot;
 }) {
@@ -324,10 +455,17 @@ function SlotSetupRow({
   );
   const [productName, setProductName] = useState(tray?.product_name ?? "");
   const [preparation, setPreparation] = useState(tray?.preparation ?? "");
+  const [startingWeight, setStartingWeight] = useState(
+    tray?.starting_weight_grams ?? "",
+  );
+  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>("g");
   const [notes, setNotes] = useState(tray?.notes ?? "");
   const addTray = useMutation({
     mutationFn: productionApi.addTray,
-    onSuccess: () => refreshBatch(queryClient, batchId),
+    onSuccess: () => {
+      setIsEditing(false);
+      refreshBatch(queryClient, batchId);
+    },
   });
   const updateTray = useMutation({
     mutationFn: productionApi.updateTray,
@@ -338,12 +476,16 @@ function SlotSetupRow({
   });
   const deleteTray = useMutation({
     mutationFn: productionApi.deleteTray,
-    onSuccess: () => refreshBatch(queryClient, batchId),
+    onSuccess: () => {
+      onPhysicalTraySelectionChange(traySlot.id, "");
+      refreshBatch(queryClient, batchId);
+    },
   });
 
   const slotLabel = traySlot.label || `Slot ${traySlot.slot_number}`;
   const availablePhysicalTrays = physicalTrays.filter(
     (physicalTray) =>
+      physicalTray.id === physicalTrayId ||
       physicalTray.id === tray?.physical_tray_id ||
       !selectedPhysicalTrayIds.has(physicalTray.id),
   );
@@ -354,6 +496,7 @@ function SlotSetupRow({
       physical_tray_id: physicalTrayId,
       product_name: productName,
       preparation,
+      starting_weight_grams: toGrams(startingWeight, startingWeightUnit),
       notes: notes.trim() === "" ? null : notes,
     };
 
@@ -368,6 +511,8 @@ function SlotSetupRow({
     return (
       <tr>
         <td>{slotLabel}</td>
+        <td>-</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -387,7 +532,10 @@ function SlotSetupRow({
             className="table-input"
             required
             value={physicalTrayId}
-            onChange={(event) => setPhysicalTrayId(event.target.value)}
+            onChange={(event) => {
+              setPhysicalTrayId(event.target.value);
+              onPhysicalTraySelectionChange(traySlot.id, event.target.value);
+            }}
           >
             <option value="">Select Tray</option>
             {availablePhysicalTrays.map((physicalTray) => (
@@ -414,6 +562,16 @@ function SlotSetupRow({
           />
         </td>
         <td>
+          <WeightInput
+            required
+            unit={startingWeightUnit}
+            value={startingWeight}
+            onUnitChange={setStartingWeightUnit}
+            onValueChange={setStartingWeight}
+          />
+        </td>
+        <td>{tray ? formatGrams(tray.latest_weight_grams) : "-"}</td>
+        <td>
           <input
             className="table-input"
             value={notes}
@@ -428,6 +586,7 @@ function SlotSetupRow({
               physicalTrayId === "" ||
               productName.trim() === "" ||
               preparation.trim() === "" ||
+              startingWeight === "" ||
               addTray.isPending ||
               updateTray.isPending
             }
@@ -441,8 +600,14 @@ function SlotSetupRow({
               className="quiet-action"
               onClick={() => {
                 setPhysicalTrayId(tray.physical_tray_id);
+                onPhysicalTraySelectionChange(
+                  traySlot.id,
+                  tray.physical_tray_id,
+                );
                 setProductName(tray.product_name);
                 setPreparation(tray.preparation);
+                setStartingWeight(tray.starting_weight_grams ?? "");
+                setStartingWeightUnit("g");
                 setNotes(tray.notes ?? "");
                 setIsEditing(false);
               }}
@@ -460,6 +625,8 @@ function SlotSetupRow({
     return (
       <tr>
         <td>{slotLabel}</td>
+        <td>-</td>
+        <td>-</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -488,6 +655,17 @@ function SlotSetupRow({
         </Link>
       </td>
       <td>{tray.preparation}</td>
+      <td>
+        {(editable && tray.status === "Draft") ||
+        (tray.status === "Running" &&
+          tray.starting_weight_grams === null &&
+          tray.weight_checks.length === 0) ? (
+          <StartingWeightCell batchId={batchId} tray={tray} />
+        ) : (
+          formatGrams(tray.starting_weight_grams)
+        )}
+      </td>
+      <td>{formatGrams(tray.latest_weight_grams)}</td>
       <td>{tray.notes || "No notes"}</td>
       <td>{tray.status}</td>
       <td>
@@ -519,6 +697,422 @@ function SlotSetupRow({
   );
 }
 
+function StartingWeightCell({
+  batchId,
+  tray,
+}: {
+  batchId: string;
+  tray: Tray;
+}) {
+  const queryClient = useQueryClient();
+  const [startingWeight, setStartingWeight] = useState(
+    tray.starting_weight_grams ?? "",
+  );
+  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>("g");
+  const recordStartingWeight = useMutation({
+    mutationFn: productionApi.recordStartingWeight,
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+
+  return (
+    <div className="flex min-w-36 gap-2">
+      <WeightInput
+        unit={startingWeightUnit}
+        value={startingWeight}
+        onUnitChange={setStartingWeightUnit}
+        onValueChange={setStartingWeight}
+      />
+      <button
+        className="quiet-action"
+        disabled={startingWeight === "" || recordStartingWeight.isPending}
+        onClick={() =>
+          recordStartingWeight.mutate({
+            id: tray.id,
+            body: {
+              starting_weight_grams: toGrams(
+                startingWeight,
+                startingWeightUnit,
+              ),
+            },
+          })
+        }
+        type="button"
+      >
+        Save
+      </button>
+    </div>
+  );
+}
+
+function DryingWorkflowPanel({
+  activeDryingRun,
+  allRunningTraysHaveLatestWeightCheck,
+  allTraysComplete,
+  batch,
+  completeBatch,
+  completeDryingRun,
+  latestCompletedDryingRun,
+  startDryingRun,
+}: {
+  activeDryingRun?: DryingRun;
+  allRunningTraysHaveLatestWeightCheck: boolean;
+  allTraysComplete: boolean;
+  batch: ProductionBatch;
+  completeBatch: () => void;
+  completeDryingRun: (dryingRun: DryingRun) => void;
+  latestCompletedDryingRun?: DryingRun;
+  startDryingRun: () => void;
+}) {
+  const runningTrays = batch.trays.filter((tray) => tray.status === "Running");
+  const allRunningTraysHaveStartingWeight = runningTrays.every(
+    (tray) => tray.starting_weight_grams !== null,
+  );
+
+  if (batch.status === "Completed") {
+    return (
+      <section className="panel">
+        <h3 className="section-title">Drying Complete</h3>
+        <p className="mt-2 text-slate-600">
+          This Production Batch is complete and ready for Packaging in the next
+          milestone.
+        </p>
+        <p className="mt-3 text-sm text-slate-600">
+          Total drying time: {formatDuration(batch.total_drying_seconds)}
+        </p>
+      </section>
+    );
+  }
+
+  if (activeDryingRun) {
+    return (
+      <section className="panel">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="section-title">Current Drying Run</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Started {formatDate(activeDryingRun.started_at)}
+            </p>
+          </div>
+          <button
+            className="primary-action"
+            onClick={() => completeDryingRun(activeDryingRun)}
+            type="button"
+          >
+            Current Run Complete
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (allTraysComplete) {
+    return (
+      <section className="panel">
+        <h3 className="section-title">All Trays Complete</h3>
+        <p className="mt-2 text-slate-600">
+          Review the Batch before moving it to Packaging.
+        </p>
+        <button
+          className="primary-action mt-4"
+          onClick={completeBatch}
+          type="button"
+        >
+          Complete Batch
+        </button>
+      </section>
+    );
+  }
+
+  if (!latestCompletedDryingRun) {
+    return (
+      <section className="panel">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="section-title">Drying Progress</h3>
+            <p className="mt-2 text-slate-600">
+              {allRunningTraysHaveStartingWeight
+                ? "No Drying Run is currently active."
+                : "Enter missing Starting Weights before starting the next Drying Run."}
+            </p>
+          </div>
+          {runningTrays.length > 0 ? (
+            <button
+              className="primary-action"
+              disabled={!allRunningTraysHaveStartingWeight}
+              onClick={startDryingRun}
+              type="button"
+            >
+              Start Drying Run
+            </button>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="panel">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="section-title">Record Weight Checks</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Drying Run completed{" "}
+            {formatDate(latestCompletedDryingRun.ended_at ?? "")}
+          </p>
+        </div>
+        <p className="text-sm text-slate-600">
+          Total drying time: {formatDuration(batch.total_drying_seconds)}
+        </p>
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Slot</th>
+              <th>Product</th>
+              <th>Last Weight</th>
+              <th>New Weight</th>
+              <th>Change</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {batch.trays.map((tray) => (
+              <WeightEntryRow
+                batchId={batch.id}
+                dryingRun={latestCompletedDryingRun}
+                key={tray.id}
+                tray={tray}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        {runningTrays.length > 0 ? (
+          <button
+            className="secondary-action"
+            disabled={!allRunningTraysHaveLatestWeightCheck}
+            onClick={startDryingRun}
+            type="button"
+          >
+            Start Another Drying Run
+          </button>
+        ) : null}
+        {!allRunningTraysHaveLatestWeightCheck ? (
+          <p className="self-center text-sm text-slate-600">
+            Every Running Tray needs a Weight Check before another Drying Run.
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function WeightEntryRow({
+  batchId,
+  dryingRun,
+  tray,
+}: {
+  batchId: string;
+  dryingRun: DryingRun;
+  tray: Tray;
+}) {
+  const queryClient = useQueryClient();
+  const existingCheck = tray.weight_checks.find(
+    (check) => check.drying_run_id === dryingRun.id,
+  );
+  const [weight, setWeight] = useState(existingCheck?.weight_grams ?? "");
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("g");
+  const [notes, setNotes] = useState("");
+  const baselineWeight = existingCheck
+    ? tray.previous_weight_grams
+    : tray.latest_weight_grams;
+  const newWeight =
+    existingCheck?.weight_grams ??
+    (weight === "" ? null : toGrams(weight, weightUnit));
+  const recordWeightCheck = useMutation({
+    mutationFn: productionApi.recordWeightCheck,
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+
+  if (tray.status === "Completed") {
+    return (
+      <tr>
+        <td>{tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}</td>
+        <td>{tray.product_name}</td>
+        <td>{formatGrams(tray.final_dry_weight_grams)}</td>
+        <td>Done</td>
+        <td>
+          {formatDifference(
+            tray.previous_weight_grams,
+            tray.latest_weight_grams,
+          )}
+        </td>
+        <td>Completed</td>
+        <td>
+          <Link className="quiet-action" to={`/trays/${tray.id}`}>
+            View
+          </Link>
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <tr>
+      <td>{tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}</td>
+      <td>
+        <Link className="text-link" to={`/trays/${tray.id}`}>
+          {tray.product_name}
+        </Link>
+      </td>
+      <td>{formatGrams(baselineWeight)}</td>
+      <td>
+        {existingCheck ? (
+          formatGrams(existingCheck.weight_grams)
+        ) : (
+          <div className="flex min-w-48 gap-2">
+            <WeightInput
+              unit={weightUnit}
+              value={weight}
+              onUnitChange={setWeightUnit}
+              onValueChange={setWeight}
+            />
+            <input
+              className="table-input"
+              placeholder="notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+            <button
+              className="quiet-action"
+              disabled={weight === "" || recordWeightCheck.isPending}
+              onClick={() =>
+                recordWeightCheck.mutate({
+                  id: tray.id,
+                  body: {
+                    drying_run_id: dryingRun.id,
+                    weight_grams: toGrams(weight, weightUnit),
+                    observed_at: new Date().toISOString(),
+                    notes: notes.trim() === "" ? null : notes,
+                  },
+                })
+              }
+              type="button"
+            >
+              Save
+            </button>
+          </div>
+        )}
+      </td>
+      <td>{formatDifference(baselineWeight, newWeight)}</td>
+      <td>{tray.status}</td>
+      <td>
+        <div className="flex flex-wrap gap-2">
+          {existingCheck ? (
+            <CompleteTrayButton batchId={batchId} tray={tray} />
+          ) : null}
+          <Link className="quiet-action" to={`/trays/${tray.id}`}>
+            View
+          </Link>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function CompleteTrayButton({
+  batchId,
+  tray,
+}: {
+  batchId: string;
+  tray: Tray;
+}) {
+  const queryClient = useQueryClient();
+  const [finalDryWeight, setFinalDryWeight] = useState(
+    tray.latest_weight_grams ?? "",
+  );
+  const [finalDryWeightUnit, setFinalDryWeightUnit] =
+    useState<WeightUnit>("g");
+  const completeTray = useMutation({
+    mutationFn: productionApi.completeTray,
+    onSuccess: () => refreshBatch(queryClient, batchId),
+  });
+
+  return (
+    <div className="flex min-w-40 gap-2">
+      <WeightInput
+        unit={finalDryWeightUnit}
+        value={finalDryWeight}
+        onUnitChange={setFinalDryWeightUnit}
+        onValueChange={setFinalDryWeight}
+      />
+      <button
+        className="quiet-action"
+        disabled={finalDryWeight === "" || completeTray.isPending}
+        onClick={() =>
+          completeTray.mutate({
+            id: tray.id,
+            body: {
+              final_dry_weight_grams: toGrams(
+                finalDryWeight,
+                finalDryWeightUnit,
+              ),
+            },
+          })
+        }
+        type="button"
+      >
+        Mark Complete
+      </button>
+    </div>
+  );
+}
+
+function WeightInput({
+  required = false,
+  unit,
+  value,
+  onUnitChange,
+  onValueChange,
+}: {
+  required?: boolean;
+  unit: WeightUnit;
+  value: string;
+  onUnitChange: (unit: WeightUnit) => void;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex min-w-40 gap-2">
+      <input
+        className="table-input"
+        min="0"
+        placeholder={unit}
+        required={required}
+        step="0.001"
+        type="number"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+      <select
+        className="table-input"
+        value={unit}
+        onChange={(event) => onUnitChange(event.target.value as WeightUnit)}
+      >
+        {WEIGHT_UNIT_OPTIONS.map((weightUnit) => (
+          <option key={weightUnit.value} value={weightUnit.value}>
+            {weightUnit.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function refreshBatch(
   queryClient: ReturnType<typeof useQueryClient>,
   batchId?: string,
@@ -530,8 +1124,27 @@ function refreshBatch(
 }
 
 function formatDate(value: string) {
+  if (value === "") return "Not recorded";
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatDifference(previous: string | null, next: string | null) {
+  if (previous === null || next === null || next === "") return "-";
+  const difference = Number(next) - Number(previous);
+  const prefix = difference > 0 ? "+" : "";
+  return `${prefix}${difference.toLocaleString(undefined, {
+    maximumFractionDigits: 1,
+  })} g`;
+}
+
+function formatDuration(seconds: number) {
+  if (seconds <= 0) return "0 h";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours} h`;
+  return `${hours} h ${minutes} min`;
 }

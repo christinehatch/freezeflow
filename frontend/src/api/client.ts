@@ -27,8 +27,19 @@ export type TraySlot = {
 export type PhysicalTray = {
   id: string;
   label: string;
+  tare_weight_grams: string | null;
   notes: string | null;
   archived: boolean;
+};
+
+export type WeightCheck = {
+  id: string;
+  tray_id: string;
+  drying_run_id: string;
+  weight_grams: string;
+  observed_at: string;
+  recorded_at: string;
+  notes: string | null;
 };
 
 export type Tray = {
@@ -42,8 +53,26 @@ export type Tray = {
   recipe_name: string | null;
   product_name: string;
   preparation: string;
+  starting_weight_grams: string | null;
+  final_dry_weight_grams: string | null;
+  completed_at: string | null;
   notes: string | null;
   status: "Draft" | "Running" | "Completed" | "Packaged" | "Cancelled";
+  weight_checks: WeightCheck[];
+  latest_weight_grams: string | null;
+  previous_weight_grams: string | null;
+};
+
+export type DryingRun = {
+  id: string;
+  production_batch_id: string;
+  status: "Active" | "Complete" | "Voided";
+  started_at: string;
+  ended_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  duration_seconds: number | null;
 };
 
 export type ProductionBatch = {
@@ -56,6 +85,8 @@ export type ProductionBatch = {
   completed_at: string | null;
   notes: string | null;
   trays: Tray[];
+  drying_runs: DryingRun[];
+  total_drying_seconds: number;
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -125,11 +156,20 @@ export const productionApi = {
   listTraySlots: (freezeDryerId: string) =>
     apiGet<TraySlot[]>(`/freeze-dryers/${freezeDryerId}/tray-slots`),
   listPhysicalTrays: () => apiGet<PhysicalTray[]>("/physical-trays"),
-  createPhysicalTray: (body: { label: string; notes?: string | null }) =>
+  createPhysicalTray: (body: {
+    label: string;
+    tare_weight_grams?: string | null;
+    notes?: string | null;
+  }) =>
     apiPost<PhysicalTray>("/physical-trays", body),
   updatePhysicalTray: (
     id: string,
-    body: { label?: string; notes?: string | null; archived?: boolean },
+    body: {
+      label?: string;
+      tare_weight_grams?: string | null;
+      notes?: string | null;
+      archived?: boolean;
+    },
   ) => apiPatch<PhysicalTray>(`/physical-trays/${id}`, body),
   listProductionBatches: () => apiGet<ProductionBatch[]>("/production-batches"),
   createProductionBatch: (body: {
@@ -147,6 +187,24 @@ export const productionApi = {
     apiPost<ProductionBatch>(`/production-batches/${id}/start`),
   cancelProductionBatch: (id: string) =>
     apiPost<ProductionBatch>(`/production-batches/${id}/cancel`),
+  completeProductionBatch: (id: string) =>
+    apiPost<ProductionBatch>(`/production-batches/${id}/complete`),
+  startDryingRun: ({
+    batchId,
+    body,
+  }: {
+    batchId: string;
+    body?: { started_at?: string; notes?: string | null };
+  }) => apiPost<DryingRun>(`/production-batches/${batchId}/drying-runs`, body),
+  completeDryingRun: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body?: { ended_at?: string; notes?: string | null };
+  }) => apiPost<DryingRun>(`/drying-runs/${id}/complete`, body),
+  voidDryingRun: ({ id, body }: { id: string; body: { notes: string } }) =>
+    apiPost<DryingRun>(`/drying-runs/${id}/void`, body),
   addTray: ({
     batchId,
     body,
@@ -157,6 +215,7 @@ export const productionApi = {
       physical_tray_id: string;
       product_name?: string | null;
       preparation?: string | null;
+      starting_weight_grams?: string;
       notes?: string | null;
     };
   }) => apiPost<Tray>(`/production-batches/${batchId}/trays`, body),
@@ -171,8 +230,35 @@ export const productionApi = {
       physical_tray_id?: string;
       product_name?: string;
       preparation?: string;
+      starting_weight_grams?: string;
       notes?: string | null;
     };
   }) => apiPatch<Tray>(`/trays/${id}`, body),
+  recordStartingWeight: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { starting_weight_grams: string };
+  }) => apiPost<Tray>(`/trays/${id}/starting-weight`, body),
+  recordWeightCheck: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: {
+      drying_run_id: string;
+      weight_grams: string;
+      observed_at: string;
+      notes?: string | null;
+    };
+  }) => apiPost<WeightCheck>(`/trays/${id}/weight-checks`, body),
+  completeTray: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { final_dry_weight_grams: string };
+  }) => apiPost<Tray>(`/trays/${id}/complete`, body),
   deleteTray: (id: string) => apiDelete<Record<string, never>>(`/trays/${id}`),
 };

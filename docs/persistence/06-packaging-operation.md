@@ -30,6 +30,7 @@ A Packaging Operation:
 
 - contains one or more completed Trays
 - produces one or more Packages
+- contains only Trays that are eligible to be packaged together
 
 A Tray:
 
@@ -165,9 +166,11 @@ Once a Packaging Operation has been created, its source Trays cannot change.
 
 PK-007
 
-Compatibility is determined by the user.
+For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch and Freeze Dryer.
 
-The application may warn about incompatible Tray selections but should not silently prevent packaging.
+The user decides which eligible Trays to package together.
+
+The application should prevent cross-batch or cross-freeze-dryer packaging selections in Version 1.
 
 ---
 
