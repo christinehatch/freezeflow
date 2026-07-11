@@ -3,6 +3,7 @@ from enum import StrEnum
 
 class InventoryStatus(StrEnum):
     IN_STORAGE = "In Storage"
+    GIVEN_AWAY = "Given Away"
     DEPLETED = "Depleted"
 
 

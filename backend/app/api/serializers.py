@@ -4,10 +4,15 @@ from app.models import (
     DryingRun,
     DryingRunStatus,
     FreezeDryer,
+    Package,
+    PackageType,
+    PackagingOperation,
     PhysicalTray,
     ProductionBatch,
+    StorageLocation,
     Tray,
     TraySlot,
+    TrayStatus,
     WeightCheck,
 )
 
@@ -68,6 +73,7 @@ def tray_data(tray: Tray) -> dict[str, object]:
         ],
         "latest_weight_grams": _latest_weight(tray, weight_checks),
         "previous_weight_grams": _previous_weight(tray, weight_checks),
+        "packaging": tray_packaging_data(tray),
     }
 
 
@@ -119,6 +125,116 @@ def production_batch_data(batch: ProductionBatch) -> dict[str, object]:
             )
             if duration is not None
         ),
+    }
+
+
+def package_type_data(package_type: PackageType) -> dict[str, object]:
+    return {
+        "id": package_type.id,
+        "name": package_type.name,
+        "default_oxygen_absorber": package_type.default_oxygen_absorber,
+        "default_label_template": package_type.default_label_template,
+        "notes": package_type.notes,
+        "archived": package_type.archived,
+    }
+
+
+def storage_location_data(storage_location: StorageLocation) -> dict[str, object]:
+    return {
+        "id": storage_location.id,
+        "name": storage_location.name,
+        "notes": storage_location.notes,
+        "archived": storage_location.archived,
+    }
+
+
+def packaging_operation_data(operation: PackagingOperation) -> dict[str, object]:
+    trays = sorted(
+        (link.tray for link in operation.tray_links),
+        key=_tray_sort_key,
+    )
+    return {
+        "id": operation.id,
+        "packaged_at": operation.packaged_at,
+        "notes": operation.notes,
+        "trays": [tray_data(tray) for tray in trays],
+        "packages": [package_data(package) for package in operation.packages],
+    }
+
+
+def package_data(package: Package) -> dict[str, object]:
+    return {
+        "id": package.id,
+        "packaging_operation_id": package.packaging_operation_id,
+        "package_type_id": package.package_type_id,
+        "package_type": package_type_data(package.package_type),
+        "package_identifier": package.package_identifier,
+        "package_weight_grams": package.package_weight_grams,
+        "oxygen_absorber": package.oxygen_absorber,
+        "storage_location_id": package.storage_location_id,
+        "storage_location": storage_location_data(package.storage_location),
+        "status": package.status,
+        "notes": package.notes,
+    }
+
+
+def packaging_worksheet_data(batches: list[ProductionBatch]) -> list[dict[str, object]]:
+    worksheet: list[dict[str, object]] = []
+    for batch in batches:
+        eligible_trays = [
+            tray
+            for tray in sorted(batch.trays, key=_tray_sort_key)
+            if tray.status == TrayStatus.COMPLETED
+            and tray.packaging_operation_link is None
+        ]
+        if not eligible_trays:
+            continue
+        worksheet.append(
+            {
+                "production_batch": production_batch_data(batch),
+                "eligible_trays": [tray_data(tray) for tray in eligible_trays],
+                "source_weight_grams": sum(
+                    (
+                        tray.final_dry_weight_grams
+                        for tray in eligible_trays
+                        if tray.final_dry_weight_grams is not None
+                    ),
+                    Decimal("0"),
+                ),
+            }
+        )
+    return worksheet
+
+
+def package_label_data(label: dict[str, object]) -> dict[str, object]:
+    return label
+
+
+def tray_packaging_data(tray: Tray) -> dict[str, object] | None:
+    if tray.packaging_operation_link is None:
+        return None
+    operation = tray.packaging_operation_link.packaging_operation
+    return {
+        "packaging_operation_id": operation.id,
+        "packaged_at": operation.packaged_at,
+        "batch_number": tray.production_batch.batch_number,
+        "freeze_dryer": tray.production_batch.freeze_dryer.name,
+        "packages": [
+            {
+                "id": package.id,
+                "package_identifier": package.package_identifier,
+                "package_type": package.package_type.name,
+                "package_weight_grams": package.package_weight_grams,
+                "oxygen_absorber": package.oxygen_absorber,
+                "storage_location": package.storage_location.name,
+                "status": package.status,
+                "notes": package.notes,
+            }
+            for package in sorted(
+                operation.packages,
+                key=lambda package: package.package_identifier,
+            )
+        ],
     }
 
 

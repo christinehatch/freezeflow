@@ -61,6 +61,26 @@ export type Tray = {
   weight_checks: WeightCheck[];
   latest_weight_grams: string | null;
   previous_weight_grams: string | null;
+  packaging: TrayPackaging | null;
+};
+
+export type TrayPackaging = {
+  packaging_operation_id: string;
+  packaged_at: string;
+  batch_number: string;
+  freeze_dryer: string;
+  packages: TrayPackageSummary[];
+};
+
+export type TrayPackageSummary = {
+  id: string;
+  package_identifier: string;
+  package_type: string;
+  package_weight_grams: string;
+  oxygen_absorber: string | null;
+  storage_location: string;
+  status: "In Storage" | "Given Away" | "Depleted";
+  notes: string | null;
 };
 
 export type DryingRun = {
@@ -87,6 +107,73 @@ export type ProductionBatch = {
   trays: Tray[];
   drying_runs: DryingRun[];
   total_drying_seconds: number;
+};
+
+export type PackageType = {
+  id: string;
+  name: string;
+  default_oxygen_absorber: string | null;
+  default_label_template: string | null;
+  notes: string | null;
+  archived: boolean;
+};
+
+export type StorageLocation = {
+  id: string;
+  name: string;
+  notes: string | null;
+  archived: boolean;
+};
+
+export type Package = {
+  id: string;
+  packaging_operation_id: string;
+  package_type_id: string;
+  package_type: PackageType;
+  package_identifier: string;
+  package_weight_grams: string;
+  oxygen_absorber: string | null;
+  storage_location_id: string;
+  storage_location: StorageLocation;
+  status: "In Storage" | "Given Away" | "Depleted";
+  notes: string | null;
+};
+
+export type PackagingOperation = {
+  id: string;
+  packaged_at: string;
+  notes: string | null;
+  trays: Tray[];
+  packages: Package[];
+};
+
+export type PackagingWorksheetItem = {
+  production_batch: ProductionBatch;
+  eligible_trays: Tray[];
+  source_weight_grams: string;
+};
+
+export type PackageLabel = {
+  package_id: string;
+  package_identifier: string;
+  batch_number: string;
+  freeze_dryer: string;
+  product_summary: string;
+  package_type: string;
+  package_weight_grams: string;
+  oxygen_absorber: string | null;
+  storage_location: string;
+  packaged_at: string;
+  label_template: string | null;
+};
+
+export type PackagingResult = {
+  packaging_operation: PackagingOperation;
+  packages: Package[];
+  warnings: string[];
+  source_weight_grams: string;
+  package_weight_grams: string;
+  labels: PackageLabel[];
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -160,8 +247,7 @@ export const productionApi = {
     label: string;
     tare_weight_grams?: string | null;
     notes?: string | null;
-  }) =>
-    apiPost<PhysicalTray>("/physical-trays", body),
+  }) => apiPost<PhysicalTray>("/physical-trays", body),
   updatePhysicalTray: (
     id: string,
     body: {
@@ -261,4 +347,40 @@ export const productionApi = {
     body: { final_dry_weight_grams: string };
   }) => apiPost<Tray>(`/trays/${id}/complete`, body),
   deleteTray: (id: string) => apiDelete<Record<string, never>>(`/trays/${id}`),
+};
+
+export const packagingApi = {
+  getWorksheet: () => apiGet<PackagingWorksheetItem[]>("/packaging/worksheet"),
+  listPackageTypes: () => apiGet<PackageType[]>("/package-types"),
+  createPackageType: (body: {
+    name: string;
+    default_oxygen_absorber?: string | null;
+    default_label_template?: string | null;
+    notes?: string | null;
+  }) => apiPost<PackageType>("/package-types", body),
+  updatePackageType: (
+    id: string,
+    body: {
+      name?: string;
+      default_oxygen_absorber?: string | null;
+      default_label_template?: string | null;
+      notes?: string | null;
+      archived?: boolean;
+    },
+  ) => apiPatch<PackageType>(`/package-types/${id}`, body),
+  listStorageLocations: () => apiGet<StorageLocation[]>("/storage-locations"),
+  packageTrays: (body: {
+    tray_ids: string[];
+    packages: {
+      package_type_id: string;
+      package_weight_grams: string;
+      oxygen_absorber?: string | null;
+      storage_location_id?: string | null;
+      notes?: string | null;
+    }[];
+    packaged_at?: string | null;
+    notes?: string | null;
+  }) => apiPost<PackagingResult>("/packages", body),
+  labelsForPackages: (body: { package_ids: string[] }) =>
+    apiPost<PackageLabel[]>("/packages/labels", body),
 };

@@ -14,6 +14,7 @@ import {
   WEIGHT_UNIT_OPTIONS,
   WeightUnit,
   formatGrams,
+  fromGramsForInput,
   toGrams,
 } from "../utils/weights";
 
@@ -114,7 +115,8 @@ export function ProductionBatchPage() {
   );
   const activePhysicalTrays = physicalTrays.filter(
     (physicalTray) =>
-      !physicalTray.archived && !unavailablePhysicalTrayIds.has(physicalTray.id),
+      !physicalTray.archived &&
+      !unavailablePhysicalTrayIds.has(physicalTray.id),
   );
   const selectableFreezeDryers = freezeDryers.filter(
     (freezeDryer) =>
@@ -455,10 +457,15 @@ function SlotSetupRow({
   );
   const [productName, setProductName] = useState(tray?.product_name ?? "");
   const [preparation, setPreparation] = useState(tray?.preparation ?? "");
-  const [startingWeight, setStartingWeight] = useState(
-    tray?.starting_weight_grams ?? "",
+  const initialStartingWeight = fromGramsForInput(
+    tray?.starting_weight_grams ?? null,
   );
-  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>("g");
+  const [startingWeight, setStartingWeight] = useState(
+    initialStartingWeight.value,
+  );
+  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>(
+    initialStartingWeight.unit,
+  );
   const [notes, setNotes] = useState(tray?.notes ?? "");
   const addTray = useMutation({
     mutationFn: productionApi.addTray,
@@ -606,8 +613,11 @@ function SlotSetupRow({
                 );
                 setProductName(tray.product_name);
                 setPreparation(tray.preparation);
-                setStartingWeight(tray.starting_weight_grams ?? "");
-                setStartingWeightUnit("g");
+                const friendlyWeight = fromGramsForInput(
+                  tray.starting_weight_grams,
+                );
+                setStartingWeight(friendlyWeight.value);
+                setStartingWeightUnit(friendlyWeight.unit);
                 setNotes(tray.notes ?? "");
                 setIsEditing(false);
               }}
@@ -705,10 +715,13 @@ function StartingWeightCell({
   tray: Tray;
 }) {
   const queryClient = useQueryClient();
+  const initialStartingWeight = fromGramsForInput(tray.starting_weight_grams);
   const [startingWeight, setStartingWeight] = useState(
-    tray.starting_weight_grams ?? "",
+    initialStartingWeight.value,
   );
-  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>("g");
+  const [startingWeightUnit, setStartingWeightUnit] = useState<WeightUnit>(
+    initialStartingWeight.unit,
+  );
   const recordStartingWeight = useMutation({
     mutationFn: productionApi.recordStartingWeight,
     onSuccess: () => refreshBatch(queryClient, batchId),
@@ -925,8 +938,11 @@ function WeightEntryRow({
   const existingCheck = tray.weight_checks.find(
     (check) => check.drying_run_id === dryingRun.id,
   );
-  const [weight, setWeight] = useState(existingCheck?.weight_grams ?? "");
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("g");
+  const initialWeight = fromGramsForInput(existingCheck?.weight_grams ?? null);
+  const [weight, setWeight] = useState(initialWeight.value);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
+    existingCheck ? initialWeight.unit : "oz",
+  );
   const [notes, setNotes] = useState("");
   const baselineWeight = existingCheck
     ? tray.previous_weight_grams
@@ -1033,11 +1049,13 @@ function CompleteTrayButton({
   tray: Tray;
 }) {
   const queryClient = useQueryClient();
+  const initialFinalDryWeight = fromGramsForInput(tray.latest_weight_grams);
   const [finalDryWeight, setFinalDryWeight] = useState(
-    tray.latest_weight_grams ?? "",
+    initialFinalDryWeight.value,
   );
-  const [finalDryWeightUnit, setFinalDryWeightUnit] =
-    useState<WeightUnit>("g");
+  const [finalDryWeightUnit, setFinalDryWeightUnit] = useState<WeightUnit>(
+    initialFinalDryWeight.unit,
+  );
   const completeTray = useMutation({
     mutationFn: productionApi.completeTray,
     onSuccess: () => refreshBatch(queryClient, batchId),

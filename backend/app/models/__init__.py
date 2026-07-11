@@ -8,6 +8,7 @@ from app.models.enums import (
 )
 from app.models.freeze_dryer import FreezeDryer
 from app.models.package import Package
+from app.models.package_type import PackageType
 from app.models.packaging_operation import (
     PackagingOperation,
     PackagingOperationTray,
@@ -27,6 +28,7 @@ __all__ = [
     "FreezeDryer",
     "InventoryStatus",
     "Package",
+    "PackageType",
     "PackagingOperation",
     "PackagingOperationTray",
     "PhysicalTray",

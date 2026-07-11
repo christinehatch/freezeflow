@@ -13,6 +13,7 @@ from app.models.enums import InventoryStatus, enum_values
 from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
+    from app.models.package_type import PackageType
     from app.models.packaging_operation import PackagingOperation
     from app.models.storage_location import StorageLocation, StorageLocationHistory
 
@@ -24,6 +25,16 @@ class Package(IdMixin, Base):
         GUID(),
         ForeignKey("packaging_operations.id"),
         nullable=False,
+    )
+    package_type_id: Mapped[UUID] = mapped_column(
+        GUID(),
+        ForeignKey("package_types.id"),
+        nullable=False,
+    )
+    package_identifier: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
     )
     package_weight_grams: Mapped[Decimal] = mapped_column(
         Numeric(12, 3), nullable=False
@@ -50,6 +61,7 @@ class Package(IdMixin, Base):
     packaging_operation: Mapped[PackagingOperation] = relationship(
         back_populates="packages"
     )
+    package_type: Mapped[PackageType] = relationship(back_populates="packages")
     storage_location: Mapped[StorageLocation] = relationship(back_populates="packages")
     storage_location_history: Mapped[list[StorageLocationHistory]] = relationship(
         back_populates="package"

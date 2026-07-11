@@ -9,6 +9,8 @@ from app.schemas.base import ReadSchema
 
 class PackageCreate(BaseModel):
     packaging_operation_id: UUID
+    package_type_id: UUID
+    package_identifier: str
     storage_location_id: UUID
     package_weight_grams: Decimal
     oxygen_absorber: str | None = None
@@ -18,6 +20,8 @@ class PackageCreate(BaseModel):
 
 class PackageUpdate(BaseModel):
     packaging_operation_id: UUID | None = None
+    package_type_id: UUID | None = None
+    package_identifier: str | None = None
     storage_location_id: UUID | None = None
     package_weight_grams: Decimal | None = None
     oxygen_absorber: str | None = None

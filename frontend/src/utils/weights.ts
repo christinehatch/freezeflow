@@ -23,6 +23,27 @@ export function formatGrams(value: string | null, maximumFractionDigits = 1) {
   })} g`;
 }
 
+export function fromGramsForInput(value: string | null): {
+  value: string;
+  unit: WeightUnit;
+} {
+  if (value === null) return { value: "", unit: "g" };
+  const grams = Number(value);
+  if (!Number.isFinite(grams)) return { value: "", unit: "g" };
+
+  if (Math.abs(grams) >= 453.59237) {
+    return { value: formatInputDecimal(grams / 453.59237), unit: "lb" };
+  }
+  if (Math.abs(grams) >= 28.349523125) {
+    return { value: formatInputDecimal(grams / 28.349523125), unit: "oz" };
+  }
+  return { value: formatInputDecimal(grams), unit: "g" };
+}
+
 function formatDecimal(value: number) {
   return value.toFixed(3);
+}
+
+function formatInputDecimal(value: number) {
+  return Number(value.toFixed(3)).toString();
 }

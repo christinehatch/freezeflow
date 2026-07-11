@@ -13,6 +13,11 @@ from app.schemas.freeze_dryer import (
     FreezeDryerUpdate,
 )
 from app.schemas.package import PackageCreate, PackageRead, PackageUpdate
+from app.schemas.package_type import (
+    PackageTypeCreate,
+    PackageTypeRead,
+    PackageTypeUpdate,
+)
 from app.schemas.packaging_operation import (
     PackagingOperationCreate,
     PackagingOperationRead,
@@ -20,6 +25,11 @@ from app.schemas.packaging_operation import (
     PackagingOperationTrayRead,
     PackagingOperationTrayUpdate,
     PackagingOperationUpdate,
+)
+from app.schemas.packaging_workflow import (
+    PackageLabelRequest,
+    PackageLineCreate,
+    PackageSelectedTrays,
 )
 from app.schemas.physical_tray import (
     PhysicalTrayCreate,
@@ -71,6 +81,12 @@ __all__ = [
     "PackageCreate",
     "PackageRead",
     "PackageUpdate",
+    "PackageTypeCreate",
+    "PackageTypeRead",
+    "PackageTypeUpdate",
+    "PackageLabelRequest",
+    "PackageLineCreate",
+    "PackageSelectedTrays",
     "PackagingOperationCreate",
     "PackagingOperationRead",
     "PackagingOperationTrayCreate",
