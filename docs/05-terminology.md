@@ -237,6 +237,22 @@ Packaging occurs only after drying has completed.
 
 ---
 
+## Packaging Session
+
+A Packaging Session is the user-facing workflow for planning and completing Packaging.
+
+It includes selecting eligible completed Trays, reviewing the Packaging Worksheet, choosing Package Types, printing human-readable labels, recording sealed Package Weights, and completing Packaging.
+
+---
+
+## Packaging Worksheet
+
+A Packaging Worksheet is the planning view used during a Packaging Session.
+
+It summarizes selected Trays, Finished Product Weights, package count, Package Types, oxygen absorber suggestions, Package identifiers, labels, and Storage Location or Unassigned.
+
+---
+
 ## Packaging Operation
 
 A Packaging Operation is the internal record created when completed trays are packaged.
@@ -259,6 +275,38 @@ Examples:
 
 * 5.2 oz Taco Chicken
 * 6.1 oz Strawberries
+
+---
+
+## Package Type
+
+A Package Type is a reusable packaging format used when creating Packages.
+
+Examples:
+
+* Pint Jar
+* 1 qt Mylar
+* 2 gallon Mylar
+
+Package Types may provide Packaging defaults such as oxygen absorber and printable label template.
+
+---
+
+## Package Identifier
+
+A Package Identifier is the system-generated human-readable identifier for a Package.
+
+It should be suitable for printed labels.
+
+---
+
+## Printable Label
+
+A Printable Label is a human-readable label generated from planned or created Package information.
+
+Printable labels are included in Milestone 4.
+
+QR codes and barcodes are future enhancements.
 
 ---
 
@@ -314,6 +362,14 @@ Examples:
 
 ---
 
+## Unassigned Storage Location
+
+Unassigned is a system-provided Storage Location used when the user does not select a Storage Location during Packaging.
+
+It allows Packaging to continue before the user has organized physical inventory.
+
+---
+
 ## Inventory Status
 
 Inventory Status describes the current state of a Package.
@@ -321,9 +377,14 @@ Inventory Status describes the current state of a Package.
 Examples include:
 
 * In Storage
+* Given Away
 * Depleted
 
 Inventory Status never removes historical production information.
+
+Given Away means the Package left the user's inventory as a gift or transfer.
+
+Given Away is not the same as deleted, depleted, or Storage Location.
 
 ---
 

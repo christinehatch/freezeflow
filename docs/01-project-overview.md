@@ -121,12 +121,13 @@ This includes:
 * Weight history
 * Combining compatible finished trays before packaging
 * Packaging
+* Printable human-readable labels
 * Storage locations
 * Inventory search
 * Inventory depletion
 * Historical reporting
 
-Future versions may expand into additional features such as cost analysis, printable labels, barcode support, cloud synchronization, and mobile applications.
+Future versions may expand into additional features such as cost analysis, QR codes, barcode support, cloud synchronization, and mobile applications.
 
 ---
 

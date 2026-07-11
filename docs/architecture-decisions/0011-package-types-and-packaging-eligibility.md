@@ -24,13 +24,15 @@ Although multiple Trays may contain the same product, the user treats Freeze Dry
 
 Freezeflow will model Package Type as a first-class setup record in the Packaging workflow.
 
-A Package Type represents a reusable packaging format and may provide defaults such as oxygen absorber size.
+A Package Type represents a reusable packaging format and may provide defaults such as oxygen absorber size and printable label template.
 
 Packages reference the Package Type selected during packaging.
 
 Package-level values, including oxygen absorber and sealed weight, remain editable and historical.
 
-For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch and Freeze Dryer.
+For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch.
+
+Because a Production Batch belongs to exactly one Freeze Dryer, this also prevents cross-freeze-dryer packaging.
 
 The user may decide which eligible Trays should be packaged together, but Freezeflow should not offer cross-batch or cross-freeze-dryer combinations as normal Packaging selections.
 

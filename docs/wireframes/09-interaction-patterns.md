@@ -133,7 +133,8 @@ Examples:
 
 * Never automatically mark a Tray Complete.
 * Never automatically combine Trays.
-* Never automatically choose a Storage Location.
+* Never automatically choose a physical Storage Location.
+* Use Unassigned when the user has not chosen a physical Storage Location.
 * Never automatically deplete a Package.
 
 The application may make recommendations, highlight patterns, or display warnings, but the final decision always belongs to the user.
@@ -149,6 +150,7 @@ Examples requiring confirmation:
 * Cancel Production Batch
 * Archive Recipe
 * Mark Package Depleted
+* Mark Package Given Away
 
 Routine actions should not require confirmation.
 

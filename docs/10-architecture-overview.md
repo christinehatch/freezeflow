@@ -152,9 +152,11 @@ Packaging Operations exist primarily to preserve traceability.
 
 They are internal system records and are not a primary user-facing concept.
 
-For Version 1, a Packaging Operation may combine eligible Trays from the same Production Batch and Freeze Dryer.
+For Version 1, a Packaging Operation may combine eligible Trays from the same Production Batch.
 
-Packaging Operations should not mix Trays from different Freeze Dryers or different Production Batches.
+Because a Production Batch belongs to one Freeze Dryer, this also preserves same-Freeze-Dryer history.
+
+Packaging Operations should not mix Trays from different Production Batches.
 
 ---
 
@@ -164,7 +166,7 @@ Package Types represent reusable packaging formats.
 
 Examples include Pint Jar, 1 qt Mylar, and 2 gallon Mylar.
 
-Package Types provide defaults such as oxygen absorber size while allowing Package-level values to remain editable.
+Package Types provide defaults such as oxygen absorber size and printable label template while allowing Package-level values to remain editable.
 
 They support the Packaging workflow without becoming food inventory.
 

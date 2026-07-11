@@ -27,6 +27,7 @@ A user should be able to:
 * Trace the Package back to its source Trays.
 * Open the original Tray Details.
 * Mark the Package as depleted.
+* Mark the Package as given away.
 * Move the Package to another Storage Location.
 
 ---
@@ -34,6 +35,7 @@ A user should be able to:
 # Primary Actions
 
 * Mark Package Depleted
+* Mark Package Given Away
 * Move Package
 * Edit Notes
 * View Source Trays
@@ -230,6 +232,18 @@ Primary Actions:
 Package remains visible as historical information.
 
 No longer appears in default Inventory searches.
+
+Primary Action:
+
+View History
+
+---
+
+## Given Away
+
+Package remains visible as historical information.
+
+No longer appears in default active Inventory searches.
 
 Primary Action:
 

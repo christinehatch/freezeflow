@@ -214,13 +214,15 @@ Packages represent finished inventory.
 ```text
 In Storage
     |
-    v
-Depleted
+    +--> Given Away
+    |
+    +--> Depleted
 ```
 
 Persisted status values:
 
 - In Storage
+- Given Away
 - Depleted
 
 ## In Storage
@@ -246,6 +248,20 @@ Depleted Packages:
 * are hidden from the default Inventory view
 
 Version 1 does not support reopening or partially consuming Packages.
+
+---
+
+## Given Away
+
+The Package left the user's inventory as a gift or transfer.
+
+Given Away Packages:
+
+* remain searchable
+* remain part of historical reporting
+* are hidden from the default active Inventory view
+
+Given Away is not the same as deleted, depleted, or Storage Location.
 
 ---
 
@@ -302,7 +318,7 @@ Some transitions occur automatically.
 
 Examples:
 
-* Production Batch → Completed when all Trays are completed.
+* Production Batch → Ready to complete when all Trays are completed.
 * Tray → Packaged when included in a Packaging Operation.
 
 Other transitions require explicit user action.
@@ -311,8 +327,10 @@ Examples:
 
 * Start Production
 * Complete Tray
+* Complete Batch
 * Cancel Batch
 * Mark Package Depleted
+* Mark Package Given Away
 * Archive Recipe
 
 Automatic transitions should occur only when there is no ambiguity.
@@ -330,6 +348,7 @@ Examples:
 * Running Batches are excluded from completed production reports.
 * Cancelled Batches may be excluded from averages.
 * Depleted Packages remain part of historical inventory reports.
+* Given Away Packages remain part of historical inventory reports.
 * Archived Recipes remain associated with historical Production.
 
 ---

@@ -45,12 +45,16 @@ If V1 accomplishes these goals well, it is considered successful.
 ## Packaging
 
 * Select completed Trays
+* Prepare Packaging Worksheet
 * Create one or more Packages
 * Select Package Types
+* Manage Package Types inline during Packaging
 * Record Package Weight
-* Assign Storage Locations
+* Select Storage Location or use implicit Unassigned Storage Location
 * Automatic Packaging Operation creation
 * Weight comparison warnings
+* Auto-generated Package identifiers
+* Printable human-readable labels
 
 ---
 
@@ -60,6 +64,7 @@ If V1 accomplishes these goals well, it is considered successful.
 * Browse Inventory
 * Move Packages
 * Mark Packages Depleted
+* Mark Packages Given Away
 * Package Details
 * Storage Locations
 
@@ -78,7 +83,7 @@ Every Package can be traced back to:
 * Preparation Information
 * Recipe Template, if used
 
-Historical records remain available even after inventory is depleted.
+Historical records remain available even after inventory is depleted or given away.
 
 ---
 

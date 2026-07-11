@@ -125,7 +125,7 @@ Answering historical yield questions across products and batches belongs in Mile
 
 ## Milestone 4 — Packaging
 
-Convert completed production into inventory.
+Prepare and execute a Packaging Session.
 
 Includes:
 
@@ -134,11 +134,16 @@ Includes:
 - Package Types
 - Multiple Packages
 - Traceability
-- Initial Storage Location assignment
+- Packaging Worksheet
+- Printable human-readable labels
+- Auto-generated Package identifiers
+- Selected Storage Location or implicit Unassigned Storage Location
 
 Package attributes (sealed weight, oxygen absorber, notes) are recorded directly on each Package.
 
-Package Type should provide reusable package formats and defaults such as oxygen absorber size while remaining editable during packaging.
+Package Type should provide reusable package formats and defaults such as oxygen absorber size and printable label template while remaining editable during packaging.
+
+Package depletion, marking Packages Given Away, inventory search, package movement, and Storage Location setup belong to Milestone 5.
 
 ---
 
@@ -153,6 +158,7 @@ Includes:
 - Storage Locations
 - Storage movement
 - Package depletion
+- Mark Packages Given Away
 
 Milestone 5 is a core product milestone.
 

@@ -2,11 +2,11 @@
 
 # Purpose
 
-The Packaging screen guides the user through converting one or more completed Trays into one or more finished Packages.
+The Packaging screen guides the user through preparing and executing a Packaging Session.
 
-Packaging should feel like a simple workflow rather than a data entry form.
+Packaging should feel like a worksheet for the real packaging table, not a data entry form.
 
-The user selects completed Trays, creates one or more Packages, and stores them.
+The user selects completed Trays, plans Package Types and package count, prints human-readable labels, records sealed weights, and creates one or more Packages.
 
 The system automatically creates the internal Packaging Operation required for complete historical traceability.
 
@@ -19,11 +19,13 @@ Users should never need to understand or manage Packaging Operations directly.
 A user should be able to:
 
 * See every completed Tray waiting to be packaged.
-* Select compatible Trays.
-* Select Package Types.
+* Select eligible Trays from one Production Batch.
+* Review a Packaging Worksheet.
+* Select or create Package Types inline.
+* Print human-readable labels.
 * Create one or more finished Packages.
 * Record package weights.
-* Assign Storage Locations.
+* Select Storage Locations or use Unassigned.
 * Complete packaging with minimal typing.
 
 ---
@@ -31,8 +33,10 @@ A user should be able to:
 # Primary Actions
 
 * Select Completed Trays
+* Review Packaging Worksheet
 * Create Packages
-* Assign Storage Locations
+* Print Labels
+* Select Storage Locations or Unassigned
 * Finish Packaging
 
 ---
@@ -66,13 +70,35 @@ Total Dry Weight
 
 ------------------------------------------------------------------------------
 
+Packaging Worksheet
+
+Batch 014 / Freeze Dryer Black
+
+Package Count
+
+[ 3 ]
+
+Print Labels
+
+[ Print Planned Labels ]
+
+------------------------------------------------------------------------------
+
 Packages
 
 Package 1
 
+Package Identifier
+
+PKG-2026-000123
+
 Package Type
 
 [ 1 qt Mylar v ]
+
+Oxygen Absorber
+
+[ 500cc ]
 
 Package Weight
 
@@ -86,17 +112,33 @@ Storage Location
 
 Package 2
 
+Package Identifier
+
+PKG-2026-000124
+
+Package Type
+
+[ 1 qt Mylar v ]
+
 Package Weight
 
 [________]
 
 Storage Location
 
-[ Bin A v ]
+[ Unassigned v ]
 
 --------------------------------------------------
 
 Package 3
+
+Package Identifier
+
+PKG-2026-000125
+
+Package Type
+
+[ 1 qt Mylar v ]
 
 Package Weight
 
@@ -131,6 +173,14 @@ Review before saving
 ------------------------------------------------------------------------------
 
 [ Complete Packaging ]
+
+------------------------------------------------------------------------------
+
+Packaging Complete
+
+3 Packages created
+
+[ Print Labels ]  [ Done ]
 ```
 
 ---
@@ -159,11 +209,13 @@ Completed Trays should remain visible until they have been packaged.
 
 Once packaged, they should disappear from this screen.
 
-For Version 1, selectable Trays should be grouped by Production Batch and Freeze Dryer.
+For Version 1, selectable Trays should be grouped by Production Batch.
 
 The user may select multiple eligible Trays from the same group.
 
-The user should not be able to combine Trays from different Production Batches or different Freeze Dryers in one Packaging Operation.
+The user should not be able to combine Trays from different Production Batches in one Packaging Operation.
+
+Because a Production Batch belongs to one Freeze Dryer, this also prevents cross-freeze-dryer packaging.
 
 ---
 
@@ -182,17 +234,33 @@ The interface should never assume a fixed relationship.
 
 Each Package should have a Package Type.
 
-Package Type should prefill sensible defaults, such as oxygen absorber size, while allowing the user to edit the Package-level value.
+Package Type should prefill sensible defaults, such as oxygen absorber size and printable label template, while allowing the user to edit Package-level values.
+
+Package Types may be created or edited inline during Packaging.
+
+Package identifiers should be generated automatically.
+
+---
+
+# Printable Labels
+
+Printable human-readable labels are part of Milestone 4.
+
+Labels should be available from planned Package data before physical packaging and from created Package data after Packaging is complete.
+
+Labels should include Package identifier, product summary, Package Type, packaging date, Package Weight if available, and Storage Location or Unassigned.
+
+QR codes, barcode labels, and automated label integrations are future enhancements.
 
 ---
 
 # Storage Assignment
 
-Every Package should be assigned a Storage Location during creation.
+Every Package should have a current Storage Location during creation.
 
-The interface should default to the most recently used location when appropriate.
+If the user does not select a Storage Location, the interface should use Unassigned.
 
-Users should be able to change the location for individual Packages.
+Users should be able to change the location for individual Packages or leave individual Packages Unassigned.
 
 ---
 
@@ -221,9 +289,13 @@ Typical workflow:
 ```text
 Select Trays
 
+Review Packaging Worksheet
+
+Print Labels
+
 Create Packages
 
-Assign Storage Locations
+Select Storage Locations or Unassigned
 
 Review Weight Difference
 
@@ -257,10 +329,11 @@ The Package editor becomes active.
 Examples:
 
 * Weight mismatch
-* Missing Storage Location
 * Empty Package Weight
 
 Warnings should be easy to understand.
+
+Missing Storage Location should resolve to Unassigned rather than block Packaging.
 
 ---
 
@@ -275,7 +348,7 @@ Packaging Complete
 
 3 Packages created successfully.
 
-[ View Inventory ]
+[ Print Labels ]  [ Done ]
 ```
 
 ---
@@ -315,6 +388,7 @@ A user should be able to:
 * Create multiple Packages without confusion.
 * Understand how much product is being packaged.
 * Notice unexpected weight differences immediately.
+* Print human-readable labels before or after physical Packaging.
 * Complete packaging without understanding internal Packaging Operations.
 
 ---

@@ -47,9 +47,9 @@ Future milestones should extend previous work rather than replacing it.
 | 01 | Complete | Persistence Layer |
 | 02 | Ready to Implement | Production Workflow |
 | 03 | Planned | Weight Tracking |
-| 04 | Planned | Packaging |
-| 05 | Planned | Recipes |
-| 06 | Planned | Inventory |
+| 04 | Ready to Implement | Packaging |
+| 05 | Planned | Inventory |
+| 06 | Planned | Recipes |
 | 07 | Planned | Reporting |
 | 08 | Planned | Corrections & Audit History |
 | 09 | Planned | Polish & Production Readiness |
@@ -131,7 +131,7 @@ Explicitly does not include:
 
 ## Milestone 3 - Weight Tracking
 
-Status: Planned
+Status: Ready to Implement
 
 Goal: Manage the active drying process.
 
@@ -152,9 +152,9 @@ Includes:
 
 ## Milestone 4 - Packaging
 
-Status: Planned
+Status: Ready to Implement
 
-Goal: Convert completed trays into finished packages.
+Goal: Prepare and execute a Packaging Session.
 
 Includes:
 
@@ -164,12 +164,34 @@ Includes:
 - Package Types, such as 1 qt Mylar or Pint Jar
 - Oxygen absorber tracking
 - Package notes
-- Package labels
+- Printable human-readable labels
+- Auto-generated Package identifiers
+- Packaging Worksheet
 - Package weights
+- Selected Storage Location or implicit Unassigned Storage Location
 
 ---
 
-## Milestone 5 - Recipes
+## Milestone 5 - Inventory
+
+Status: Planned
+
+Goal: Track finished inventory.
+
+Includes:
+
+- Storage Locations
+- Package movement
+- Inventory browsing
+- Package depletion
+- Mark Packages Given Away
+- Search
+- Filtering
+- Storage history
+
+---
+
+## Milestone 6 - Recipes
 
 Status: Planned
 
@@ -183,24 +205,6 @@ Includes:
 - Default preparation
 - Default notes
 - Recipe selection during tray setup
-
----
-
-## Milestone 6 - Inventory
-
-Status: Planned
-
-Goal: Track finished inventory.
-
-Includes:
-
-- Storage Locations
-- Package movement
-- Inventory browsing
-- Package depletion
-- Search
-- Filtering
-- Storage history
 
 ---
 

@@ -539,9 +539,10 @@ The request includes:
 * selected trays
 * package type for each Package
 * package weights
-* storage locations
+* optional storage locations
 * sealed weights
 * oxygen absorber information, defaulted from Package Type when available
+* packaging date/time for `PackagingOperation.packagedAt`
 * notes
 
 Example request:
@@ -560,7 +561,7 @@ Example request:
       "packageTypeId": "package-type-1",
       "weight": 10.6,
       "oxygenAbsorber": "300cc",
-      "storageLocationId": "storage-location-1"
+      "storageLocationId": null
     },
     {
       "packageTypeId": "package-type-1",
@@ -572,7 +573,60 @@ Example request:
 }
 ```
 
-Business Rules determine whether the request is valid.
+If `storageLocationId` is omitted or null, the server assigns the implicit Unassigned Storage Location.
+
+The server generates Package identifiers.
+
+Validation:
+
+* At least one source Tray is required.
+* At least one Package is required.
+* Every source Tray must be Completed.
+* Source Trays must not already be Packaged.
+* Source Trays must belong to the same Production Batch.
+* Source Trays therefore share the same Freeze Dryer.
+* Package Type must exist and not be archived.
+* Package Weight must be numeric and positive when completing Packaging.
+* Storage Location may be omitted in Milestone 4.
+* Omitted Storage Location resolves to the implicit Unassigned Storage Location.
+* Oxygen absorber may default from Package Type but can be overridden.
+* Packaging date is stored on `PackagingOperation.packagedAt`.
+* Weight comparison warnings do not block Packaging.
+
+On success, the server:
+
+* creates the internal Packaging Operation
+* generates Package identifiers
+* creates Package records as active inventory
+* marks source Trays as Packaged
+* creates initial Storage Location History records using selected Storage Location or Unassigned
+* returns created Packages and printable label data
+
+---
+
+## Packaging Worksheet
+
+```http
+GET /api/v1/packaging/worksheet
+```
+
+Returns data needed to prepare a Packaging Session, including eligible completed Trays grouped by Production Batch, Finished Product Weights, total source weight, Package Type options, suggested oxygen absorber values, Package identifiers when available, selected Storage Location or Unassigned, and printable label data when available.
+
+Implementations may fold this response into another Packaging endpoint if the same workflow data is provided.
+
+---
+
+## Printable Labels
+
+```http
+POST /api/v1/packages/labels
+```
+
+Generates printable human-readable label data for planned or created Packages.
+
+Labels should include Package identifier, product name or summary, Package Type, packaging date, Package Weight if available, and Storage Location or Unassigned.
+
+QR codes, barcodes, and automated label integrations are future enhancements.
 
 ---
 
@@ -597,6 +651,10 @@ PATCH /api/v1/package-types/{id}
 Updates or archives a Package Type.
 
 Historical Packages preserve the Package Type selected at packaging time.
+
+Package Type defaults may include oxygen absorber and printable label template.
+
+Package Types may be created or edited inline during Packaging.
 
 ---
 
@@ -665,6 +723,20 @@ POST /api/packages/{id}/deplete
 Updates Inventory Status.
 
 Historical production information remains unchanged.
+
+---
+
+## Mark Package Given Away
+
+```http
+POST /api/packages/{id}/give-away
+```
+
+Updates Inventory Status to Given Away.
+
+Historical production information remains unchanged.
+
+This workflow belongs to Milestone 5 Inventory, not Milestone 4 Packaging.
 
 ---
 

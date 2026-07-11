@@ -161,13 +161,17 @@ Select Completed Trays
 
 Review Total Dry Weight
 
+Review Packaging Worksheet
+
 Create one or more Packages
 
 Enter:
 
 * Package Type
 * Package Weight
-* Storage Location
+* Storage Location or Unassigned
+
+Print human-readable labels
 
 Review or edit suggested oxygen absorber
 
@@ -180,7 +184,7 @@ Complete Packaging
 
 The user creates finished Packages without needing to understand Packaging Operations.
 
-The user only combines Trays that belong to the same Production Batch and Freeze Dryer.
+The user only combines Trays that belong to the same Production Batch.
 
 ---
 
@@ -259,6 +263,32 @@ Confirm
 ### Success Criteria
 
 The Package disappears from the default Inventory view while remaining part of historical records.
+
+---
+
+# Journey 8A - Give Away a Package
+
+## Goal
+
+Record that a finished Package left inventory as a gift or transfer.
+
+### Steps
+
+```text
+Inventory
+
+Search
+
+Open Package
+
+Mark Package Given Away
+
+Confirm
+```
+
+### Success Criteria
+
+The Package disappears from default active Inventory counts while remaining part of historical records.
 
 ---
 

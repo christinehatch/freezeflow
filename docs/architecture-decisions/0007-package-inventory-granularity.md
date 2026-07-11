@@ -43,9 +43,12 @@ Version 1 does not track inventory within a Package.
 A Package is either:
 
 * In Storage
+* Given Away
 * Depleted
 
 When a Package is marked Depleted, the entire Package is considered unavailable.
+
+When a Package is marked Given Away, the entire Package is considered to have left the user's inventory as a gift or transfer.
 
 The Package remains part of the historical record.
 
@@ -114,7 +117,7 @@ Each Package remains independently traceable.
 
 # Historical Integrity
 
-Marking a Package Depleted does not remove it from the system.
+Marking a Package Depleted or Given Away does not remove it from the system.
 
 Historical Packages remain available for:
 

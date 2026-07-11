@@ -61,7 +61,7 @@ Creating a Package automatically creates its first Storage Location History reco
 For the initial placement:
 
 - previousStorageLocationId is null
-- currentStorageLocationId is the Package's initial Storage Location
+- currentStorageLocationId is the Package's initial Storage Location or the implicit Unassigned Storage Location
 
 No special handling is required.
 

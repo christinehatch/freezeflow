@@ -36,7 +36,7 @@ A Packaging Operation represents one packaging action.
 
 It contains one or more completed Trays.
 
-For Version 1, selected Trays must belong to the same Production Batch and Freeze Dryer, as defined in ADR-0011.
+For Version 1, selected Trays must belong to the same Production Batch, as defined in ADR-0011.
 
 It produces one or more Packages.
 

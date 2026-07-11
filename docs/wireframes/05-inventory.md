@@ -28,6 +28,7 @@ A user should be able to:
 * View package status.
 * Open Package Details.
 * Mark Packages as depleted.
+* Mark Packages as given away.
 
 ---
 
@@ -38,6 +39,7 @@ A user should be able to:
 * Open Package Details
 * Move Package
 * Mark Package Depleted
+* Mark Package Given Away
 
 ---
 
@@ -146,7 +148,9 @@ By default, Inventory should display only Packages currently in storage.
 
 Depleted Packages should remain searchable but should not appear in the default view.
 
-Users may choose to include depleted Packages.
+Given Away Packages should remain searchable but should not appear in the default view.
+
+Users may choose to include depleted or Given Away Packages.
 
 ---
 

@@ -236,7 +236,7 @@ Examples:
 
 * Active Production Batches
 * Completed Trays awaiting Packaging
-* Packages missing Storage Locations
+* Packages in Unassigned Storage Location
 * Validation warnings
 * Interrupted Production Batches
 

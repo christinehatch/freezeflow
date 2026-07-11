@@ -166,11 +166,11 @@ Once a Packaging Operation has been created, its source Trays cannot change.
 
 PK-007
 
-For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch and Freeze Dryer.
+For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch.
 
 The user decides which eligible Trays to package together.
 
-The application should prevent cross-batch or cross-freeze-dryer packaging selections in Version 1.
+Because a Production Batch belongs to one Freeze Dryer, this also prevents cross-freeze-dryer packaging selections in Version 1.
 
 ---
 

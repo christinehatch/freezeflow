@@ -264,7 +264,9 @@ Users do not manage Packaging Operations directly.
 
 Only compatible trays should be included in the same Packaging Operation.
 
-For Version 1, compatible trays must come from the same Production Batch and Freeze Dryer.
+For Version 1, compatible trays must come from the same Production Batch.
+
+Because a Production Batch belongs to exactly one Freeze Dryer, this also preserves same-Freeze-Dryer packaging history.
 
 The user may still decide which eligible trays should be packaged together.
 
@@ -291,11 +293,14 @@ A Package represents one sealed storage bag.
 
 A package records:
 
-* Package date
+* Package identifier
 * Package Type
 * Package weight
 * Oxygen absorber
+* Storage Location or Unassigned
 * Notes
+
+The Package inherits its packaging date from the parent Packaging Operation's `packagedAt`.
 
 Packages are the primary inventory units.
 
@@ -307,7 +312,9 @@ They may carry notes such as rerun history, trust warnings, or special handling 
 
 Package Types are reusable packaging formats such as Pint, Quart, 1 qt Mylar, or 2 gallon Mylar.
 
-A Package Type may provide defaults such as oxygen absorber size, label behavior, expected sealed weight, and packaging notes.
+A Package Type may provide defaults such as oxygen absorber size and printable label template.
+
+Milestone 4 Package Type defaults are limited to oxygen absorber and printable label template.
 
 Package Types are not part of Milestone 2.
 
@@ -355,11 +362,16 @@ Inventory Status describes the current lifecycle state of a package.
 Examples:
 
 * In Storage
+* Given Away
 * Depleted
 
 Inventory status allows users to keep historical production records while accurately representing current inventory.
 
 Packages are never deleted when depleted.
+
+Packages are also never deleted when given away.
+
+Given Away indicates that the Package left the user's inventory as a gift or transfer.
 
 ---
 

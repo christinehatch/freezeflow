@@ -423,7 +423,9 @@ Only compatible products should be included in the same Packaging Operation.
 
 Compatibility is determined by the user.
 
-For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch and Freeze Dryer.
+For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch.
+
+Because a Production Batch belongs to exactly one Freeze Dryer, this also preserves same-Freeze-Dryer packaging history.
 
 The system may provide suggestions but should not automatically combine products.
 
@@ -483,6 +485,8 @@ Inventory is tracked at the Package level, not the Tray level.
 
 A Package occupies one Storage Location at a time.
 
+If the user does not choose a Storage Location during Packaging, the Package uses the implicit Unassigned Storage Location.
+
 ---
 
 ## ST-002
@@ -508,6 +512,7 @@ A Package has exactly one Inventory Status.
 Examples include:
 
 * In Storage
+* Given Away
 * Depleted
 
 ---
@@ -520,13 +525,23 @@ Marking a Package as Depleted does not remove it from the system.
 
 ## IN-003
 
-Historical production information remains available after depletion.
+Marking a Package as Given Away means the Package left the user's inventory as a gift or transfer.
+
+Given Away Packages remain historical records and are excluded from default active inventory counts.
 
 ---
 
 ## IN-004
 
+Historical production information remains available after depletion.
+
+---
+
+## IN-005
+
 Inventory searches should include depleted packages when historical information is requested.
+
+Inventory searches should also include Given Away packages when historical information is requested.
 
 ---
 

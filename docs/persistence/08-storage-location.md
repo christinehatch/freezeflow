@@ -20,8 +20,11 @@ Examples include:
 - Freezer Shelf A
 - Basement Bin
 - Emergency Storage
+- Unassigned
 
 Storage Locations organize inventory but are not part of the production process.
+
+Unassigned is a system-provided Storage Location used when the user does not select a specific Storage Location during Packaging.
 
 ---
 
@@ -69,6 +72,7 @@ Storage Locations may be:
 
 - Active
 - Archived
+- System
 
 Archived Storage Locations:
 
@@ -77,6 +81,10 @@ Archived Storage Locations:
 - preserve historical traceability
 
 Storage Locations should normally be archived rather than deleted.
+
+The Unassigned Storage Location is a System location.
+
+It should always be available during Packaging and should not be deleted or archived.
 
 ---
 
@@ -113,6 +121,12 @@ Storage Locations should normally be archived rather than deleted.
 SL-004
 
 Archived Storage Locations cannot receive new Packages.
+
+---
+
+SL-004A
+
+The Unassigned Storage Location receives Packages when no specific Storage Location is selected during Packaging.
 
 ---
 

@@ -19,6 +19,7 @@ Packages preserve the connection between inventory and historical production thr
 | id | Yes | No | Unique identifier |
 | packagingOperationId | Yes | No | Parent Packaging Operation |
 | packageTypeId | Yes | Yes* | Selected Package Type |
+| packageIdentifier | Yes | No | System-generated human-readable identifier |
 | storageLocationId | Yes | Yes* | Current Storage Location |
 | packageWeightGrams | Yes | Yes* | Total sealed package weight |
 | oxygenAbsorber | No | Yes | Optional oxygen absorber information |
@@ -70,8 +71,8 @@ Typical progression:
 
 ```text
 In Storage
-      ↓
-Depleted
+      ├── Given Away
+      └── Depleted
 ```
 
 Version 1 does not support:
@@ -86,6 +87,8 @@ Version 1 does not support:
 # Storage
 
 Every Package has one current Storage Location.
+
+If the user does not select a Storage Location during Packaging, the Package references the implicit Unassigned Storage Location.
 
 Changing the Storage Location creates a Storage Location History record.
 
@@ -134,6 +137,8 @@ PA-004
 
 Every Package belongs to exactly one current Storage Location.
 
+Packages created without a selected Storage Location belong to the implicit Unassigned Storage Location.
+
 ---
 
 PA-005
@@ -175,6 +180,20 @@ Inventory is tracked at the Package level.
 PA-011
 
 Marking a Package as Depleted removes it from active inventory but preserves its historical record.
+
+---
+
+PA-012
+
+Marking a Package as Given Away removes it from active inventory counts but preserves its historical record.
+
+Given Away means the Package left the user's inventory as a gift or transfer.
+
+---
+
+PA-013
+
+Every Package has a system-generated Package identifier suitable for human-readable labels.
 
 ---
 
