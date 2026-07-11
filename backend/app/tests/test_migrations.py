@@ -25,6 +25,7 @@ def test_alembic_upgrade_creates_persistence_tables(tmp_path, monkeypatch) -> No
         "freeze_dryers",
         "drying_runs",
         "packages",
+        "package_types",
         "packaging_operation_trays",
         "packaging_operations",
         "physical_trays",
@@ -39,5 +40,8 @@ def test_alembic_upgrade_creates_persistence_tables(tmp_path, monkeypatch) -> No
     assert "tare_weight_grams" in [
         column["name"] for column in inspector.get_columns("physical_trays")
     ]
+    package_columns = [column["name"] for column in inspector.get_columns("packages")]
+    assert "package_type_id" in package_columns
+    assert "package_identifier" in package_columns
 
     get_settings.cache_clear()

@@ -7,6 +7,7 @@ from app.models import (
     FreezeDryer,
     InventoryStatus,
     Package,
+    PackageType,
     PackagingOperation,
     PackagingOperationTray,
     PhysicalTray,
@@ -34,7 +35,12 @@ def test_model_creation_and_relationships(db_session) -> None:
         preparation="Cubed and seasoned.",
     )
     storage_location = StorageLocation(name="Bin A")
-    db_session.add_all([freeze_dryer, recipe, storage_location])
+    package_type = PackageType(
+        name="Quart Mylar",
+        default_oxygen_absorber="300cc",
+        default_label_template="standard",
+    )
+    db_session.add_all([freeze_dryer, recipe, storage_location, package_type])
     db_session.flush()
     tray_slot = TraySlot(
         freeze_dryer_id=freeze_dryer.id,
@@ -94,6 +100,8 @@ def test_model_creation_and_relationships(db_session) -> None:
     )
     package = Package(
         packaging_operation_id=packaging_operation.id,
+        package_type_id=package_type.id,
+        package_identifier="PKG-2026-000001",
         package_weight_grams=Decimal("240.000"),
         oxygen_absorber="300cc",
         storage_location_id=storage_location.id,
@@ -123,5 +131,6 @@ def test_model_creation_and_relationships(db_session) -> None:
     assert tray.packaging_operation_link == packaging_link
     assert packaging_operation.tray_links == [packaging_link]
     assert packaging_operation.packages == [package]
+    assert package.package_type == package_type
     assert package.storage_location == storage_location
     assert package.storage_location_history == [storage_history]
