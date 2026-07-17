@@ -34,6 +34,19 @@ Each milestone builds upon the previous one and leaves the application in a stab
 
 Later milestones extend existing functionality rather than replacing it.
 
+| Milestone | Status |
+| --- | --- |
+| 0 - Project Foundation | Complete |
+| 1 - Persistence Layer | Complete |
+| 2 - Production Workflow | Complete |
+| 3 - Weight Tracking | Complete |
+| 4 - Packaging | Complete |
+| 5 - Inventory | Planned |
+| 6 - Recipes | Planned |
+| 7 - Reporting | Planned |
+| 8 - Application Polish | Planned |
+| 9 - Version 1 Release | Planned |
+
 ---
 
 ## Milestone 0 — Project Foundation
@@ -136,6 +149,8 @@ Includes:
 - Traceability
 - Packaging Worksheet
 - Printable human-readable labels
+- Separate Package Finished Product and Sealed Package Weights
+- Derived fresh-to-dry equivalence, Packaging Date, and preparation on labels
 - Auto-generated Package identifiers
 - Selected Storage Location or implicit Unassigned Storage Location
 
@@ -248,11 +263,12 @@ Each milestone should be independently testable before development continues.
 
 The following features are intentionally deferred until the production workflow is mature.
 
-## Label Printing
+## Advanced Labeling
 
-* Printable labels
 * QR codes
 * Barcode generation
+* Custom label-template design
+* Direct printer integrations
 
 ---
 

@@ -7,9 +7,11 @@ __pycache__/
 .ruff_cache/
 backend/.env
 backend/freezeflow.db
+backend/*.db.*
 
 # Frontend
 frontend/dist/
 frontend/node_modules/
 frontend/.vite/
-
+frontend/playwright-report/
+frontend/test-results/

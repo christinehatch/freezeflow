@@ -45,9 +45,9 @@ Future milestones should extend previous work rather than replacing it.
 |-----------|--------|------|
 | 00 | Complete | Project Foundation |
 | 01 | Complete | Persistence Layer |
-| 02 | Ready to Implement | Production Workflow |
-| 03 | Planned | Weight Tracking |
-| 04 | Ready to Implement | Packaging |
+| 02 | Complete | Production Workflow |
+| 03 | Complete | Weight Tracking |
+| 04 | Complete | Packaging |
 | 05 | Planned | Inventory |
 | 06 | Planned | Recipes |
 | 07 | Planned | Reporting |
@@ -98,7 +98,7 @@ No business workflow or UI.
 
 ## Milestone 2 - Production Workflow
 
-Status: Ready to Implement
+Status: Complete
 
 Goal: Build the production setup workflow.
 
@@ -131,7 +131,7 @@ Explicitly does not include:
 
 ## Milestone 3 - Weight Tracking
 
-Status: Ready to Implement
+Status: Complete
 
 Goal: Manage the active drying process.
 
@@ -152,7 +152,7 @@ Includes:
 
 ## Milestone 4 - Packaging
 
-Status: Ready to Implement
+Status: Complete
 
 Goal: Prepare and execute a Packaging Session.
 

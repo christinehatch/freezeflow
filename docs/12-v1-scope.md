@@ -173,8 +173,10 @@ The following features are intentionally excluded from Version 1.
 
 * QR Codes
 * Barcode generation
-* Label printing
 * Scanner integration
+
+Printable human-readable labels are included in V1 Packaging. Automated label
+service integrations, QR codes, barcodes, and scanning remain out of scope.
 
 ---
 
@@ -266,7 +268,7 @@ Potential future releases may include:
 * Native mobile applications
 * Bluetooth scale integration
 * QR code labels
-* Label printing
+* Custom label templates and direct printer integrations
 * Cloud synchronization
 * Multi-user workspaces
 * Package photos
