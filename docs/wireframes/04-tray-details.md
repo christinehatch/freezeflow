@@ -158,6 +158,11 @@ Each Weight Check should show:
 * Timestamp
 * Weight
 * Optional notes
+* A Correct Weight action governed by ADR-0005
+
+Correcting a weight should keep the original observation time and should ask for
+an optional reason. Normal views show the corrected canonical value; the previous
+value remains available through Audit History.
 
 Future versions may display a weight trend graph.
 
@@ -185,6 +190,10 @@ Once a Tray has been packaged, the screen should display:
 * Links to Package Details
 
 Users should be able to trace the Tray forward into inventory.
+
+Reprinted Avery 5163 labels use the same server-derived label data as Packaging
+Complete, including preparation, Packaging Date, separate Package Finished
+Product Weight, and fresh-to-dry equivalence. Storage Location is not printed.
 
 ---
 

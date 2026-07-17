@@ -308,6 +308,10 @@ Printable labels are included in Milestone 4.
 
 QR codes and barcodes are future enhancements.
 
+A permanent Printable Label includes Packaging Date, historical preparation or
+contents, and the derived Package Fresh Equivalent when available. It does not
+include mutable Storage Location.
+
 ---
 
 ## Package Weight
@@ -320,6 +324,19 @@ Package Weight refers to the weight of the completely sealed package, including:
 * label (if applicable)
 
 Package Weight is preserved for long-term verification of package integrity.
+
+The preferred user-facing term is **Sealed Package Weight**. It is distinct
+from Package Finished Product Weight.
+
+## Package Finished Product Weight
+
+The weight of freeze-dried food placed into one Package, excluding the Package
+and other packaging material.
+
+## Package Fresh Equivalent
+
+The derived amount of source fresh food represented by one Package. It is
+calculated proportionally from the source Trays and is not stored independently.
 
 ---
 
@@ -440,6 +457,8 @@ Milestone 7 (Reporting) provides yield analysis across production history.
 The final sealed weight of a Package.
 
 This measurement is used to verify package integrity during long-term storage.
+
+The preferred user-facing term is **Sealed Package Weight**.
 
 ---
 

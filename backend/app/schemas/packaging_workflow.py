@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class PackageLineCreate(BaseModel):
     package_type_id: UUID
+    finished_product_weight_grams: Decimal
     package_weight_grams: Decimal
     oxygen_absorber: str | None = None
     storage_location_id: UUID | None = None

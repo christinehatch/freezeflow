@@ -2,7 +2,7 @@
 
 # Status
 
-Ready for implementation after documentation readiness review.
+Complete
 
 ---
 
@@ -30,6 +30,7 @@ Implement:
 - auto-generated Package identifiers
 - printable human-readable labels
 - sealed Package Weight entry
+- Package Finished Product Weight entry, distinct from Sealed Package Weight
 - warning-only source weight comparison
 - selected Storage Location or implicit Unassigned Storage Location
 - Package creation as active inventory
@@ -82,9 +83,9 @@ Given Away is documented as an inventory/disposition state, but the workflow for
 6. The system suggests oxygen absorber defaults from Package Type.
 7. The system supports printable human-readable labels.
 8. The user physically packages the food.
-9. The user records sealed Package Weights.
-10. The system compares source Finished Product Weight with total sealed Package Weight.
-11. Warnings are shown but do not block.
+9. The user records Package Finished Product Weights and sealed Package Weights.
+10. The system requires Package Finished Product Weights to allocate the selected source Finished Product Weight completely.
+11. The system separately compares source Finished Product Weight with total sealed Package Weight; differences produce warnings but do not block.
 12. The user completes Packaging.
 13. The system creates the internal Packaging Operation and Packages.
 14. The system marks source Trays as Packaged.
@@ -180,6 +181,7 @@ Each Package records:
 
 - Package identifier
 - Package Type
+- Package Finished Product Weight
 - sealed Package Weight
 - oxygen absorber
 - current Storage Location
@@ -233,8 +235,11 @@ Labels should include at minimum:
 - product name or summary
 - Package Type
 - packaging date
-- Package Weight if available
-- Storage Location or Unassigned
+- preparation or contents summary from source Trays
+- Package Fresh Equivalent and Package Finished Product Weight when available
+
+Storage Location is mutable inventory data and must not appear on permanent
+printed labels.
 
 QR codes, barcode labels, and automated label integrations are future enhancements.
 
@@ -279,11 +284,17 @@ Package Weight is distinct from Finished Product Weight.
 
 # Finished Product Weight vs Sealed Package Weight
 
-Finished Product Weight is recorded on completed Trays and represents dried food only.
+Finished Product Weight is recorded on completed Trays and represents dried food only. Package Finished Product Weight records the portion placed into one Package.
 
 Package Weight is recorded on Packages and represents the sealed inventory unit.
 
 Because Package Weight includes packaging materials, it may not equal Finished Product Weight.
+
+Package Fresh Equivalent is calculated separately for each Package in canonical
+grams: `sum(source Starting Weights) * (Package Finished Product Weight / sum(source Final Dry Weights))`.
+The source sums include every Tray in the Packaging Operation. The equivalent
+is derived, not persisted. Missing source weights or a zero Final Dry Weight
+display `Fresh equivalent unavailable` and do not block printing.
 
 ---
 
@@ -297,6 +308,12 @@ Freezeflow should compare:
 Unexpected differences should produce warnings.
 
 Warnings should never block completing Packaging.
+
+Source allocation is validation, not a warning. Before Packaging completes, the
+sum of Package Finished Product Weights must equal the total Final Dry Weight of
+the selected source Trays. If product remains unallocated or is overallocated,
+the user must adjust Package rows or add another Package. Sealed Package Weight
+differences remain non-blocking warnings.
 
 Legitimate differences may come from bag weight, oxygen absorbers, labels, crumbs, or normal measurement variation.
 
@@ -364,8 +381,12 @@ Every Package must be traceable to:
 
 The Packaging UI should:
 
-- show eligible completed Trays grouped by Production Batch
+- let the user choose one Production Batch and focus the workspace on that Batch
+- show only the eligible completed Trays from the chosen Production Batch
 - prevent cross-batch Packaging selection
+- treat selected Trays as one combined source pool that can produce multiple Packages
+- show selected source weight, allocated Finished Product Weight, and remaining Finished Product Weight live
+- keep Sealed Package Weight separate from source-pool allocation
 - show the Packaging Worksheet after Tray selection
 - allow inline Package Type creation or editing
 - prefill oxygen absorber from Package Type
@@ -413,6 +434,7 @@ Persistence should support:
 - Package identifier
 - Package Type reference
 - Package Weight in grams
+- Package Finished Product Weight in grams, nullable for historical records
 - oxygen absorber
 - selected Storage Location or Unassigned
 - Package status
@@ -437,6 +459,9 @@ Milestone 4 must enforce:
 - source Trays therefore share the same Freeze Dryer
 - Package Type must exist and not be archived
 - Package Weight must be numeric and positive when completing Packaging
+- Package Finished Product Weight must be numeric and positive for new Packages
+- Package Finished Product Weights must allocate the complete source Final Dry
+  Weight before Packaging can finish
 - omitted Storage Location resolves to implicit Unassigned Storage Location
 - oxygen absorber may default from Package Type but can be overridden
 - Package identifiers are generated by the server
@@ -466,8 +491,13 @@ Add focused tests for:
 - initial Storage Location History creation with Unassigned
 - auto-generated Package identifiers
 - printable human-readable label data
+- one-Tray, combined-Tray, and per-Package fresh-equivalent calculation
+- missing and zero source-weight label behavior
+- Packaging Date and preparation on labels, with Storage Location excluded
 - source weight vs total Package Weight warning
 - weight warning does not block Packaging
+- preventing Packaging completion while source Finished Product Weight remains
+  unallocated or overallocated
 - oxygen absorber override behavior
 - PackagingOperation.packagedAt editability
 - traceability from Package back to Trays, Production Batch, and Freeze Dryer

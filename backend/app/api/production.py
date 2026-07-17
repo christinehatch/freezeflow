@@ -23,6 +23,7 @@ from app.schemas import (
     TrayCreate,
     TrayStartingWeightUpdate,
     TrayUpdate,
+    WeightCheckCorrection,
     WeightCheckCreate,
 )
 from app.services.errors import BusinessRuleError
@@ -32,6 +33,7 @@ from app.services.production import (
     complete_drying_run,
     complete_production_batch,
     complete_tray,
+    correct_weight_check,
     create_production_batch,
     delete_tray,
     get_production_batch,
@@ -260,9 +262,20 @@ def list_weight_checks_endpoint(
         weight_checks = list_weight_checks(db, tray_id)
     except BusinessRuleError as error:
         raise_api_error(error)
-    return success(
-        [weight_check_data(weight_check) for weight_check in weight_checks]
-    )
+    return success([weight_check_data(weight_check) for weight_check in weight_checks])
+
+
+@router.post("/weight-checks/{weight_check_id}/correct")
+def correct_weight_check_endpoint(
+    weight_check_id: UUID,
+    data: WeightCheckCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        weight_check = correct_weight_check(db, weight_check_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(weight_check_data(weight_check))
 
 
 @router.post("/trays/{tray_id}/complete")

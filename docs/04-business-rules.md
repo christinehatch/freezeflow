@@ -459,7 +459,9 @@ Every Package belongs to exactly one Packaging Operation.
 
 ## PK-010
 
-Each Package records its final sealed weight.
+Each Package records its Sealed Package Weight and its Package Finished Product
+Weight as separate measurements. Sealed Package Weight must never be used to
+calculate fresh-weight equivalence.
 
 ---
 
@@ -476,6 +478,43 @@ Package Type may provide a default oxygen absorber size, but the user may overri
 Packages are the primary inventory units.
 
 Inventory is tracked at the Package level, not the Tray level.
+
+---
+
+## PK-013
+
+Package Fresh Equivalent is derived from source Tray Starting and Final Dry
+Weights and the Package Finished Product Weight. It is not persisted as an
+independently editable value.
+
+For multiple source Trays, the calculation uses their combined weights. For
+multiple Packages, each Package is calculated separately. Missing source
+weights or a zero Final Dry Weight make the equivalent unavailable and do not
+block printing.
+
+---
+
+## PK-014
+
+Permanent package labels include Packaging Date and historical preparation or
+contents from the source Trays. They do not include Storage Location because a
+Package may move after the label is printed.
+
+---
+
+## PK-015
+
+Completing a Packaging Operation must allocate the entire source Finished Product
+Weight across the Packages produced by that operation.
+
+The sum of Package Finished Product Weights must equal the total Final Dry Weight
+of the selected source Trays. Packaging remains in preparation while product is
+unallocated or overallocated so that no source product silently disappears.
+
+This allocation rule is distinct from the sealed Package Weight comparison in
+PK-008. Differences involving sealed Package Weight remain warnings because bags,
+oxygen absorbers, labels, crumbs, and normal measurement variation may affect the
+sealed weight.
 
 ---
 

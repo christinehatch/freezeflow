@@ -1,10 +1,13 @@
 export type Avery5163Label = {
   packageIdentifier: string;
   productName: string;
-  packageLine: string;
+  preparationSummary: string;
+  freshEquivalentGrams: string | null;
+  finishedProductWeightGrams: string | null;
+  packageType: string;
   batchLine: string;
   oxygenAbsorber: string | null;
-  storageLocation: string;
+  packagedAt: string;
 };
 
 const LABELS_PER_SHEET = 10;
@@ -64,12 +67,13 @@ function renderLabel(label: Avery5163Label, index: number) {
   const labelLeft = LEFT_MARGIN + column * (LABEL_WIDTH + COLUMN_GAP);
   const labelTop = TOP_MARGIN + row * LABEL_HEIGHT;
   const textX = labelLeft + 13;
-  const productLines = wrapText(label.productName, 24, 2);
+  const productLines = wrapText(label.productName, 31, 1);
+  const preparationLines = wrapText(label.preparationSummary, 48, 2);
+  const equivalence = freshEquivalentLine(label);
   const detailLines = [
-    label.packageLine,
+    `${label.packageType} · ${formatPackagingDate(label.packagedAt)}`,
     label.batchLine,
-    label.oxygenAbsorber ? `Oxygen absorber: ${label.oxygenAbsorber}` : null,
-    `Storage: ${label.storageLocation}`,
+    `Oxygen absorber: ${label.oxygenAbsorber ?? "None"}`,
   ].filter((line): line is string => Boolean(line));
 
   return [
@@ -79,20 +83,55 @@ function renderLabel(label: Avery5163Label, index: number) {
       color: "0.28 0.33 0.41",
     }),
     ...productLines.map((line, lineIndex) =>
-      pdfText(textX, yFromTop(labelTop + 42 + lineIndex * 17), line, {
+      pdfText(textX, yFromTop(labelTop + 38 + lineIndex * 15), line, {
         font: "F2",
-        size: 16,
+        size: 14,
         color: "0.01 0.02 0.09",
       }),
     ),
-    ...detailLines.map((line, lineIndex) =>
-      pdfText(textX, yFromTop(labelTop + 76 + lineIndex * 13), truncateText(line, 44), {
+    pdfText(textX, yFromTop(labelTop + 56), equivalence, {
+      font: "F2",
+      size: 10,
+      color: "0.01 0.02 0.09",
+    }),
+    ...preparationLines.map((line, lineIndex) =>
+      pdfText(textX, yFromTop(labelTop + 72 + lineIndex * 10), line, {
         font: "F1",
-        size: 9,
+        size: 7,
+        color: "0.20 0.25 0.33",
+      }),
+    ),
+    ...detailLines.map((line, lineIndex) =>
+      pdfText(textX, yFromTop(labelTop + 98 + lineIndex * 11), truncateText(line, 48), {
+        font: "F1",
+        size: 8,
         color: "0.20 0.25 0.33",
       }),
     ),
   ].join("\n");
+}
+
+function freshEquivalentLine(label: Avery5163Label) {
+  if (
+    label.freshEquivalentGrams === null ||
+    label.finishedProductWeightGrams === null
+  ) {
+    return "Fresh equivalent unavailable";
+  }
+  return `${formatConvertedWeight(label.freshEquivalentGrams, 453.59237)} lb fresh = ${formatConvertedWeight(label.finishedProductWeightGrams, 28.349523125)} oz freeze-dried`;
+}
+
+function formatConvertedWeight(value: string, gramsPerUnit: number) {
+  return (Number(value) / gramsPerUnit).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function formatPackagingDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(value));
 }
 
 function pdfText(

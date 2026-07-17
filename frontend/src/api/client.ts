@@ -77,6 +77,7 @@ export type TrayPackageSummary = {
   package_identifier: string;
   package_type: string;
   package_weight_grams: string;
+  finished_product_weight_grams: string | null;
   oxygen_absorber: string | null;
   storage_location: string;
   status: "In Storage" | "Given Away" | "Depleted";
@@ -132,6 +133,7 @@ export type Package = {
   package_type: PackageType;
   package_identifier: string;
   package_weight_grams: string;
+  finished_product_weight_grams: string | null;
   oxygen_absorber: string | null;
   storage_location_id: string;
   storage_location: StorageLocation;
@@ -160,9 +162,11 @@ export type PackageLabel = {
   freeze_dryer: string;
   product_summary: string;
   package_type: string;
+  finished_product_weight_grams: string | null;
   package_weight_grams: string;
+  fresh_equivalent_grams: string | null;
+  preparation_summary: string;
   oxygen_absorber: string | null;
-  storage_location: string;
   packaged_at: string;
   label_template: string | null;
 };
@@ -174,6 +178,12 @@ export type PackagingResult = {
   source_weight_grams: string;
   package_weight_grams: string;
   labels: PackageLabel[];
+};
+
+export type DevToolResult = {
+  action: string;
+  message: string;
+  counts: Record<string, number>;
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
@@ -217,6 +227,26 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     const errorBody = await response.json().catch(() => null);
     const message =
       errorBody?.detail?.message ?? errorBody?.detail ?? "API request failed";
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as ApiResponse<T>;
+  return payload.data;
+}
+
+async function devRequest<T>(path: string, body?: Record<string, unknown>) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message =
+      errorBody?.detail?.message ??
+      errorBody?.detail ??
+      "Developer action failed";
     throw new Error(message);
   }
 
@@ -339,6 +369,13 @@ export const productionApi = {
       notes?: string | null;
     };
   }) => apiPost<WeightCheck>(`/trays/${id}/weight-checks`, body),
+  correctWeightCheck: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { weight_grams: string; reason: string | null };
+  }) => apiPost<WeightCheck>(`/weight-checks/${id}/correct`, body),
   completeTray: ({
     id,
     body,
@@ -373,6 +410,7 @@ export const packagingApi = {
     tray_ids: string[];
     packages: {
       package_type_id: string;
+      finished_product_weight_grams: string;
       package_weight_grams: string;
       oxygen_absorber?: string | null;
       storage_location_id?: string | null;
@@ -383,4 +421,21 @@ export const packagingApi = {
   }) => apiPost<PackagingResult>("/packages", body),
   labelsForPackages: (body: { package_ids: string[] }) =>
     apiPost<PackageLabel[]>("/packages/labels", body),
+};
+
+export const developerToolsApi = {
+  reset: () => devRequest<DevToolResult>("/dev/reset"),
+  seedBasic: () => devRequest<DevToolResult>("/dev/demo/basic"),
+  seedBusyProductionDay: () =>
+    devRequest<DevToolResult>("/dev/demo/busy-production-day"),
+  seedEmpty: () => devRequest<DevToolResult>("/dev/demo/empty"),
+  seedInventory: () => devRequest<DevToolResult>("/dev/demo/inventory"),
+  seedPackaging: () => devRequest<DevToolResult>("/dev/demo/packaging"),
+  seedWeightHistory: () =>
+    devRequest<DevToolResult>("/dev/demo/weight-history"),
+  createRandomBatches: (count = 100) =>
+    devRequest<DevToolResult>("/dev/demo/random-batches", { count }),
+  seedEdgeCases: () => devRequest<DevToolResult>("/dev/demo/edge-cases"),
+  randomizeDates: () => devRequest<DevToolResult>("/dev/randomize/dates"),
+  randomizeWeights: () => devRequest<DevToolResult>("/dev/randomize/weights"),
 };

@@ -139,6 +139,28 @@ It includes:
 
 Package Weight reflects the physical item placed into storage.
 
+The user-facing term is **Sealed Package Weight**.
+
+## Package Finished Product Weight
+
+Package Finished Product Weight is the weight of freeze-dried food placed into
+one Package. It excludes the Package, oxygen absorber, label, and other
+packaging material. It is stored separately from Sealed Package Weight.
+
+Historical Package Weight values remain Sealed Package Weights and must never
+be reinterpreted as Package Finished Product Weights.
+
+## Package Fresh Equivalent
+
+Package Fresh Equivalent is derived, never persisted independently:
+
+`sum(source Tray Starting Weights) * (Package Finished Product Weight / sum(source Tray Final Dry Weights))`
+
+All inputs use canonical grams. For multi-Tray operations, both source sums use
+every Tray in the Packaging Operation. Each Package receives its own derived
+equivalent. Missing source weights or a zero combined Final Dry Weight produce
+`Fresh equivalent unavailable` without blocking label printing.
+
 ---
 
 # Source Weight
@@ -231,6 +253,7 @@ Examples include:
 * Weight Loss
 * Drying Percentage
 * Total Drying Time from non-voided Drying Run durations
+* Package Fresh Equivalent
 
 Derived values should always be recalculated from historical records.
 

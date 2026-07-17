@@ -39,6 +39,9 @@ class Package(IdMixin, Base):
     package_weight_grams: Mapped[Decimal] = mapped_column(
         Numeric(12, 3), nullable=False
     )
+    finished_product_weight_grams: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 3), nullable=True
+    )
     oxygen_absorber: Mapped[str | None] = mapped_column(String(255))
     storage_location_id: Mapped[UUID] = mapped_column(
         GUID(),

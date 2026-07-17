@@ -13,6 +13,7 @@ class PackageCreate(BaseModel):
     package_identifier: str
     storage_location_id: UUID
     package_weight_grams: Decimal
+    finished_product_weight_grams: Decimal | None = None
     oxygen_absorber: str | None = None
     notes: str | None = None
     status: InventoryStatus = InventoryStatus.IN_STORAGE
@@ -24,6 +25,7 @@ class PackageUpdate(BaseModel):
     package_identifier: str | None = None
     storage_location_id: UUID | None = None
     package_weight_grams: Decimal | None = None
+    finished_product_weight_grams: Decimal | None = None
     oxygen_absorber: str | None = None
     notes: str | None = None
     status: InventoryStatus | None = None

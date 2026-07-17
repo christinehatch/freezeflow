@@ -522,7 +522,43 @@ Returns chronological weight history.
 
 ---
 
+## Correct Weight Check
+
+```http
+POST /api/weight-checks/{id}/correct
+```
+
+Corrects the canonical weight for an existing Weight Check when the user entered
+the wrong value or unit.
+
+### Request
+
+```json
+{
+  "weightGrams": 272.155,
+  "reason": "Selected pounds instead of grams."
+}
+```
+
+### Behavior
+
+* The Weight Check keeps its original observation time and Drying Run relationship.
+* The corrected weight becomes the current canonical value used by the application.
+* The previous weight and corrected weight are preserved in an append-only Audit Entry.
+* Correcting a Weight Check does not reverse Tray or Production Batch lifecycle states.
+
+This action follows ADR-0005. It is a correction to an existing historical
+observation, not the creation of another Weight Check.
+
+---
+
 # Packaging Endpoints
+
+Package creation accepts `finishedProductWeightGrams` separately from sealed
+`packageWeightGrams`. Label responses include preparation, Packaging Date,
+Package Finished Product Weight, and nullable derived `freshEquivalentGrams`.
+Fresh equivalent is never persisted, and mutable Storage Location is not
+permanent label content.
 
 ## Package Trays
 
@@ -587,11 +623,19 @@ Validation:
 * Source Trays therefore share the same Freeze Dryer.
 * Package Type must exist and not be archived.
 * Package Weight must be numeric and positive when completing Packaging.
+* Package Finished Product Weight must be numeric and positive for new Packages.
+* The sum of Package Finished Product Weights must equal the total Final Dry
+  Weight of the selected source Trays before Packaging can complete.
 * Storage Location may be omitted in Milestone 4.
 * Omitted Storage Location resolves to the implicit Unassigned Storage Location.
 * Oxygen absorber may default from Package Type but can be overridden.
 * Packaging date is stored on `PackagingOperation.packagedAt`.
 * Weight comparison warnings do not block Packaging.
+
+The source-allocation validation is not a weight comparison warning. It prevents
+the server from consuming entire source Trays while leaving Finished Product
+Weight unallocated or overallocated. Sealed Package Weight differences continue
+to produce non-blocking warnings.
 
 On success, the server:
 
@@ -624,7 +668,9 @@ POST /api/v1/packages/labels
 
 Generates printable human-readable label data for planned or created Packages.
 
-Labels should include Package identifier, product name or summary, Package Type, packaging date, Package Weight if available, and Storage Location or Unassigned.
+Labels should include Package identifier, product name or summary, Package Type,
+packaging date, preparation or contents, and Package Fresh Equivalent when
+available. Mutable Storage Location is not part of permanent printed label data.
 
 QR codes, barcodes, and automated label integrations are future enhancements.
 
@@ -877,7 +923,7 @@ Future breaking changes should create new API versions rather than modifying exi
 Possible future endpoints include:
 
 * QR code generation
-* Label printing
+* Server-managed label templates and printer integrations
 * Barcode scanning
 * User management
 * Cloud synchronization
@@ -885,3 +931,31 @@ Possible future endpoints include:
 * Batch import/export
 
 Future endpoints should continue to follow the same workflow-oriented design philosophy.
+
+---
+
+# Developer Tool Endpoints
+
+Developer Tool endpoints exist only when Freezeflow runs in the `development` or
+`test` environment. They must not be registered in a production application.
+
+Developer Tool responses use the common success response format and return the
+action performed plus current entity counts. Scenario seeds replace the contents
+of the connected development database so repeated runs remain deterministic and
+internally consistent.
+
+The basic demo endpoint is:
+
+```text
+POST /dev/demo/basic
+```
+
+It creates representative Freeze Dryers, Tray Slots, Physical Trays, Recipes,
+Production Batches, Drying Runs, Weight Checks, Packaging Operations, Package
+Types, Packages, Storage Locations, Storage Location History, and inventory
+states while preserving valid relationships and lifecycle states.
+
+Additional development-only actions may provide empty, inventory, packaging,
+weight-history, busy-day, random-batch, and edge-case scenarios. Reset and seed
+actions are destructive and require an explicit user confirmation in the
+Developer Tools interface.

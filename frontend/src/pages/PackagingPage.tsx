@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import {
   PackageType,
@@ -21,13 +21,18 @@ type PackageLineForm = {
   package_type_id: string;
   package_weight_value: string;
   package_weight_unit: WeightUnit;
+  finished_product_weight_value: string;
+  finished_product_weight_unit: WeightUnit;
   oxygen_absorber: string;
   storage_location_id: string;
   notes: string;
 };
 
+const ALLOCATION_TOLERANCE_GRAMS = 0.001;
+
 export function PackagingPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const worksheetQuery = useQuery({
     queryKey: ["packaging-worksheet"],
     queryFn: packagingApi.getWorksheet,
@@ -52,10 +57,14 @@ export function PackagingPage() {
     () => worksheetQuery.data ?? [],
     [worksheetQuery.data],
   );
+  const [activeBatchId, setActiveBatchId] = useState(
+    () => searchParams.get("batch") ?? "",
+  );
   const [selectedTrayIds, setSelectedTrayIds] = useState<string[]>([]);
   const [packageLines, setPackageLines] = useState<PackageLineForm[]>([
     createPackageLine(),
   ]);
+  const [packageCountInput, setPackageCountInput] = useState("1");
   const [packagedAt, setPackagedAt] = useState("");
   const [sessionNotes, setSessionNotes] = useState("");
   const [newPackageType, setNewPackageType] = useState({
@@ -67,9 +76,11 @@ export function PackagingPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PackagingResult | null>(null);
 
-  const selectedBatchId = useMemo(
-    () => findBatchIdForTray(worksheet, selectedTrayIds[0]),
-    [worksheet, selectedTrayIds],
+  const activeWorksheetItem = useMemo(
+    () =>
+      worksheet.find((item) => item.production_batch.id === activeBatchId) ??
+      null,
+    [activeBatchId, worksheet],
   );
   const selectedTrays = useMemo(
     () =>
@@ -86,7 +97,19 @@ export function PackagingPage() {
     const grams = toGrams(line.package_weight_value, line.package_weight_unit);
     return total + (grams === "" ? 0 : Number(grams));
   }, 0);
+  const allocatedFinishedProductWeight = packageLines.reduce((total, line) => {
+    const grams = toGrams(
+      line.finished_product_weight_value,
+      line.finished_product_weight_unit,
+    );
+    return total + (grams === "" ? 0 : Number(grams));
+  }, 0);
+  const remainingProductWeight =
+    selectedSourceWeight - allocatedFinishedProductWeight;
   const weightDifference = packageWeightTotal - selectedSourceWeight;
+  const allocationComplete =
+    selectedSourceWeight > 0 &&
+    Math.abs(remainingProductWeight) <= ALLOCATION_TOLERANCE_GRAMS;
 
   const createPackageType = useMutation({
     mutationFn: packagingApi.createPackageType,
@@ -133,6 +156,7 @@ export function PackagingPage() {
       setError(null);
       setSelectedTrayIds([]);
       setPackageLines([createPackageLine(packageTypes[0])]);
+      setPackageCountInput("1");
       setPackagedAt("");
       setSessionNotes("");
       void queryClient.invalidateQueries({ queryKey: ["packaging-worksheet"] });
@@ -151,6 +175,23 @@ export function PackagingPage() {
       ),
     );
   }, [packageTypes]);
+
+  useEffect(() => {
+    if (worksheet.length === 0) {
+      setActiveBatchId("");
+      return;
+    }
+    if (worksheet.some((item) => item.production_batch.id === activeBatchId)) {
+      return;
+    }
+    const requestedBatchId = searchParams.get("batch");
+    const nextBatchId = worksheet.some(
+      (item) => item.production_batch.id === requestedBatchId,
+    )
+      ? requestedBatchId!
+      : worksheet[0].production_batch.id;
+    setActiveBatchId(nextBatchId);
+  }, [activeBatchId, searchParams, worksheet]);
 
   function handlePackageTypeCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -182,6 +223,57 @@ export function PackagingPage() {
     });
   }
 
+  function selectBatch(batchId: string) {
+    setActiveBatchId(batchId);
+    setSelectedTrayIds([]);
+    setPackageLines([createPackageLine(packageTypes[0])]);
+    setPackageCountInput("1");
+    setResult(null);
+    if (batchId === "") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ batch: batchId });
+    }
+  }
+
+  function selectAllActiveTrays() {
+    if (!activeWorksheetItem) return;
+    setResult(null);
+    setSelectedTrayIds(
+      activeWorksheetItem.eligible_trays.map((tray) => tray.id),
+    );
+  }
+
+  function setPackageCount(count: number) {
+    if (!Number.isInteger(count) || count < 1 || count > 50) return;
+    setPackageCountInput(String(count));
+    setPackageLines((lines) => {
+      if (count <= lines.length) return lines.slice(0, count);
+      return [
+        ...lines,
+        ...Array.from({ length: count - lines.length }, () =>
+          createPackageLine(packageTypes[0]),
+        ),
+      ];
+    });
+  }
+
+  function changePackageCount(value: string) {
+    setPackageCountInput(value);
+    if (!/^\d+$/.test(value)) return;
+    const count = Number(value);
+    if (!Number.isInteger(count) || count < 1 || count > 50) return;
+    setPackageLines((lines) => {
+      if (count <= lines.length) return lines.slice(0, count);
+      return [
+        ...lines,
+        ...Array.from({ length: count - lines.length }, () =>
+          createPackageLine(packageTypes[0]),
+        ),
+      ];
+    });
+  }
+
   function updatePackageLine(lineId: string, values: Partial<PackageLineForm>) {
     setPackageLines((lines) =>
       lines.map((line) => {
@@ -198,11 +290,53 @@ export function PackagingPage() {
     );
   }
 
+  function addPackageForRemaining() {
+    if (remainingProductWeight <= ALLOCATION_TOLERANCE_GRAMS) return;
+
+    setPackageLines((lines) => {
+      const finishedProductWeight = formatEditableGrams(remainingProductWeight);
+      const emptyLineIndex = lines.findIndex(
+        (line) => line.finished_product_weight_value === "",
+      );
+      const nextLines =
+        emptyLineIndex >= 0
+          ? lines.map((line, index) =>
+              index === emptyLineIndex
+                ? {
+                    ...line,
+                    finished_product_weight_value: finishedProductWeight,
+                    finished_product_weight_unit: "g" as WeightUnit,
+                  }
+                : line,
+            )
+          : [
+              ...lines,
+              {
+                ...createPackageLine(packageTypes[0]),
+                finished_product_weight_value: finishedProductWeight,
+                finished_product_weight_unit: "g" as WeightUnit,
+              },
+            ];
+      setPackageCountInput(String(nextLines.length));
+      return nextLines;
+    });
+  }
+
   function handlePackageSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!allocationComplete) {
+      setError(
+        "Allocate all selected Finished Product Weight before finishing Packaging.",
+      );
+      return;
+    }
     const packages = packageLines
       .map((line) => ({
         package_type_id: line.package_type_id,
+        finished_product_weight_grams: toGrams(
+          line.finished_product_weight_value,
+          line.finished_product_weight_unit,
+        ),
         package_weight_grams: toGrams(
           line.package_weight_value,
           line.package_weight_unit,
@@ -215,7 +349,9 @@ export function PackagingPage() {
       }))
       .filter(
         (line) =>
-          line.package_type_id !== "" && line.package_weight_grams !== "",
+          line.package_type_id !== "" &&
+          line.finished_product_weight_grams !== "" &&
+          line.package_weight_grams !== "",
       );
     packageTrays.mutate({
       tray_ids: selectedTrayIds,
@@ -227,8 +363,8 @@ export function PackagingPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <section>
+    <div className="flex flex-col gap-8">
+      <section className="order-1">
         <h2 className="text-3xl font-semibold">Packaging</h2>
         <p className="mt-2 max-w-3xl text-slate-600">
           Prepare a Packaging Session from completed Trays, create Packages, and
@@ -236,9 +372,13 @@ export function PackagingPage() {
         </p>
       </section>
 
-      {result ? <PackagingComplete result={result} /> : null}
+      {result ? (
+        <div className="order-2">
+          <PackagingComplete result={result} />
+        </div>
+      ) : null}
 
-      <section className="panel">
+      <section className="panel order-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="section-title">Package Types</h3>
@@ -335,13 +475,13 @@ export function PackagingPage() {
         ) : null}
       </section>
 
-      <section className="panel">
+      <section className="panel order-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="section-title">Packaging Worksheet</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Select completed Trays from one Production Batch. Trays already
-              Packaged are excluded.
+              Choose one Production Batch, then select the Trays being combined
+              for this Packaging Session.
             </p>
           </div>
           {selectedTrays.length > 0 ? (
@@ -359,88 +499,180 @@ export function PackagingPage() {
           </p>
         ) : (
           <div className="mt-4 space-y-4">
-            {worksheet.map((item) => {
-              const isDifferentBatch =
-                selectedBatchId !== null &&
-                selectedBatchId !== item.production_batch.id;
-              return (
-                <article className="object-card" key={item.production_batch.id}>
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h4 className="font-semibold">
-                        {item.production_batch.batch_number}
-                      </h4>
-                      <p className="text-sm text-slate-600">
-                        {item.production_batch.freeze_dryer.name} ·{" "}
-                        {formatGrams(String(item.source_weight_grams))} ready
-                      </p>
-                    </div>
+            <label className="field max-w-xl">
+              <span>Production Batch</span>
+              <select
+                aria-label="Production Batch"
+                value={activeBatchId}
+                onChange={(event) => selectBatch(event.target.value)}
+              >
+                {worksheet.map((item) => (
+                  <option
+                    key={item.production_batch.id}
+                    value={item.production_batch.id}
+                  >
+                    {item.production_batch.batch_number} ·{" "}
+                    {item.production_batch.freeze_dryer.name} ·{" "}
+                    {formatGrams(String(item.source_weight_grams))} ready
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {activeWorksheetItem ? (
+              <article className="object-card">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h4 className="font-semibold">
+                      {activeWorksheetItem.production_batch.batch_number}
+                    </h4>
+                    <p className="text-sm text-slate-600">
+                      {activeWorksheetItem.production_batch.freeze_dryer.name} ·{" "}
+                      {formatGrams(
+                        String(activeWorksheetItem.source_weight_grams),
+                      )}{" "}
+                      available
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="quiet-action"
+                      type="button"
+                      onClick={selectAllActiveTrays}
+                    >
+                      Select All Trays
+                    </button>
+                    {selectedTrayIds.length > 0 ? (
+                      <button
+                        className="quiet-action"
+                        type="button"
+                        onClick={() => setSelectedTrayIds([])}
+                      >
+                        Clear Selection
+                      </button>
+                    ) : null}
                     <Link
                       className="text-link text-sm"
-                      to={`/production/${item.production_batch.id}`}
+                      to={`/production/${activeWorksheetItem.production_batch.id}`}
                     >
                       View Batch
                     </Link>
                   </div>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th></th>
-                          <th>Slot</th>
-                          <th>Product</th>
-                          <th>Finished Product Weight</th>
-                          <th>Preparation</th>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">
+                  Select the Trays you physically mixed together. Their Finished
+                  Product Weights become one source pool that may be divided
+                  among several Packages.
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>Slot</th>
+                        <th>Product</th>
+                        <th>Finished Product Weight</th>
+                        <th>Preparation</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeWorksheetItem.eligible_trays.map((tray) => (
+                        <tr key={tray.id}>
+                          <td>
+                            <input
+                              aria-label={`Select Slot ${tray.tray_slot.slot_number} ${tray.product_name}`}
+                              checked={selectedTrayIds.includes(tray.id)}
+                              type="checkbox"
+                              onChange={() =>
+                                toggleTray(activeWorksheetItem, tray.id)
+                              }
+                            />
+                          </td>
+                          <td>Slot {tray.tray_slot.slot_number}</td>
+                          <td>{tray.product_name}</td>
+                          <td>{formatGrams(tray.final_dry_weight_grams)}</td>
+                          <td>{tray.preparation}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {item.eligible_trays.map((tray) => (
-                          <tr key={tray.id}>
-                            <td>
-                              <input
-                                checked={selectedTrayIds.includes(tray.id)}
-                                disabled={isDifferentBatch}
-                                type="checkbox"
-                                onChange={() => toggleTray(item, tray.id)}
-                              />
-                            </td>
-                            <td>Slot {tray.tray_slot.slot_number}</td>
-                            <td>{tray.product_name}</td>
-                            <td>{formatGrams(tray.final_dry_weight_grams)}</td>
-                            <td>{tray.preparation}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </article>
-              );
-            })}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            ) : null}
           </div>
         )}
       </section>
 
-      <form className="panel space-y-5" onSubmit={handlePackageSubmit}>
+      <form className="panel order-4 space-y-5" onSubmit={handlePackageSubmit}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="section-title">Create Packages</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Enter sealed Package Weight. It may differ from Finished Product
-              Weight because bags and absorbers add weight.
+              Divide the selected mixed product among Packages. Finished Product
+              Weight reduces the amount left to package; Sealed Package Weight
+              includes the bag and absorber.
             </p>
           </div>
-          <button
-            className="secondary-action"
-            type="button"
-            onClick={() =>
-              setPackageLines((lines) => [
-                ...lines,
-                createPackageLine(packageTypes[0]),
-              ])
-            }
+          <div className="flex items-end gap-2">
+            <label className="field w-32">
+              <span>Package Count</span>
+              <input
+                aria-label="Package Count"
+                max="50"
+                min="1"
+                type="number"
+                value={packageCountInput}
+                onBlur={() => setPackageCountInput(String(packageLines.length))}
+                onChange={(event) => changePackageCount(event.target.value)}
+              />
+            </label>
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={() => setPackageCount(packageLines.length + 1)}
+            >
+              + Add Package
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-md border border-slate-200 px-4 py-3">
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Selected Source
+            </p>
+            <p className="mt-1 text-xl font-semibold">
+              {formatGrams(String(selectedSourceWeight))}
+            </p>
+            <p className="text-sm text-slate-600">
+              {selectedTrays.length} Tray
+              {selectedTrays.length === 1 ? "" : "s"} mixed
+            </p>
+          </div>
+          <div className="rounded-md border border-slate-200 px-4 py-3">
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Allocated To Packages
+            </p>
+            <p className="mt-1 text-xl font-semibold">
+              {formatGrams(String(allocatedFinishedProductWeight))}
+            </p>
+          </div>
+          <div
+            className={`rounded-md border px-4 py-3 ${
+              Math.abs(remainingProductWeight) > ALLOCATION_TOLERANCE_GRAMS
+                ? "border-amber-300 bg-amber-50"
+                : "border-emerald-200 bg-emerald-50"
+            }`}
           >
-            + Add Package
-          </button>
+            <p className="text-xs font-semibold uppercase text-slate-600">
+              {remainingProductWeight < 0
+                ? "Over Allocated"
+                : "Remaining To Package"}
+            </p>
+            <p className="mt-1 text-xl font-semibold">
+              {formatGrams(String(Math.abs(remainingProductWeight)))}
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -466,9 +698,10 @@ export function PackagingPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>Package</th>
                 <th>Package Type</th>
+                <th>Finished Product Weight</th>
                 <th>Sealed Package Weight</th>
-                <th>Unit</th>
                 <th>Oxygen Absorber</th>
                 <th>Storage</th>
                 <th>Notes</th>
@@ -476,8 +709,9 @@ export function PackagingPage() {
               </tr>
             </thead>
             <tbody>
-              {packageLines.map((line) => (
+              {packageLines.map((line, index) => (
                 <tr key={line.id}>
+                  <td className="font-semibold">{index + 1}</td>
                   <td>
                     <select
                       className="table-input"
@@ -498,36 +732,72 @@ export function PackagingPage() {
                     </select>
                   </td>
                   <td>
-                    <input
-                      className="table-input"
-                      min="0"
-                      required
-                      step="0.001"
-                      type="number"
-                      value={line.package_weight_value}
-                      onChange={(event) =>
-                        updatePackageLine(line.id, {
-                          package_weight_value: event.target.value,
-                        })
-                      }
-                    />
+                    <div className="flex min-w-48 items-center gap-2">
+                      <input
+                        aria-label="Finished Product Weight"
+                        className="table-input min-w-0 flex-1"
+                        min="0"
+                        required
+                        step="0.001"
+                        type="number"
+                        value={line.finished_product_weight_value}
+                        onChange={(event) =>
+                          updatePackageLine(line.id, {
+                            finished_product_weight_value: event.target.value,
+                          })
+                        }
+                      />
+                      <select
+                        aria-label="Finished Product Weight Unit"
+                        className="table-input w-20 shrink-0"
+                        value={line.finished_product_weight_unit}
+                        onChange={(event) =>
+                          updatePackageLine(line.id, {
+                            finished_product_weight_unit: event.target.value as WeightUnit,
+                          })
+                        }
+                      >
+                        {WEIGHT_UNIT_OPTIONS.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                   <td>
-                    <select
-                      className="table-input"
-                      value={line.package_weight_unit}
-                      onChange={(event) =>
-                        updatePackageLine(line.id, {
-                          package_weight_unit: event.target.value as WeightUnit,
-                        })
-                      }
-                    >
-                      {WEIGHT_UNIT_OPTIONS.map((unit) => (
-                        <option key={unit.value} value={unit.value}>
-                          {unit.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex min-w-48 items-center gap-2">
+                      <input
+                        aria-label="Sealed Package Weight"
+                        className="table-input min-w-0 flex-1"
+                        min="0"
+                        required
+                        step="0.001"
+                        type="number"
+                        value={line.package_weight_value}
+                        onChange={(event) =>
+                          updatePackageLine(line.id, {
+                            package_weight_value: event.target.value,
+                          })
+                        }
+                      />
+                      <select
+                        aria-label="Sealed Package Weight Unit"
+                        className="table-input w-20 shrink-0"
+                        value={line.package_weight_unit}
+                        onChange={(event) =>
+                          updatePackageLine(line.id, {
+                            package_weight_unit: event.target.value as WeightUnit,
+                          })
+                        }
+                      >
+                        {WEIGHT_UNIT_OPTIONS.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                   <td>
                     <input
@@ -592,7 +862,30 @@ export function PackagingPage() {
           </table>
         </div>
 
-        {Math.abs(weightDifference) > 0 ? (
+        {remainingProductWeight > ALLOCATION_TOLERANCE_GRAMS ? (
+          <div className="flex flex-col gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-amber-950">
+              {formatGrams(String(remainingProductWeight))} still needs a Package.
+              Add another Package before finishing Packaging.
+            </p>
+            <button
+              className="secondary-action shrink-0"
+              type="button"
+              onClick={addPackageForRemaining}
+            >
+              + Add Package for Remaining
+            </button>
+          </div>
+        ) : null}
+
+        {remainingProductWeight < 0 ? (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Finished Product Weight is over allocated by{" "}
+            {formatGrams(String(Math.abs(remainingProductWeight)))}. Review the
+            Package rows before finishing.
+          </p>
+        ) : null}
+        {packageWeightTotal > 0 && Math.abs(weightDifference) > 0 ? (
           <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Package weights differ from selected Finished Product Weight by{" "}
             {formatGrams(String(weightDifference))}. This warning will not block
@@ -605,11 +898,12 @@ export function PackagingPage() {
           disabled={
             selectedTrayIds.length === 0 ||
             packageTypes.length === 0 ||
+            !allocationComplete ||
             packageTrays.isPending
           }
           type="submit"
         >
-          Create Packages
+          Finish Packaging
         </button>
       </form>
     </div>
@@ -635,10 +929,13 @@ function PackagingComplete({ result }: { result: PackagingResult }) {
               result.labels.map((label) => ({
                 packageIdentifier: label.package_identifier,
                 productName: label.product_summary,
-                packageLine: `${label.package_type} · ${formatGrams(label.package_weight_grams)}`,
+                preparationSummary: label.preparation_summary,
+                freshEquivalentGrams: label.fresh_equivalent_grams,
+                finishedProductWeightGrams: label.finished_product_weight_grams,
+                packageType: label.package_type,
                 batchLine: `${label.batch_number} · ${label.freeze_dryer}`,
                 oxygenAbsorber: label.oxygen_absorber,
-                storageLocation: label.storage_location,
+                packagedAt: label.packaged_at,
               })),
             )
           }
@@ -671,13 +968,15 @@ function PackagingComplete({ result }: { result: PackagingResult }) {
               {label.product_summary}
             </h4>
             <p className="text-sm text-slate-700">
-              {label.package_type} · {formatGrams(label.package_weight_grams)}
+              Finished product: {label.finished_product_weight_grams === null
+                ? "Not recorded"
+                : formatGrams(label.finished_product_weight_grams)}
+            </p>
+            <p className="text-sm text-slate-700">
+              Sealed package: {formatGrams(label.package_weight_grams)}
             </p>
             <p className="text-sm text-slate-700">
               Batch {label.batch_number} · {label.freeze_dryer}
-            </p>
-            <p className="text-sm text-slate-700">
-              Storage: {label.storage_location}
             </p>
             {label.oxygen_absorber ? (
               <p className="text-sm text-slate-700">
@@ -696,7 +995,9 @@ function createPackageLine(packageType?: PackageType): PackageLineForm {
     id: Math.random().toString(36).slice(2),
     package_type_id: packageType?.id ?? "",
     package_weight_value: "",
-    package_weight_unit: "oz",
+    package_weight_unit: "g",
+    finished_product_weight_value: "",
+    finished_product_weight_unit: "g",
     oxygen_absorber: packageType?.default_oxygen_absorber ?? "",
     storage_location_id: "",
     notes: "",
@@ -725,4 +1026,8 @@ function findBatchIdForTray(
     }
   }
   return null;
+}
+
+function formatEditableGrams(value: number) {
+  return String(Number(value.toFixed(3)));
 }

@@ -29,6 +29,7 @@ from app.schemas import (
 from app.services.errors import BusinessRuleError
 
 UNASSIGNED_STORAGE_LOCATION_NAME = "Unassigned"
+ALLOCATION_TOLERANCE_GRAMS = Decimal("0.001")
 
 
 def list_package_types(
@@ -152,6 +153,14 @@ def package_selected_trays(
         (tray.final_dry_weight_grams for tray in trays),
         Decimal("0"),
     )
+    allocated_finished_product_weight_grams = sum(
+        (line.finished_product_weight_grams for line in data.packages),
+        Decimal("0"),
+    )
+    _validate_complete_source_allocation(
+        source_weight_grams,
+        allocated_finished_product_weight_grams,
+    )
     package_weight_grams = sum(
         (line.package_weight_grams for line in data.packages),
         Decimal("0"),
@@ -187,6 +196,7 @@ def package_selected_trays(
             package_type_id=package_type.id,
             package_identifier=_next_package_identifier(db, packaged_at),
             package_weight_grams=line.package_weight_grams,
+            finished_product_weight_grams=line.finished_product_weight_grams,
             oxygen_absorber=_effective_oxygen_absorber(
                 line.oxygen_absorber,
                 package_type,
@@ -222,6 +232,24 @@ def package_selected_trays(
             ),
         ),
     }
+
+
+def _validate_complete_source_allocation(
+    source_weight_grams: Decimal,
+    allocated_weight_grams: Decimal,
+) -> None:
+    difference = allocated_weight_grams - source_weight_grams
+    if abs(difference) <= ALLOCATION_TOLERANCE_GRAMS:
+        return
+
+    if difference < 0:
+        detail = f"{abs(difference)} g remain unallocated."
+    else:
+        detail = f"{difference} g are over allocated."
+    raise BusinessRuleError(
+        "Package Finished Product Weights must allocate the complete source "
+        f"Finished Product Weight before Packaging can finish. {detail}"
+    )
 
 
 def labels_for_packages(
@@ -364,7 +392,11 @@ def _validate_package_lines(
                 "Archived Package Types cannot be used for Packaging."
             )
         if line.package_weight_grams <= 0:
-            raise BusinessRuleError("Package Weight must be greater than zero.")
+            raise BusinessRuleError("Sealed Package Weight must be greater than zero.")
+        if line.finished_product_weight_grams <= 0:
+            raise BusinessRuleError(
+                "Finished Product Weight must be greater than zero."
+            )
         if (
             line.storage_location_id is not None
             and line.storage_location_id not in storage_locations
@@ -485,6 +517,14 @@ def _label_data(package: Package) -> dict[str, object]:
     product_summary = (
         products[0] if len(products) == 1 else "Mixed: " + ", ".join(products)
     )
+    preparations = sorted(
+        {
+            tray.preparation.strip()
+            for tray in trays
+            if tray.preparation and tray.preparation.strip()
+        }
+    )
+    preparation_summary = "; ".join(preparations) or "No preparation recorded"
     return {
         "package_id": package.id,
         "package_identifier": package.package_identifier,
@@ -492,12 +532,40 @@ def _label_data(package: Package) -> dict[str, object]:
         "freeze_dryer": production_batch.freeze_dryer.name,
         "product_summary": product_summary,
         "package_type": package.package_type.name,
+        "finished_product_weight_grams": package.finished_product_weight_grams,
         "package_weight_grams": package.package_weight_grams,
+        "fresh_equivalent_grams": _fresh_equivalent_grams(package, trays),
+        "preparation_summary": preparation_summary,
         "oxygen_absorber": package.oxygen_absorber,
-        "storage_location": package.storage_location.name,
         "packaged_at": package.packaging_operation.packaged_at,
         "label_template": package.package_type.default_label_template,
     }
+
+
+def _fresh_equivalent_grams(
+    package: Package,
+    trays: list[Tray],
+) -> Decimal | None:
+    finished_weight = package.finished_product_weight_grams
+    if finished_weight is None:
+        return None
+    if any(
+        tray.starting_weight_grams is None
+        or tray.starting_weight_grams <= 0
+        or tray.final_dry_weight_grams is None
+        or tray.final_dry_weight_grams <= 0
+        for tray in trays
+    ):
+        return None
+    total_final = sum(
+        (tray.final_dry_weight_grams for tray in trays),
+        Decimal("0"),
+    )
+    total_starting = sum(
+        (tray.starting_weight_grams for tray in trays),
+        Decimal("0"),
+    )
+    return total_starting * (finished_weight / total_final)
 
 
 def _clean_optional_text(value: str | None) -> str | None:

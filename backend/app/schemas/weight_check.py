@@ -14,6 +14,11 @@ class WeightCheckCreate(BaseModel):
     notes: str | None = None
 
 
+class WeightCheckCorrection(BaseModel):
+    weight_grams: Decimal
+    reason: str | None = None
+
+
 class WeightCheckUpdate(BaseModel):
     drying_run_id: UUID | None = None
     weight_grams: Decimal | None = None

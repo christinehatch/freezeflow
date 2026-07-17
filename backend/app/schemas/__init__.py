@@ -60,6 +60,7 @@ from app.schemas.tray import (
 )
 from app.schemas.tray_slot import TraySlotCreate, TraySlotRead, TraySlotUpdate
 from app.schemas.weight_check import (
+    WeightCheckCorrection,
     WeightCheckCreate,
     WeightCheckRead,
     WeightCheckUpdate,
@@ -118,6 +119,7 @@ __all__ = [
     "TraySlotUpdate",
     "TrayUpdate",
     "WeightCheckCreate",
+    "WeightCheckCorrection",
     "WeightCheckRead",
     "WeightCheckUpdate",
 ]

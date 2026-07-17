@@ -786,12 +786,17 @@ function DryingWorkflowPanel({
       <section className="panel">
         <h3 className="section-title">Drying Complete</h3>
         <p className="mt-2 text-slate-600">
-          This Production Batch is complete and ready for Packaging in the next
-          milestone.
+          This Production Batch is complete and ready for Packaging.
         </p>
         <p className="mt-3 text-sm text-slate-600">
           Total drying time: {formatDuration(batch.total_drying_seconds)}
         </p>
+        <Link
+          className="primary-action mt-4"
+          to={`/packaging?batch=${batch.id}`}
+        >
+          Start Packaging
+        </Link>
       </section>
     );
   }
@@ -938,12 +943,14 @@ function WeightEntryRow({
   const existingCheck = tray.weight_checks.find(
     (check) => check.drying_run_id === dryingRun.id,
   );
-  const initialWeight = fromGramsForInput(existingCheck?.weight_grams ?? null);
-  const [weight, setWeight] = useState(initialWeight.value);
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>(
-    existingCheck ? initialWeight.unit : "oz",
-  );
+  const [weight, setWeight] = useState("");
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>("g");
   const [notes, setNotes] = useState("");
+  const [isCorrecting, setIsCorrecting] = useState(false);
+  const [correctedWeight, setCorrectedWeight] = useState("");
+  const [correctedWeightUnit, setCorrectedWeightUnit] =
+    useState<WeightUnit>("g");
+  const [correctionReason, setCorrectionReason] = useState("");
   const baselineWeight = existingCheck
     ? tray.previous_weight_grams
     : tray.latest_weight_grams;
@@ -954,6 +961,18 @@ function WeightEntryRow({
     mutationFn: productionApi.recordWeightCheck,
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
+  const correctWeightCheck = useMutation({
+    mutationFn: productionApi.correctWeightCheck,
+    onSuccess: () => {
+      setIsCorrecting(false);
+      refreshBatch(queryClient, batchId);
+    },
+  });
+  const hasLargeIncrease =
+    baselineWeight !== null &&
+    newWeight !== null &&
+    newWeight !== "" &&
+    Number(newWeight) > Number(baselineWeight) * 1.1;
 
   if (tray.status === "Completed") {
     return (
@@ -989,39 +1008,130 @@ function WeightEntryRow({
       <td>{formatGrams(baselineWeight)}</td>
       <td>
         {existingCheck ? (
-          formatGrams(existingCheck.weight_grams)
+          isCorrecting ? (
+            <div className="min-w-72 space-y-2">
+              <WeightInput
+                unit={correctedWeightUnit}
+                value={correctedWeight}
+                onUnitChange={setCorrectedWeightUnit}
+                onValueChange={setCorrectedWeight}
+              />
+              <input
+                aria-label="Correction reason"
+                className="table-input"
+                placeholder="reason (optional)"
+                value={correctionReason}
+                onChange={(event) => setCorrectionReason(event.target.value)}
+              />
+              <div className="flex gap-2">
+                <button
+                  className="quiet-action"
+                  disabled={
+                    correctedWeight === "" || correctWeightCheck.isPending
+                  }
+                  onClick={() =>
+                    correctWeightCheck.mutate({
+                      id: existingCheck.id,
+                      body: {
+                        weight_grams: toGrams(
+                          correctedWeight,
+                          correctedWeightUnit,
+                        ),
+                        reason:
+                          correctionReason.trim() === ""
+                            ? null
+                            : correctionReason.trim(),
+                      },
+                    })
+                  }
+                  type="button"
+                >
+                  Save Correction
+                </button>
+                <button
+                  className="quiet-action"
+                  onClick={() => setIsCorrecting(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span>{formatGrams(existingCheck.weight_grams)}</span>
+              <button
+                className="quiet-action"
+                onClick={() => {
+                  setCorrectedWeight(existingCheck.weight_grams);
+                  setCorrectedWeightUnit("g");
+                  setCorrectionReason("");
+                  setIsCorrecting(true);
+                }}
+                type="button"
+              >
+                Correct
+              </button>
+            </div>
+          )
         ) : (
-          <div className="flex min-w-48 gap-2">
-            <WeightInput
-              unit={weightUnit}
-              value={weight}
-              onUnitChange={setWeightUnit}
-              onValueChange={setWeight}
-            />
-            <input
-              className="table-input"
-              placeholder="notes"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-            <button
-              className="quiet-action"
-              disabled={weight === "" || recordWeightCheck.isPending}
-              onClick={() =>
-                recordWeightCheck.mutate({
-                  id: tray.id,
-                  body: {
-                    drying_run_id: dryingRun.id,
-                    weight_grams: toGrams(weight, weightUnit),
-                    observed_at: new Date().toISOString(),
-                    notes: notes.trim() === "" ? null : notes,
-                  },
-                })
-              }
-              type="button"
-            >
-              Save
-            </button>
+          <div className="min-w-[30rem] space-y-2">
+            <div className="grid grid-cols-[minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto] items-end gap-2">
+              <div className="field">
+                <span>Weight</span>
+                <WeightInput
+                  ariaLabel={`New weight for ${tray.product_name} in ${tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}`}
+                  placeholder="Enter weight"
+                  unit={weightUnit}
+                  value={weight}
+                  onUnitChange={setWeightUnit}
+                  onValueChange={setWeight}
+                />
+              </div>
+              <label className="field">
+                <span>Notes (optional)</span>
+                <input
+                  className="table-input"
+                  placeholder="Production notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                />
+              </label>
+              <button
+                className="quiet-action"
+                disabled={weight === "" || recordWeightCheck.isPending}
+                onClick={() =>
+                  recordWeightCheck.mutate({
+                    id: tray.id,
+                    body: {
+                      drying_run_id: dryingRun.id,
+                      weight_grams: toGrams(weight, weightUnit),
+                      observed_at: new Date().toISOString(),
+                      notes: notes.trim() === "" ? null : notes,
+                    },
+                  })
+                }
+                type="button"
+              >
+                {recordWeightCheck.isPending ? "Saving..." : "Save Weight"}
+              </button>
+            </div>
+            {weight === "" ? (
+              <p className="text-xs text-slate-600">
+                Enter a new weight to enable Save Weight.
+              </p>
+            ) : null}
+            {hasLargeIncrease ? (
+              <p className="text-sm font-medium text-red-700" role="alert">
+                Check the value and unit: this is more than 10% above the last
+                weight.
+              </p>
+            ) : null}
+            {recordWeightCheck.isError ? (
+              <p className="text-sm font-medium text-red-700" role="alert">
+                Weight Check could not be saved. {recordWeightCheck.error.message}
+              </p>
+            ) : null}
           </div>
         )}
       </td>
@@ -1030,7 +1140,11 @@ function WeightEntryRow({
       <td>
         <div className="flex flex-wrap gap-2">
           {existingCheck ? (
-            <CompleteTrayButton batchId={batchId} tray={tray} />
+            <CompleteTrayButton
+              batchId={batchId}
+              key={tray.latest_weight_grams}
+              tray={tray}
+            />
           ) : null}
           <Link className="quiet-action" to={`/trays/${tray.id}`}>
             View
@@ -1049,13 +1163,11 @@ function CompleteTrayButton({
   tray: Tray;
 }) {
   const queryClient = useQueryClient();
-  const initialFinalDryWeight = fromGramsForInput(tray.latest_weight_grams);
   const [finalDryWeight, setFinalDryWeight] = useState(
-    initialFinalDryWeight.value,
+    tray.latest_weight_grams ?? "",
   );
-  const [finalDryWeightUnit, setFinalDryWeightUnit] = useState<WeightUnit>(
-    initialFinalDryWeight.unit,
-  );
+  const [finalDryWeightUnit, setFinalDryWeightUnit] =
+    useState<WeightUnit>("g");
   const completeTray = useMutation({
     mutationFn: productionApi.completeTray,
     onSuccess: () => refreshBatch(queryClient, batchId),
@@ -1092,12 +1204,16 @@ function CompleteTrayButton({
 }
 
 function WeightInput({
+  ariaLabel,
+  placeholder,
   required = false,
   unit,
   value,
   onUnitChange,
   onValueChange,
 }: {
+  ariaLabel?: string;
+  placeholder?: string;
   required?: boolean;
   unit: WeightUnit;
   value: string;
@@ -1107,9 +1223,10 @@ function WeightInput({
   return (
     <div className="flex min-w-40 gap-2">
       <input
+        aria-label={ariaLabel}
         className="table-input"
         min="0"
-        placeholder={unit}
+        placeholder={placeholder ?? unit}
         required={required}
         step="0.001"
         type="number"
@@ -1117,6 +1234,7 @@ function WeightInput({
         onChange={(event) => onValueChange(event.target.value)}
       />
       <select
+        aria-label={ariaLabel ? `${ariaLabel} unit` : undefined}
         className="table-input"
         value={unit}
         onChange={(event) => onUnitChange(event.target.value as WeightUnit)}

@@ -47,7 +47,11 @@ export function DashboardPage() {
 
       <section className="panel">
         <h3 className="section-title">Needs Attention</h3>
-        {runningBatches.length === 0 ? (
+        {batchesQuery.isError ? (
+          <p className="text-red-700" role="alert">
+            Production Batches could not be loaded. {batchesQuery.error.message}
+          </p>
+        ) : runningBatches.length === 0 ? (
           <p className="text-slate-600">
             No Production Batches are currently running.
           </p>
@@ -72,7 +76,11 @@ export function DashboardPage() {
             View all
           </Link>
         </div>
-        {freezeDryers.length === 0 ? (
+        {freezeDryersQuery.isError ? (
+          <div className="panel text-red-700" role="alert">
+            Freeze Dryers could not be loaded. {freezeDryersQuery.error.message}
+          </div>
+        ) : freezeDryers.length === 0 ? (
           <EmptyState
             actionLabel="Create Your First Freeze Dryer"
             actionTo="/freeze-dryers"
@@ -150,7 +158,11 @@ export function DashboardPage() {
 
       <section className="panel">
         <h3 className="section-title">Recent Production Batches</h3>
-        {recentBatches.length === 0 ? (
+        {batchesQuery.isError ? (
+          <p className="mt-3 text-red-700" role="alert">
+            Production history could not be loaded. {batchesQuery.error.message}
+          </p>
+        ) : recentBatches.length === 0 ? (
           <p className="mt-3 text-slate-600">No Production Batches yet.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">

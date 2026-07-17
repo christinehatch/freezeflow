@@ -1,11 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { productionApi } from "../api/client";
+import { Tray, WeightCheck, packagingApi, productionApi } from "../api/client";
 import { printAvery5163Labels } from "../utils/avery5163Labels";
+import {
+  WEIGHT_UNIT_OPTIONS,
+  WeightUnit,
+  toGrams,
+} from "../utils/weights";
 
 export function TrayDetailsPage() {
   const { trayId } = useParams();
+  const queryClient = useQueryClient();
   const trayQuery = useQuery({
     queryKey: ["tray", trayId],
     queryFn: () => productionApi.getTray(trayId ?? ""),
@@ -13,6 +20,23 @@ export function TrayDetailsPage() {
   });
 
   const tray = trayQuery.data;
+  const labelMutation = useMutation({
+    mutationFn: packagingApi.labelsForPackages,
+    onSuccess: (labels) =>
+      printAvery5163Labels(
+        labels.map((label) => ({
+          packageIdentifier: label.package_identifier,
+          productName: label.product_summary,
+          preparationSummary: label.preparation_summary,
+          freshEquivalentGrams: label.fresh_equivalent_grams,
+          finishedProductWeightGrams: label.finished_product_weight_grams,
+          packageType: label.package_type,
+          batchLine: `${label.batch_number} · ${label.freeze_dryer}`,
+          oxygenAbsorber: label.oxygen_absorber,
+          packagedAt: label.packaged_at,
+        })),
+      ),
+  });
 
   if (trayQuery.isLoading) {
     return <div className="panel">Loading Tray...</div>;
@@ -112,25 +136,21 @@ export function TrayDetailsPage() {
             <button
               className="secondary-action"
               type="button"
+              disabled={labelMutation.isPending}
               onClick={() =>
-                printAvery5163Labels(
-                  packaging.packages.map((packageItem) => ({
-                    packageIdentifier: packageItem.package_identifier,
-                    productName: tray.product_name,
-                    packageLine: `${packageItem.package_type} · ${formatWeight(packageItem.package_weight_grams)}`,
-                    batchLine: `${packaging.batch_number} · ${packaging.freeze_dryer} · ${
-                      tray.tray_slot.label ||
-                      `Slot ${tray.tray_slot.slot_number}`
-                    }`,
-                    oxygenAbsorber: packageItem.oxygen_absorber,
-                    storageLocation: packageItem.storage_location,
-                  })),
-                )
+                labelMutation.mutate({
+                  package_ids: packaging.packages.map((item) => item.id),
+                })
               }
             >
               Reprint Avery 5163 Labels
             </button>
           </div>
+          {labelMutation.isError ? (
+            <p className="mt-3 text-sm text-red-700">
+              {labelMutation.error.message}
+            </p>
+          ) : null}
           <p className="mt-3 text-sm text-slate-600">
             Prints on Avery 5163: 2&quot; x 4&quot;, 10 labels per letter sheet.
             Use US Letter / 8.5&quot; x 11&quot;, 100% scale, with headers and
@@ -149,8 +169,15 @@ export function TrayDetailsPage() {
                   {tray.product_name}
                 </h4>
                 <p className="text-sm text-slate-700">
-                  {packageItem.package_type} ·{" "}
-                  {formatWeight(packageItem.package_weight_grams)}
+                  {packageItem.package_type}
+                </p>
+                <p className="text-sm text-slate-700">
+                  Finished product: {formatWeight(
+                    packageItem.finished_product_weight_grams,
+                  )}
+                </p>
+                <p className="text-sm text-slate-700">
+                  Sealed package: {formatWeight(packageItem.package_weight_grams)}
                 </p>
                 <p className="text-sm text-slate-700">
                   Storage: {packageItem.storage_location}
@@ -182,16 +209,42 @@ export function TrayDetailsPage() {
                   <th>Observed</th>
                   <th>Weight</th>
                   <th>Notes</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {tray.weight_checks.map((check, index) => (
-                  <tr key={check.id}>
-                    <td>Run {index + 1}</td>
-                    <td>{formatDate(check.observed_at)}</td>
-                    <td>{formatWeight(check.weight_grams)}</td>
-                    <td>{check.notes || "No notes"}</td>
-                  </tr>
+                  <WeightCheckHistoryRow
+                    check={check}
+                    key={check.id}
+                    onCorrected={(correctedCheck) => {
+                      queryClient.setQueryData<Tray>(
+                        ["tray", trayId],
+                        (currentTray) => {
+                          if (!currentTray) return currentTray;
+                          const latestCheck =
+                            currentTray.weight_checks[
+                              currentTray.weight_checks.length - 1
+                            ];
+                          const isLatest =
+                            latestCheck?.id === correctedCheck.id;
+                          return {
+                            ...currentTray,
+                            latest_weight_grams: isLatest
+                              ? correctedCheck.weight_grams
+                              : currentTray.latest_weight_grams,
+                            weight_checks: currentTray.weight_checks.map(
+                              (item) =>
+                                item.id === correctedCheck.id
+                                  ? correctedCheck
+                                  : item,
+                            ),
+                          };
+                        },
+                      );
+                    }}
+                    runNumber={index + 1}
+                  />
                 ))}
               </tbody>
             </table>
@@ -199,6 +252,120 @@ export function TrayDetailsPage() {
         )}
       </section>
     </div>
+  );
+}
+
+function WeightCheckHistoryRow({
+  check,
+  onCorrected,
+  runNumber,
+}: {
+  check: WeightCheck;
+  onCorrected: (check: WeightCheck) => void;
+  runNumber: number;
+}) {
+  const [isCorrecting, setIsCorrecting] = useState(false);
+  const [weight, setWeight] = useState(check.weight_grams);
+  const [displayWeight, setDisplayWeight] = useState(check.weight_grams);
+  const [unit, setUnit] = useState<WeightUnit>("g");
+  const [reason, setReason] = useState("");
+  const correction = useMutation({
+    mutationFn: productionApi.correctWeightCheck,
+    onSuccess: (correctedCheck) => {
+      setDisplayWeight(correctedCheck.weight_grams);
+      setIsCorrecting(false);
+      onCorrected(correctedCheck);
+    },
+  });
+
+  return (
+    <tr>
+      <td>Run {runNumber}</td>
+      <td>{formatDate(check.observed_at)}</td>
+      <td>
+        {isCorrecting ? (
+          <div className="min-w-64 space-y-2">
+            <div className="flex gap-2">
+              <input
+                aria-label={`Correct weight for Run ${runNumber}`}
+                className="table-input"
+                min="0"
+                step="0.001"
+                type="number"
+                value={weight}
+                onChange={(event) => setWeight(event.target.value)}
+              />
+              <select
+                aria-label={`Correct weight unit for Run ${runNumber}`}
+                className="table-input"
+                value={unit}
+                onChange={(event) =>
+                  setUnit(event.target.value as WeightUnit)
+                }
+              >
+                {WEIGHT_UNIT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <input
+              aria-label={`Correction reason for Run ${runNumber}`}
+              className="table-input"
+              placeholder="reason (optional)"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </div>
+        ) : (
+          formatWeight(displayWeight)
+        )}
+      </td>
+      <td>{check.notes || "No notes"}</td>
+      <td>
+        {isCorrecting ? (
+          <div className="flex gap-2">
+            <button
+              className="quiet-action"
+              disabled={weight === "" || correction.isPending}
+              onClick={() =>
+                correction.mutate({
+                  id: check.id,
+                  body: {
+                    weight_grams: toGrams(weight, unit),
+                    reason: reason.trim() === "" ? null : reason.trim(),
+                  },
+                })
+              }
+              type="button"
+            >
+              Save Correction
+            </button>
+            <button
+              className="quiet-action"
+              onClick={() => setIsCorrecting(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            className="quiet-action"
+            onClick={() => {
+              setWeight(displayWeight);
+              setUnit("g");
+              setReason("");
+              setIsCorrecting(true);
+            }}
+            type="button"
+          >
+            Correct Weight
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 

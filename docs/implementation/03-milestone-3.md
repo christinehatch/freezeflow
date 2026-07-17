@@ -78,6 +78,11 @@ Do not implement:
 
 The application may suggest that a Tray appears dry or stable, but the user must explicitly mark the Tray Complete.
 
+The broad Corrections and Audit History UI remains deferred to Milestone 8. A
+narrow inline action for correcting an accidentally entered Weight Check is
+included because it is required to safely use the Weight Tracking workflow. The
+correction must follow ADR-0005 and preserve the previous value in Audit History.
+
 Production Batch completion is a user-confirmed transition that is available only after every Tray has been explicitly marked Complete.
 
 ---
@@ -237,6 +242,11 @@ Weight Checks are append-only historical observations.
 Existing Weight Checks must not be overwritten during normal workflow.
 
 Corrections are governed by ADR-0005 and belong to the correction model, not the routine Milestone 3 data-entry workflow.
+
+The Weight Check workspace should nevertheless expose a focused correction
+action for an already-recorded weight. This action updates the canonical weight,
+creates an append-only Audit Entry, and does not permit deletion or replacement
+of the historical Weight Check.
 
 ---
 

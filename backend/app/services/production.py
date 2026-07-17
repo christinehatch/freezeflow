@@ -21,6 +21,7 @@ from app.models import (
     WeightCheck,
 )
 from app.repositories import (
+    audit_entry_repository,
     drying_run_repository,
     production_batch_repository,
     tray_repository,
@@ -37,6 +38,7 @@ from app.schemas import (
     TrayCreate,
     TrayStartingWeightUpdate,
     TrayUpdate,
+    WeightCheckCorrection,
     WeightCheckCreate,
 )
 from app.services.errors import BusinessRuleError
@@ -334,9 +336,7 @@ def start_drying_run(
         raise BusinessRuleError("Drying Runs may only start for Running Batches.")
     if _active_drying_run(db, batch.id) is not None:
         raise BusinessRuleError("A Drying Run is already Active for this Batch.")
-    running_trays = [
-        tray for tray in batch.trays if tray.status == TrayStatus.RUNNING
-    ]
+    running_trays = [tray for tray in batch.trays if tray.status == TrayStatus.RUNNING]
     if not running_trays:
         raise BusinessRuleError("At least one Tray must still be Running.")
     if any(tray.starting_weight_grams is None for tray in running_trays):
@@ -485,6 +485,39 @@ def get_weight_check(db: Session, weight_check_id: UUID) -> WeightCheck:
     if weight_check is None:
         raise BusinessRuleError("Weight Check was not found.", status_code=404)
     return weight_check
+
+
+def correct_weight_check(
+    db: Session,
+    weight_check_id: UUID,
+    data: WeightCheckCorrection,
+) -> WeightCheck:
+    weight_check = get_weight_check(db, weight_check_id)
+    previous_value = str(weight_check.weight_grams)
+    current_value = str(data.weight_grams)
+
+    if data.weight_grams <= 0:
+        raise BusinessRuleError("Weight Check must be greater than zero.")
+    if data.weight_grams == weight_check.weight_grams:
+        raise BusinessRuleError("Corrected weight must differ from the current weight.")
+
+    audit_entry_repository.create(
+        db,
+        {
+            "entity_type": "WeightCheck",
+            "entity_id": weight_check.id,
+            "field_name": "weightGrams",
+            "previous_value": previous_value,
+            "current_value": current_value,
+            "observed_at": weight_check.observed_at,
+            "corrected_at": datetime.now(UTC),
+            "reason": data.reason,
+        },
+    )
+    weight_check.weight_grams = data.weight_grams
+    db.add(weight_check)
+    db.commit()
+    return get_weight_check(db, weight_check.id)
 
 
 def complete_tray(db: Session, tray_id: UUID, data: TrayComplete) -> Tray:

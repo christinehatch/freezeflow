@@ -108,11 +108,20 @@ export function ProductionPage() {
         {error ? (
           <p className="md:col-span-4 text-sm text-red-700">{error}</p>
         ) : null}
+        {freezeDryersQuery.isError ? (
+          <p className="md:col-span-4 text-sm text-red-700" role="alert">
+            Freeze Dryers could not be loaded. {freezeDryersQuery.error.message}
+          </p>
+        ) : null}
       </form>
 
       <section className="panel">
         <h3 className="section-title">Production Batches</h3>
-        {productionBatches.length === 0 ? (
+        {batchesQuery.isError ? (
+          <p className="mt-3 text-red-700" role="alert">
+            Production Batches could not be loaded. {batchesQuery.error.message}
+          </p>
+        ) : productionBatches.length === 0 ? (
           <p className="mt-3 text-slate-600">
             No Production Batches exist. Create a Draft batch to begin setup.
           </p>

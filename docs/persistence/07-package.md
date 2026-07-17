@@ -22,11 +22,14 @@ Packages preserve the connection between inventory and historical production thr
 | packageIdentifier | Yes | No | System-generated human-readable identifier |
 | storageLocationId | Yes | Yes* | Current Storage Location |
 | packageWeightGrams | Yes | Yes* | Total sealed package weight |
+| finishedProductWeightGrams | No** | Yes* | Freeze-dried food placed in the Package |
 | oxygenAbsorber | No | Yes | Optional oxygen absorber information |
 | notes | No | Yes | Optional package notes |
 | status | Yes | System | Inventory lifecycle state |
 
 \* Corrections follow the Audit History model defined in ADR-0005.
+
+\** Nullable for historical Packages; required by the current Packaging workflow.
 
 ---
 
@@ -60,6 +63,10 @@ Packages do not store an independent packaging date.
 The packaging date is inherited from the parent Packaging Operation.
 
 All Packages created during the same Packaging Operation share the same `packagedAt` timestamp.
+
+Package Fresh Equivalent is derived from Package Finished Product Weight and
+the Packaging Operation's source Tray weights. It is not persisted. Existing
+`packageWeightGrams` values remain Sealed Package Weights.
 
 ---
 
