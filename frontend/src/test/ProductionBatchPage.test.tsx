@@ -153,9 +153,36 @@ describe("ProductionBatchPage", () => {
 
     const weightRow = await findLastRow("Apples");
     const weightInput = within(weightRow).getByRole("spinbutton");
+    const weightUnit = within(weightRow).getByRole("combobox");
+    expect(weightUnit).toHaveValue("g");
+    await user.clear(weightInput);
+    await user.type(weightInput, "1100");
+    expect(
+      within(weightRow).getByRole("alert"),
+    ).toHaveTextContent("Check the value and unit");
     await user.clear(weightInput);
     await user.type(weightInput, "8.4");
-    await user.click(within(weightRow).getByRole("button", { name: "Save" }));
+    await user.selectOptions(weightUnit, "oz");
+    await user.click(
+      within(weightRow).getByRole("button", { name: "Save Weight" }),
+    );
+
+    const savedWeightRow = await findLastRow("Apples");
+    await user.click(
+      within(savedWeightRow).getByRole("button", { name: "Correct" }),
+    );
+    const correctionInput = within(savedWeightRow).getAllByRole("spinbutton")[0];
+    await user.clear(correctionInput);
+    await user.type(correctionInput, "240");
+    await user.type(
+      within(savedWeightRow).getByRole("textbox", {
+        name: "Correction reason",
+      }),
+      "Wrong unit selected",
+    );
+    await user.click(
+      within(savedWeightRow).getByRole("button", { name: "Save Correction" }),
+    );
 
     await user.click(
       await screen.findByRole("button", { name: "Mark Complete" }),
@@ -171,6 +198,9 @@ describe("ProductionBatchPage", () => {
       await screen.findByRole("heading", { name: "Drying Complete" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("link", { name: "Start Packaging" }),
+    ).toHaveAttribute("href", "/packaging?batch=batch-1");
 
     const calls = fetchMock().mock.calls.map(([input, init]) => ({
       path: String(input).replace(/^.*\/api\/v1/, ""),
@@ -196,9 +226,17 @@ describe("ProductionBatchPage", () => {
           }),
         }),
         expect.objectContaining({
+          path: "/weight-checks/weight-check-1/correct",
+          method: "POST",
+          body: {
+            weight_grams: "240.000",
+            reason: "Wrong unit selected",
+          },
+        }),
+        expect.objectContaining({
           path: "/trays/tray-1/complete",
           method: "POST",
-          body: { final_dry_weight_grams: "238.136" },
+          body: { final_dry_weight_grams: "240.000" },
         }),
         expect.objectContaining({
           path: "/production-batches/batch-1/complete",
@@ -371,6 +409,30 @@ function createProductionTestState(
         ),
       };
       return jsonResponse(weightCheck);
+    }
+
+    if (
+      url.endsWith("/api/v1/weight-checks/weight-check-1/correct") &&
+      method === "POST"
+    ) {
+      const body = parseBody(init);
+      let correctedWeightCheck = state.batch.trays[0].weight_checks[0];
+      state.batch = {
+        ...state.batch,
+        trays: state.batch.trays.map((tray) => {
+          if (tray.id !== "tray-1") return tray;
+          correctedWeightCheck = {
+            ...tray.weight_checks[0],
+            weight_grams: String(body.weight_grams),
+          };
+          return {
+            ...tray,
+            latest_weight_grams: correctedWeightCheck.weight_grams,
+            weight_checks: [correctedWeightCheck],
+          };
+        }),
+      };
+      return jsonResponse(correctedWeightCheck);
     }
 
     if (url.endsWith("/api/v1/trays/tray-1/complete") && method === "POST") {

@@ -18,6 +18,7 @@ import type {
 } from "../api/client";
 import { PackagingPage } from "../pages/PackagingPage";
 import { TrayDetailsPage } from "../pages/TrayDetailsPage";
+import { printAvery5163Labels } from "../utils/avery5163Labels";
 
 const freezeDryer: FreezeDryer = {
   id: "freeze-dryer-1",
@@ -143,14 +144,20 @@ describe("PackagingPage", () => {
 
     expect(await screen.findAllByText("Quart Mylar")).not.toHaveLength(0);
     expect(screen.getByDisplayValue("500cc")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Packages" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Finish Packaging" })).toBeDisabled();
 
     await user.click(firstCheckbox());
     const packageRow = packageEditorRows()[0];
     expect(within(packageRow).getByDisplayValue("500cc")).toBeInTheDocument();
 
-    await user.clear(within(packageRow).getByRole("spinbutton"));
-    await user.type(within(packageRow).getByRole("spinbutton"), "8.7");
+    await user.type(
+      within(packageRow).getByLabelText("Finished Product Weight"),
+      "238.1",
+    );
+    await user.type(
+      within(packageRow).getByLabelText("Sealed Package Weight"),
+      "246.6",
+    );
     await user.clear(within(packageRow).getByDisplayValue("500cc"));
     await user.type(within(packageRow).getByPlaceholderText("default"), "750cc");
 
@@ -158,13 +165,12 @@ describe("PackagingPage", () => {
       screen.getByText(/Package weights differ from selected Finished Product Weight/),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create Packages" }));
+    await user.click(screen.getByRole("button", { name: "Finish Packaging" }));
 
     expect(
       await screen.findByRole("heading", { name: "Packaging Complete" }),
     ).toBeInTheDocument();
     expect(screen.getByText("PKG-2026-000001")).toBeInTheDocument();
-    expect(screen.getByText("Storage: Unassigned")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Print Avery 5163 Labels" }),
     ).toBeInTheDocument();
@@ -177,7 +183,8 @@ describe("PackagingPage", () => {
       packages: [
         {
           package_type_id: "package-type-1",
-          package_weight_grams: "246.641",
+          finished_product_weight_grams: "238.100",
+          package_weight_grams: "246.600",
           oxygen_absorber: "750cc",
           storage_location_id: null,
         },
@@ -195,8 +202,11 @@ describe("PackagingPage", () => {
     expect(labelPdf).toContain("Quart Mylar");
     expect(labelPdf).toContain("Batch 005");
     expect(labelPdf).toContain("black");
+    expect(labelPdf).toContain("2.05 lb fresh = 8.4 oz freeze-dried");
+    expect(labelPdf).toContain("cubed, seasoned");
+    expect(labelPdf).toContain("Jul 8, 2026");
     expect(labelPdf).toContain("Oxygen absorber: 750cc");
-    expect(labelPdf).toContain("Storage: Unassigned");
+    expect(labelPdf).not.toContain("Storage:");
     expect(open).toHaveBeenCalledWith(
       "blob:test-label-pdf",
       "_blank",
@@ -218,20 +228,32 @@ describe("PackagingPage", () => {
     await user.click(screen.getByRole("button", { name: "+ Add Package" }));
 
     const rows = packageEditorRows();
-    await user.clear(within(rows[0]).getByRole("spinbutton"));
-    await user.type(within(rows[0]).getByRole("spinbutton"), "4.2");
-    await user.clear(within(rows[1]).getByRole("spinbutton"));
-    await user.type(within(rows[1]).getByRole("spinbutton"), "5.1");
+    await user.type(
+      within(rows[0]).getByLabelText("Finished Product Weight"),
+      "200",
+    );
+    await user.type(
+      within(rows[0]).getByLabelText("Sealed Package Weight"),
+      "205",
+    );
+    await user.type(
+      within(rows[1]).getByLabelText("Finished Product Weight"),
+      "223.1",
+    );
+    await user.type(
+      within(rows[1]).getByLabelText("Sealed Package Weight"),
+      "228.1",
+    );
     await user.selectOptions(
       within(rows[1]).getAllByRole("combobox")[0],
       pintPackageType.id,
     );
     await user.selectOptions(
-      within(rows[1]).getAllByRole("combobox")[2],
+      within(rows[1]).getAllByRole("combobox")[3],
       pantryStorageLocation.id,
     );
 
-    await user.click(screen.getByRole("button", { name: "Create Packages" }));
+    await user.click(screen.getByRole("button", { name: "Finish Packaging" }));
 
     expect(await screen.findByText("Created 2 Packages.")).toBeInTheDocument();
     expect(screen.getByText("PKG-2026-000001")).toBeInTheDocument();
@@ -242,13 +264,15 @@ describe("PackagingPage", () => {
     expect(body.packages).toHaveLength(2);
     expect(body.packages[0]).toMatchObject({
       package_type_id: "package-type-1",
-      package_weight_grams: "119.068",
+      finished_product_weight_grams: "200.000",
+      package_weight_grams: "205.000",
       oxygen_absorber: "500cc",
       storage_location_id: null,
     });
     expect(body.packages[1]).toMatchObject({
       package_type_id: "package-type-2",
-      package_weight_grams: "144.583",
+      finished_product_weight_grams: "223.100",
+      package_weight_grams: "228.100",
       oxygen_absorber: "300cc",
       storage_location_id: "storage-pantry",
     });
@@ -263,16 +287,91 @@ describe("PackagingPage", () => {
 
     expect(await screen.findByText("Taco Chicken")).toBeInTheDocument();
     expect(screen.getByText("Apples")).toBeInTheDocument();
-    expect(screen.getByText("Skittles")).toBeInTheDocument();
+    expect(screen.queryByText("Skittles")).not.toBeInTheDocument();
     expect(
       screen.queryByText("Previously Packaged Pears"),
     ).not.toBeInTheDocument();
 
     await user.click(firstCheckbox());
+    expect(screen.getByRole("button", { name: "Finish Packaging" })).toBeDisabled();
 
-    const skittlesRow = rowForText("Skittles");
-    expect(within(skittlesRow).getByRole("checkbox")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Create Packages" })).toBeEnabled();
+    await user.selectOptions(
+      screen.getByLabelText("Production Batch"),
+      "batch-2",
+    );
+
+    expect(await screen.findByText("Skittles")).toBeInTheDocument();
+    expect(screen.queryByText("Taco Chicken")).not.toBeInTheDocument();
+    expect(screen.queryByText("Apples")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish Packaging" })).toBeDisabled();
+  });
+
+  it("tracks a mixed source pool across a chosen package count", async () => {
+    const user = userEvent.setup();
+    const testState = createPackagingTestState();
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage();
+
+    await screen.findByText("Taco Chicken");
+    await user.click(screen.getByRole("button", { name: "Select All Trays" }));
+    expect(screen.getByText("2 Trays mixed")).toBeInTheDocument();
+
+    const packageCount = screen.getByLabelText("Package Count");
+    await user.clear(packageCount);
+    await user.type(packageCount, "3");
+    expect(packageEditorRows()).toHaveLength(3);
+
+    const firstPackage = packageEditorRows()[0];
+    await user.selectOptions(
+      within(firstPackage).getByLabelText("Finished Product Weight Unit"),
+      "g",
+    );
+    await user.type(
+      within(firstPackage).getByLabelText("Finished Product Weight"),
+      "100",
+    );
+
+    const remainingCard = screen.getByText("Remaining To Package").parentElement;
+    expect(remainingCard).not.toBeNull();
+    expect(within(remainingCard!).getByText("323.1 g")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Finish Packaging" }),
+    ).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "+ Add Package for Remaining" }),
+    );
+    expect(packageEditorRows()).toHaveLength(3);
+    expect(
+      within(packageEditorRows()[1]).getByLabelText("Finished Product Weight"),
+    ).toHaveValue(323.1);
+    expect(
+      within(packageEditorRows()[1]).getByLabelText(
+        "Finished Product Weight Unit",
+      ),
+    ).toHaveValue("g");
+  });
+
+  it("prints a clear unavailable message when source weight history is incomplete", async () => {
+    printAvery5163Labels([
+      {
+        packageIdentifier: "PKG-2026-000099",
+        productName: "Apples",
+        preparationSummary: "sliced",
+        freshEquivalentGrams: null,
+        finishedProductWeightGrams: "85.049",
+        packageType: "Pint Mylar",
+        batchLine: "Batch 009 · white",
+        oxygenAbsorber: "300cc",
+        packagedAt: "2026-07-08T01:00:00.000Z",
+      },
+    ]);
+
+    const labelPdf = await printedPdfText(createObjectURL);
+    expect(labelPdf).toContain("Fresh equivalent unavailable");
+    expect(labelPdf).toContain("sliced");
+    expect(labelPdf).not.toContain("Storage:");
   });
 });
 
@@ -304,6 +403,17 @@ describe("TrayDetailsPage packaging labels", () => {
       id: "tray-1",
       product_name: "Taco Chicken",
       status: "Packaged",
+      weight_checks: [
+        {
+          id: "weight-check-1",
+          tray_id: "tray-1",
+          drying_run_id: "drying-run-1",
+          weight_grams: "16924.700",
+          observed_at: "2026-07-08T00:45:00.000Z",
+          recorded_at: "2026-07-08T00:46:00.000Z",
+          notes: null,
+        },
+      ],
       packaging: {
         packaging_operation_id: "packaging-operation-1",
         packaged_at: "2026-07-08T01:00:00.000Z",
@@ -314,6 +424,7 @@ describe("TrayDetailsPage packaging labels", () => {
             id: "package-1",
             package_identifier: "PKG-2026-000001",
             package_type: "Quart Mylar",
+            finished_product_weight_grams: "232.466",
             package_weight_grams: "246.641",
             oxygen_absorber: "500cc",
             storage_location: "Unassigned",
@@ -336,7 +447,24 @@ describe("TrayDetailsPage packaging labels", () => {
     expect(await screen.findAllByRole("heading", { name: "Taco Chicken" })).toHaveLength(2);
     expect(screen.getByRole("heading", { name: "Packaging" })).toBeInTheDocument();
     expect(screen.getByText("PKG-2026-000001")).toBeInTheDocument();
+    expect(screen.getByText("Finished product: 232.5 g")).toBeInTheDocument();
+    expect(screen.getByText("Sealed package: 246.6 g")).toBeInTheDocument();
     expect(screen.getByText("Status: In Storage")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Correct Weight" }));
+    const correctionInput = screen.getByRole("spinbutton", {
+      name: "Correct weight for Run 1",
+    });
+    await user.clear(correctionInput);
+    await user.type(correctionInput, "600");
+    await user.type(
+      screen.getByRole("textbox", { name: "Correction reason for Run 1" }),
+      "Wrong unit selected",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Save Correction" }),
+    );
+    expect(await screen.findByText("600 g")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Reprint Avery 5163 Labels" }),
@@ -348,8 +476,10 @@ describe("TrayDetailsPage packaging labels", () => {
     expect(labelPdf).toContain("Quart Mylar");
     expect(labelPdf).toContain("Batch 005");
     expect(labelPdf).toContain("black");
-    expect(labelPdf).toContain("Slot 1");
-    expect(labelPdf).toContain("Storage: Unassigned");
+    expect(labelPdf).toContain("2 lb fresh = 8.2 oz freeze-dried");
+    expect(labelPdf).toContain("cubed, seasoned");
+    expect(labelPdf).toContain("Jul 8, 2026");
+    expect(labelPdf).not.toContain("Storage:");
     expect(open).toHaveBeenCalledWith(
       "blob:test-tray-label-pdf",
       "_blank",
@@ -562,6 +692,7 @@ function createPackagingResult(
     tray_ids?: string[];
     packages?: {
       package_type_id: string;
+      finished_product_weight_grams: string;
       package_weight_grams: string;
       oxygen_absorber?: string | null;
       storage_location_id?: string | null;
@@ -586,6 +717,7 @@ function createPackagingResult(
       package_type_id: currentPackageType.id,
       package_type: currentPackageType,
       package_identifier: `PKG-2026-${String(index + 1).padStart(6, "0")}`,
+      finished_product_weight_grams: line.finished_product_weight_grams,
       package_weight_grams: line.package_weight_grams,
       oxygen_absorber:
         line.oxygen_absorber ?? currentPackageType.default_oxygen_absorber,
@@ -636,6 +768,7 @@ function createPackage(overrides: Partial<Package> = {}): Package {
     package_type_id: packageType.id,
     package_type: packageType,
     package_identifier: "PKG-2026-000001",
+    finished_product_weight_grams: "232.466",
     package_weight_grams: "246.641",
     oxygen_absorber: "500cc",
     storage_location_id: unassignedStorageLocation.id,
@@ -651,6 +784,23 @@ function packageLabelForPackage(
   selectedTrays: Tray[],
 ): PackageLabel {
   const firstTray = selectedTrays[0];
+  const totalStartingWeight = selectedTrays.reduce(
+    (total, tray) => total + Number(tray.starting_weight_grams ?? 0),
+    0,
+  );
+  const totalFinalDryWeight = selectedTrays.reduce(
+    (total, tray) => total + Number(tray.final_dry_weight_grams ?? 0),
+    0,
+  );
+  const finishedProductWeight = Number(
+    packageItem.finished_product_weight_grams,
+  );
+  const freshEquivalent =
+    totalStartingWeight > 0 &&
+    totalFinalDryWeight > 0 &&
+    finishedProductWeight > 0
+      ? (totalStartingWeight * finishedProductWeight) / totalFinalDryWeight
+      : null;
   return {
     package_id: packageItem.id,
     package_identifier: packageItem.package_identifier,
@@ -660,10 +810,18 @@ function packageLabelForPackage(
       .map((tray) => tray.product_name)
       .filter((value, index, values) => values.indexOf(value) === index)
       .join(" + "),
+    preparation_summary: selectedTrays
+      .map((tray) => tray.preparation)
+      .filter((value): value is string => Boolean(value))
+      .filter((value, index, values) => values.indexOf(value) === index)
+      .join(" + "),
     package_type: packageItem.package_type.name,
+    finished_product_weight_grams:
+      packageItem.finished_product_weight_grams,
+    fresh_equivalent_grams:
+      freshEquivalent === null ? null : String(freshEquivalent),
     package_weight_grams: packageItem.package_weight_grams,
     oxygen_absorber: packageItem.oxygen_absorber,
-    storage_location: packageItem.storage_location.name,
     packaged_at: "2026-07-08T01:00:00.000Z",
     label_template: packageItem.package_type.default_label_template,
   };
@@ -675,6 +833,29 @@ function mockTrayDetailsFetch(tray: Tray) {
     const method = init?.method ?? "GET";
     if (url.endsWith(`/api/v1/trays/${tray.id}`) && method === "GET") {
       return jsonResponse(tray);
+    }
+    if (url.endsWith("/api/v1/packages/labels") && method === "POST") {
+      const packageItem = createPackage({
+        id: "package-1",
+        finished_product_weight_grams: "232.466",
+      });
+      return jsonResponse([packageLabelForPackage(packageItem, [tray])]);
+    }
+    if (
+      url.endsWith("/api/v1/weight-checks/weight-check-1/correct") &&
+      method === "POST"
+    ) {
+      const body = JSON.parse(String(init?.body)) as {
+        weight_grams: string;
+        reason: string | null;
+      };
+      const corrected = {
+        ...tray.weight_checks[0],
+        weight_grams: body.weight_grams,
+      };
+      tray.weight_checks = [corrected];
+      tray.latest_weight_grams = body.weight_grams;
+      return jsonResponse(corrected);
     }
     return Promise.resolve({
       ok: false,
@@ -695,14 +876,6 @@ function packageEditorRows() {
 
 function firstCheckbox() {
   return screen.getAllByRole("checkbox")[0];
-}
-
-function rowForText(text: string) {
-  const row = screen.getByText(text).closest("tr");
-  if (!row) {
-    throw new Error(`Could not find row for ${text}`);
-  }
-  return row;
 }
 
 function latestPackagePost() {

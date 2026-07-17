@@ -43,5 +43,11 @@ def test_alembic_upgrade_creates_persistence_tables(tmp_path, monkeypatch) -> No
     package_columns = [column["name"] for column in inspector.get_columns("packages")]
     assert "package_type_id" in package_columns
     assert "package_identifier" in package_columns
+    assert "finished_product_weight_grams" in package_columns
+
+    tray_columns = {column["name"]: column for column in inspector.get_columns("trays")}
+    assert tray_columns["tray_slot_id"]["nullable"] is False
+    assert tray_columns["physical_tray_id"]["nullable"] is False
+    assert tray_columns["tray_number"]["nullable"] is True
 
     get_settings.cache_clear()

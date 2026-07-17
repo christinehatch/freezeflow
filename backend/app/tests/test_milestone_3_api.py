@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Tray
+from app.models import AuditEntry, Tray
 
 
 def _create_freeze_dryer(client: TestClient) -> dict[str, object]:
@@ -184,6 +184,44 @@ def test_current_run_complete_and_weight_checks(client: TestClient) -> None:
         },
     )
     assert duplicate_response.status_code == 400
+
+
+def test_weight_check_correction_updates_canonical_value_and_preserves_audit(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    batch_id, trays = _setup_batch_with_two_trays(client)
+    for tray in trays:
+        _record_starting_weight(client, str(tray["id"]), "907.000")
+    batch = client.post(f"/api/v1/production-batches/{batch_id}/start").json()["data"]
+    drying_run_id = batch["drying_runs"][0]["id"]
+    client.post(f"/api/v1/drying-runs/{drying_run_id}/complete", json={})
+    weight_check = client.post(
+        f"/api/v1/trays/{trays[0]['id']}/weight-checks",
+        json={
+            "drying_run_id": drying_run_id,
+            "weight_grams": "272155.422",
+            "observed_at": "2026-07-03T12:05:00Z",
+        },
+    ).json()["data"]
+
+    response = client.post(
+        f"/api/v1/weight-checks/{weight_check['id']}/correct",
+        json={
+            "weight_grams": "600.000",
+            "reason": "Selected pounds instead of grams.",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["weight_grams"] == 600.0
+    audit_entry = db_session.query(AuditEntry).one()
+    assert audit_entry.entity_type == "WeightCheck"
+    assert audit_entry.entity_id == UUID(weight_check["id"])
+    assert audit_entry.field_name == "weightGrams"
+    assert audit_entry.previous_value == "272155.422"
+    assert audit_entry.current_value == "600.000"
+    assert audit_entry.reason == "Selected pounds instead of grams."
 
 
 def test_another_drying_run_requires_running_tray_weight_checks(

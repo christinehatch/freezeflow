@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -132,11 +135,13 @@ def test_packaging_session_creates_packages_labels_and_storage_history(
             "packages": [
                 {
                     "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "240.000",
                     "package_weight_grams": "245.000",
                 },
                 {
                     "package_type_id": package_type["id"],
-                    "package_weight_grams": "245.000",
+                    "finished_product_weight_grams": "260.000",
+                    "package_weight_grams": "265.000",
                     "oxygen_absorber": "750cc",
                     "notes": "Gift size.",
                 },
@@ -149,6 +154,8 @@ def test_packaging_session_creates_packages_labels_and_storage_history(
     assert len(data["packages"]) == 2
     assert data["packages"][0]["package_identifier"].startswith("PKG-2026-")
     assert data["packages"][0]["oxygen_absorber"] == "500cc"
+    assert data["packages"][0]["finished_product_weight_grams"] == 240.0
+    assert data["packages"][0]["package_weight_grams"] == 245.0
     assert data["packages"][1]["oxygen_absorber"] == "750cc"
     assert data["packages"][0]["storage_location"]["name"] == "Unassigned"
     assert data["warnings"]
@@ -156,6 +163,11 @@ def test_packaging_session_creates_packages_labels_and_storage_history(
         data["labels"][0]["package_identifier"]
         == data["packages"][0]["package_identifier"]
     )
+    assert data["labels"][0]["fresh_equivalent_grams"] == 870.72
+    assert data["labels"][1]["fresh_equivalent_grams"] == 943.28
+    assert data["labels"][0]["preparation_summary"] == "Cubed and seasoned."
+    assert data["labels"][0]["packaged_at"].removesuffix("Z") == ("2026-07-04T09:00:00")
+    assert "storage_location" not in data["labels"][0]
 
     stored_packages = db_session.query(Package).all()
     histories = db_session.query(StorageLocationHistory).all()
@@ -163,6 +175,40 @@ def test_packaging_session_creates_packages_labels_and_storage_history(
     assert len(stored_packages) == 2
     assert len(histories) == 2
     assert {tray.status for tray in stored_trays} == {TrayStatus.PACKAGED}
+
+
+@pytest.mark.parametrize("allocated_weight", ["440.000", "510.000"])
+def test_packaging_requires_complete_finished_product_allocation(
+    client: TestClient,
+    db_session: Session,
+    allocated_weight: str,
+) -> None:
+    _batch, trays = _create_completed_batch(client, batch_number="Batch allocation")
+    package_type = _create_package_type(client)
+
+    response = client.post(
+        "/api/v1/packages",
+        json={
+            "tray_ids": [tray["id"] for tray in trays],
+            "packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": allocated_weight,
+                    "package_weight_grams": allocated_weight,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+    assert (
+        "complete source Finished Product Weight"
+        in response.json()["detail"]["message"]
+    )
+    assert db_session.query(Package).count() == 0
+    assert {tray.status for tray in db_session.query(Tray).all()} == {
+        TrayStatus.COMPLETED
+    }
 
 
 def test_packaging_rejects_cross_batch_selection(client: TestClient) -> None:
@@ -184,6 +230,7 @@ def test_packaging_rejects_cross_batch_selection(client: TestClient) -> None:
             "packages": [
                 {
                     "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "490.000",
                     "package_weight_grams": "500.000",
                 }
             ],
@@ -202,7 +249,8 @@ def test_packaging_rejects_already_packaged_tray(client: TestClient) -> None:
         "packages": [
             {
                 "package_type_id": package_type["id"],
-                "package_weight_grams": "250.000",
+                "finished_product_weight_grams": "250.000",
+                "package_weight_grams": "255.000",
             }
         ],
     }
@@ -213,3 +261,84 @@ def test_packaging_rejects_already_packaged_tray(client: TestClient) -> None:
 
     assert second_response.status_code == 400
     assert "only be packaged once" in second_response.json()["detail"]["message"]
+
+
+def test_one_tray_label_derives_fresh_equivalent_without_persisting_it(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _batch, trays = _create_completed_batch(client, batch_number="Batch 003")
+    package_type = _create_package_type(client)
+    response = client.post(
+        "/api/v1/packages",
+        json={
+            "tray_ids": [trays[0]["id"]],
+            "packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "250.000",
+                    "package_weight_grams": "257.000",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+    label = response.json()["data"]["labels"][0]
+    assert label["fresh_equivalent_grams"] == 907.0
+    assert label["finished_product_weight_grams"] == 250.0
+    assert label["package_weight_grams"] == 257.0
+    assert "fresh_equivalent_grams" not in Package.__table__.columns
+    assert db_session.query(Package).one().finished_product_weight_grams == Decimal(
+        "250.000"
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_value",
+    ["starting", "final", "zero_starting", "zero_final"],
+)
+def test_label_gracefully_handles_unavailable_source_weights(
+    client: TestClient,
+    db_session: Session,
+    missing_value: str,
+) -> None:
+    _batch, trays = _create_completed_batch(
+        client,
+        batch_number=f"Batch unavailable {missing_value}",
+    )
+    package_type = _create_package_type(client)
+    package_response = client.post(
+        "/api/v1/packages",
+        json={
+            "tray_ids": [trays[0]["id"]],
+            "packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "250.000",
+                    "package_weight_grams": "257.000",
+                }
+            ],
+        },
+    )
+    assert package_response.status_code == 201
+    package_id = package_response.json()["data"]["packages"][0]["id"]
+    tray = db_session.get(Tray, trays[0]["id"])
+    assert tray is not None
+    if missing_value == "starting":
+        tray.starting_weight_grams = None
+    elif missing_value == "final":
+        tray.final_dry_weight_grams = None
+    elif missing_value == "zero_starting":
+        tray.starting_weight_grams = Decimal("0")
+    else:
+        tray.final_dry_weight_grams = Decimal("0")
+    db_session.commit()
+
+    label_response = client.post(
+        "/api/v1/packages/labels",
+        json={"package_ids": [package_id]},
+    )
+
+    assert label_response.status_code == 200
+    assert label_response.json()["data"][0]["fresh_equivalent_grams"] is None
