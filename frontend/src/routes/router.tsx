@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { Layout } from "../components/Layout";
 import { DashboardPage } from "../pages/DashboardPage";
+import { DeveloperToolsPage } from "../pages/DeveloperToolsPage";
 import { FreezeDryersPage } from "../pages/FreezeDryersPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import { PackagingPage } from "../pages/PackagingPage";
@@ -22,6 +23,9 @@ export const router = createBrowserRouter([
       { path: "/packaging", element: <PackagingPage /> },
       { path: "/inventory", element: <InventoryPage /> },
       { path: "/reports", element: <ReportsPage /> },
+      ...(import.meta.env.DEV
+        ? [{ path: "/developer-tools", element: <DeveloperToolsPage /> }]
+        : []),
     ],
   },
 ]);

@@ -270,6 +270,17 @@ cd backend
 uv run alembic upgrade head
 ```
 
+### Developer Tools
+
+Local development starts with Developer Tools enabled. Open
+`http://localhost:5173/developer-tools` to reset or seed the local database with
+realistic workflow scenarios. These actions replace or mutate local data and ask
+for confirmation in the interface.
+
+Set `FREEZEFLOW_ENVIRONMENT=production` for production deployments. In that
+environment the `/dev/*` API is not registered, and production frontend builds
+do not expose the Developer Tools page.
+
 ## Frontend
 
 ```bash
@@ -288,7 +299,7 @@ npm run format
 npm run build
 ```
 
-Milestone 0 provides the development foundation only. The application is not yet functional and does not implement production workflows.
+Milestones 0 through 3 are complete. Production setup, Drying Runs, Weight Checks, Tray completion, and explicit Production Batch completion are functional. See `docs/implementation/README.md` for the current milestone status.
 
 ---
 

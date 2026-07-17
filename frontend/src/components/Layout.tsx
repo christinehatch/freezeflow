@@ -7,6 +7,9 @@ const navigationItems = [
   { to: "/packaging", label: "Packaging" },
   { to: "/inventory", label: "Inventory" },
   { to: "/reports", label: "Reports" },
+  ...(import.meta.env.DEV
+    ? [{ to: "/developer-tools", label: "Developer Tools" }]
+    : []),
 ];
 
 export function Layout() {

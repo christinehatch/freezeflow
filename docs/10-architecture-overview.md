@@ -332,3 +332,26 @@ For additional detail, refer to:
 7. Wireframes
 
 Together, these documents define the complete Version 1 architecture of Freezeflow.
+
+---
+
+# Developer Tools
+
+Freezeflow may expose a development-only API and interface for creating realistic
+demo and test data. Developer Tools use the same persisted domain entities and
+relationships as the application; they must not create a parallel demo model or
+bypass database constraints.
+
+Developer Tools are intentionally destructive because they operate on a local
+development database. They must:
+
+* be unavailable when the backend environment is `production`
+* be hidden from production frontend builds
+* clearly identify replacement and mutation actions
+* require confirmation before destructive actions
+* create lifecycle-consistent, traceable records
+* report the resulting entity counts
+
+Scenario seeds are deterministic unless their name explicitly indicates random
+data. Random tools remain bounded so they are useful for UI and performance
+testing without creating an uncontrolled dataset.
