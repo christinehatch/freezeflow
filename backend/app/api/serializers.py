@@ -5,9 +5,13 @@ from app.models import (
     DryingRunStatus,
     FreezeDryer,
     Package,
+    PackageLabel,
     PackageType,
+    PackagingAllocation,
     PackagingOperation,
     PhysicalTray,
+    PlannedPackageRow,
+    PrintEvent,
     ProductionBatch,
     StorageLocation,
     Tray,
@@ -149,26 +153,117 @@ def storage_location_data(storage_location: StorageLocation) -> dict[str, object
 
 
 def packaging_operation_data(operation: PackagingOperation) -> dict[str, object]:
-    trays = sorted(
-        (link.tray for link in operation.tray_links),
+    return {
+        "id": operation.id,
+        "production_batch_id": operation.production_batch_id,
+        "status": operation.status,
+        "started_at": operation.started_at,
+        "completed_at": operation.completed_at,
+        "notes": operation.notes,
+        "created_at": operation.created_at,
+        "updated_at": operation.updated_at,
+        "allocations": [
+            packaging_allocation_data(allocation)
+            for allocation in sorted(
+                operation.allocations,
+                key=lambda allocation: allocation.created_at,
+            )
+        ],
+        "packages": [
+            package_data(package)
+            for package in sorted(
+                operation.packages,
+                key=lambda package: package.package_identifier,
+            )
+        ],
+    }
+
+
+def packaging_allocation_data(allocation: PackagingAllocation) -> dict[str, object]:
+    source_trays = sorted(
+        (link.tray for link in allocation.source_tray_links),
         key=_tray_sort_key,
     )
     return {
-        "id": operation.id,
-        "packaged_at": operation.packaged_at,
-        "notes": operation.notes,
-        "trays": [tray_data(tray) for tray in trays],
-        "packages": [package_data(package) for package in operation.packages],
+        "id": allocation.id,
+        "packaging_operation_id": allocation.packaging_operation_id,
+        "notes": allocation.notes,
+        "created_at": allocation.created_at,
+        "updated_at": allocation.updated_at,
+        "selected_weight_grams": allocation.selected_weight_grams,
+        "allocated_weight_grams": allocation.allocated_weight_grams,
+        "remaining_weight_grams": allocation.remaining_weight_grams,
+        "source_trays": [source_tray_data(tray) for tray in source_trays],
+        "planned_packages": [
+            planned_package_row_data(row)
+            for row in sorted(
+                allocation.planned_package_rows,
+                key=lambda row: row.created_at,
+            )
+        ],
+        "packages": [
+            package_data(package)
+            for package in sorted(
+                allocation.packages,
+                key=lambda package: package.package_identifier,
+            )
+        ],
+    }
+
+
+def source_tray_data(tray: Tray) -> dict[str, object]:
+    return {
+        "id": tray.id,
+        "production_batch_id": tray.production_batch_id,
+        "tray_slot_id": tray.tray_slot_id,
+        "slot_number": tray.tray_slot.slot_number,
+        "physical_tray_id": tray.physical_tray_id,
+        "physical_tray_label": tray.physical_tray.label,
+        "product_name": tray.product_name,
+        "preparation": tray.preparation,
+        "final_dry_weight_grams": tray.final_dry_weight_grams,
+        "notes": tray.notes,
+        "status": tray.status,
+    }
+
+
+def planned_package_row_data(row: PlannedPackageRow) -> dict[str, object]:
+    return {
+        "id": row.id,
+        "packaging_allocation_id": row.packaging_allocation_id,
+        "package_type_id": row.package_type_id,
+        "finished_product_weight_grams": row.finished_product_weight_grams,
+        "finished_product_weight_unit": row.finished_product_weight_unit,
+        "sealed_package_weight_grams": row.sealed_package_weight_grams,
+        "sealed_package_weight_unit": row.sealed_package_weight_unit,
+        "oxygen_absorber": row.oxygen_absorber,
+        "storage_location_id": row.storage_location_id,
+        "notes": row.notes,
+        "label_status": row.label_status,
+        "label_display_name": row.label_display_name,
+        "label_description": row.label_description,
+        "label_ingredients_summary": row.label_ingredients_summary,
+        "label_preparation_summary": row.label_preparation_summary,
+        "label_rehydration_instructions": row.label_rehydration_instructions,
+        "label_serving_notes": row.label_serving_notes,
+        "label_net_weight_display": row.label_net_weight_display,
+        "label_fresh_equivalent_display": row.label_fresh_equivalent_display,
+        "recorded_package_id": row.recorded_package_id,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
     }
 
 
 def package_data(package: Package) -> dict[str, object]:
+    allocation = package.packaging_allocation
     return {
         "id": package.id,
-        "packaging_operation_id": package.packaging_operation_id,
+        "packaging_allocation_id": package.packaging_allocation_id,
+        "packaging_operation_id": allocation.packaging_operation_id,
         "package_type_id": package.package_type_id,
         "package_type": package_type_data(package.package_type),
         "package_identifier": package.package_identifier,
+        "packaged_at": package.packaged_at,
         "package_weight_grams": package.package_weight_grams,
         "finished_product_weight_grams": package.finished_product_weight_grams,
         "oxygen_absorber": package.oxygen_absorber,
@@ -176,6 +271,7 @@ def package_data(package: Package) -> dict[str, object]:
         "storage_location": storage_location_data(package.storage_location),
         "status": package.status,
         "notes": package.notes,
+        "label": package_label_data(package.label),
     }
 
 
@@ -186,7 +282,7 @@ def packaging_worksheet_data(batches: list[ProductionBatch]) -> list[dict[str, o
             tray
             for tray in sorted(batch.trays, key=_tray_sort_key)
             if tray.status == TrayStatus.COMPLETED
-            and tray.packaging_operation_link is None
+            and not tray.packaging_allocation_links
         ]
         if not eligible_trays:
             continue
@@ -207,17 +303,52 @@ def packaging_worksheet_data(batches: list[ProductionBatch]) -> list[dict[str, o
     return worksheet
 
 
-def package_label_data(label: dict[str, object]) -> dict[str, object]:
-    return label
+def package_label_data(label: PackageLabel) -> dict[str, object]:
+    return {
+        "id": label.id,
+        "package_id": label.package_id,
+        "status": label.status,
+        "display_name": label.display_name,
+        "description": label.description,
+        "ingredients_summary": label.ingredients_summary,
+        "preparation_summary": label.preparation_summary,
+        "rehydration_instructions": label.rehydration_instructions,
+        "serving_notes": label.serving_notes,
+        "net_weight_display": label.net_weight_display,
+        "fresh_equivalent_display": label.fresh_equivalent_display,
+        "created_at": label.created_at,
+        "updated_at": label.updated_at,
+        "print_events": [
+            print_event_data(event)
+            for event in sorted(label.print_events, key=lambda event: event.printed_at)
+        ],
+    }
+
+
+def print_event_data(event: PrintEvent) -> dict[str, object]:
+    return {
+        "id": event.id,
+        "package_label_id": event.package_label_id,
+        "printed_at": event.printed_at,
+        "recorded_at": event.recorded_at,
+        "template": event.template,
+        "print_job_id": event.print_job_id,
+        "notes": event.notes,
+    }
 
 
 def tray_packaging_data(tray: Tray) -> dict[str, object] | None:
-    if tray.packaging_operation_link is None:
+    if not tray.packaging_allocation_links:
         return None
-    operation = tray.packaging_operation_link.packaging_operation
+    source_link = tray.packaging_allocation_links[0]
+    allocation = source_link.packaging_allocation
+    operation = allocation.packaging_operation
     return {
         "packaging_operation_id": operation.id,
-        "packaged_at": operation.packaged_at,
+        "packaging_allocation_id": allocation.id,
+        "packaging_operation_status": operation.status,
+        "started_at": operation.started_at,
+        "completed_at": operation.completed_at,
         "batch_number": tray.production_batch.batch_number,
         "freeze_dryer": tray.production_batch.freeze_dryer.name,
         "packages": [
@@ -233,7 +364,7 @@ def tray_packaging_data(tray: Tray) -> dict[str, object] | None:
                 "notes": package.notes,
             }
             for package in sorted(
-                operation.packages,
+                allocation.packages,
                 key=lambda package: package.package_identifier,
             )
         ],

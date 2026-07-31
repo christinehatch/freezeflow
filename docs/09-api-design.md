@@ -22,7 +22,7 @@ Good examples:
 
 * Create Production Batch
 * Record Weight Check
-* Package Trays
+* Start or Resume Packaging
 * Search Inventory
 
 Avoid exposing database implementation details.
@@ -38,7 +38,7 @@ Examples:
 * Production Batch
 * Tray
 * Package
-* Recipe
+* Preparation Preset
 * Storage Location
 
 Identifiers should never change.
@@ -338,11 +338,11 @@ Adds a Tray to a Production Batch.
 
 The request identifies the Tray Slot and Physical Tray selected for that Production Batch.
 
-The request may include a Recipe identifier.
+The request may include a Preparation Preset identifier.
 
-When a Recipe is provided, the server copies the relevant Recipe information onto the Tray.
+When a Preparation Preset is provided, the server copies its Product, Ingredients, Preparation Methods, and Notes onto the Tray.
 
-The copied preparation information becomes historical data for that Tray.
+The copied Preparation Metadata becomes the immutable historical snapshot for that Tray. The same fields may be entered inline without a preset.
 
 ---
 
@@ -554,123 +554,157 @@ observation, not the creation of another Weight Check.
 
 # Packaging Endpoints
 
-Package creation accepts `finishedProductWeightGrams` separately from sealed
-`packageWeightGrams`. Label responses include preparation, Packaging Date,
-Package Finished Product Weight, and nullable derived `freshEquivalentGrams`.
-Fresh equivalent is never persisted, and mutable Storage Location is not
-permanent label content.
+Packaging is a resumable workflow. A Packaging Operation is the aggregate root,
+and the API exposes business actions within that workspace rather than generic
+CRUD for its child entities.
 
-## Package Trays
+## Start or Resume Packaging
 
 ```http
-POST /api/v1/packages
+POST /api/v1/production-batches/{batchId}/packaging-operation
 ```
 
-Packages one or more completed Trays.
+Returns the existing Open Packaging Operation for the Production Batch or
+creates one when none exists. A Production Batch may have at most one Open
+operation. A conflict is returned if the Batch is not Completed or another
+request races to create a second Open operation.
 
-The server creates the internal Packaging Operation, records the source Trays, and creates one or more Packages.
+```http
+GET /api/v1/production-batches/{batchId}/packaging-operation
+GET /api/v1/packaging-operations/{operationId}
+```
 
-The request includes:
+The response includes operation status and notes, Allocations, source Trays,
+planned Package rows, recorded Packages and Labels, and derived Selected,
+Allocated, and Remaining Weight. Reloading this response restores all Open work.
 
-* selected trays
-* package type for each Package
-* package weights
-* optional storage locations
-* sealed weights
-* oxygen absorber information, defaulted from Package Type when available
-* packaging date/time for `PackagingOperation.packagedAt`
-* notes
+## Allocate Completed Trays
+
+```http
+POST /api/v1/packaging-operations/{operationId}/allocate-trays
+```
 
 Example request:
 
 ```json
+{ "trayIds": ["tray-1", "tray-2", "tray-3"] }
+```
+
+Creates a Packaging Allocation with stable identity. Every Tray must be
+Completed, belong to the operation's Production Batch, and not participate in
+another active Allocation. The Allocation may initially contain no Packages.
+Separate product combinations use separate Allocations.
+
+```http
+PATCH /api/v1/packaging-operations/{operationId}/allocations/{allocationId}
+```
+
+Updates source Tray selection, shared label defaults, planned Package rows, or
+Allocation notes while the operation is Open. Removing a Tray is rejected when
+doing so would make recorded Package Finished Product Weight exceed the selected
+source weight.
+
+## Record Packages
+
+```http
+POST /api/v1/packaging-operations/{operationId}/allocations/{allocationId}/packages
+```
+
+Records one or more Packages when the operator intentionally chooses to do so.
+The API does not infer when a physical bag exists and does not require physical
+tasks to occur in a prescribed order.
+
+```json
 {
-  "trayIds": ["tray1", "tray2", "tray3", "tray4"],
   "packages": [
     {
       "packageTypeId": "package-type-1",
-      "weight": 10.7,
-      "oxygenAbsorber": "300cc",
-      "storageLocationId": "storage-location-1"
-    },
-    {
-      "packageTypeId": "package-type-1",
-      "weight": 10.6,
-      "oxygenAbsorber": "300cc",
-      "storageLocationId": null
-    },
-    {
-      "packageTypeId": "package-type-1",
-      "weight": 10.7,
-      "oxygenAbsorber": "300cc",
-      "storageLocationId": "storage-location-2"
+      "finishedProductWeightGrams": 240.0,
+      "sealedPackageWeightGrams": 254.0,
+      "oxygenAbsorber": "500cc",
+      "storageLocationId": null,
+      "packagedAt": "2026-07-18T14:30:00Z",
+      "notes": "First bag",
+      "label": {
+        "displayName": "Martin's Taco Meal",
+        "subtitle": "Chicken, cabbage, and salsa",
+        "ingredientsSummary": "Chicken, cabbage, tomato, onion, cilantro",
+        "preparationSummary": "Cubed and seasoned",
+        "rehydrationInstructions": "Add 2 cups water",
+        "servingNotes": "Two servings",
+        "notes": null
+      }
     }
   ]
 }
 ```
 
-If `storageLocationId` is omitted or null, the server assigns the implicit Unassigned Storage Location.
-
-The server generates Package identifiers.
+The server generates identifiers, creates one Package Label per Package, and
+appends initial In Storage Package Status History and Storage Location History.
+Null storage resolves to Unassigned. Package facts and label presentation are
+returned separately.
 
 Validation:
 
-* At least one source Tray is required.
-* At least one Package is required.
-* Every source Tray must be Completed.
-* Source Trays must not already be Packaged.
-* Source Trays must belong to the same Production Batch.
-* Source Trays therefore share the same Freeze Dryer.
-* Package Type must exist and not be archived.
-* Package Weight must be numeric and positive when completing Packaging.
-* Package Finished Product Weight must be numeric and positive for new Packages.
-* The sum of Package Finished Product Weights must equal the total Final Dry
-  Weight of the selected source Trays before Packaging can complete.
-* Storage Location may be omitted in Milestone 4.
-* Omitted Storage Location resolves to the implicit Unassigned Storage Location.
-* Oxygen absorber may default from Package Type but can be overridden.
-* Packaging date is stored on `PackagingOperation.packagedAt`.
-* Weight comparison warnings do not block Packaging.
+* The operation must be Open and the Allocation must belong to it.
+* Package Type must be active.
+* Finished Product Weight and Sealed Package Weight must be positive.
+* Total recorded Finished Product Weight may not exceed selected source weight.
+* Sealed Package Weight never reduces Remaining Weight.
+* Small sealed-weight differences may warn but do not block recording.
+* Every Package Label requires a Display Name.
 
-The source-allocation validation is not a weight comparison warning. It prevents
-the server from consuming entire source Trays while leaving Finished Product
-Weight unallocated or overallocated. Sealed Package Weight differences continue
-to produce non-blocking warnings.
+Package and label fields may be updated while the operation is Open. After
+completion, changes use the Milestone 8 Corrections workflow.
 
-On success, the server:
-
-* creates the internal Packaging Operation
-* generates Package identifiers
-* creates Package records as active inventory
-* marks source Trays as Packaged
-* creates initial Storage Location History records using selected Storage Location or Unassigned
-* returns created Packages and printable label data
-
----
-
-## Packaging Worksheet
+## Complete Packaging
 
 ```http
-GET /api/v1/packaging/worksheet
+POST /api/v1/packaging-operations/{operationId}/complete
 ```
 
-Returns data needed to prepare a Packaging Session, including eligible completed Trays grouped by Production Batch, Finished Product Weights, total source weight, Package Type options, suggested oxygen absorber values, Package identifiers when available, selected Storage Location or Unassigned, and printable label data when available.
+Explicitly completes the operation. Completion is rejected when any Allocation
+has Remaining Weight, invalid planned work, or incomplete required Package or
+Label information. On success, source Trays transition to Packaged and the
+operation records `completedAt`. No remaining product is discarded.
 
-Implementations may fold this response into another Packaging endpoint if the same workflow data is provided.
-
----
-
-## Printable Labels
+## Get Package Label
 
 ```http
-POST /api/v1/packages/labels
+GET /api/v1/packages/{id}/label
 ```
 
-Generates printable human-readable label data for planned or created Packages.
+Returns the Package's current Package Label plus the authoritative Package Identifier and Packaging Date used when rendering it.
 
-Labels should include Package identifier, product name or summary, Package Type,
-packaging date, preparation or contents, and Package Fresh Equivalent when
-available. Mutable Storage Location is not part of permanent printed label data.
+## Update Package Label
+
+```http
+PATCH /api/v1/packages/{id}/label
+```
+
+Updates editable Package Label presentation fields and returns the updated
+label. It does not modify Production History, Package facts, or inventory.
+Editing printable content after a Print Event changes the label to Needs Reprint.
+
+## Preview and Print Selected Labels
+
+```http
+POST /api/v1/package-labels/preview
+POST /api/v1/package-labels/print
+```
+
+Both actions accept `packageLabelIds`. Selection may represent one Package, an
+Allocation, an Operation, a Production Batch, today's Ready or Needs Reprint
+labels, or a custom set. Printing operates on Labels, never Trays.
+
+Preview returns label count and Avery 5163 pagination. Print returns the same
+output and appends one Print Event per Label with `printedAt`, `printRequestId`,
+and `Initial` or `Reprint`. Printed and Reprinted are events, not label states.
+Printing does not alter Production History, Package status, or Storage Location.
+
+Avery 5163 output uses Letter paper, two columns by five rows, and creates a new
+sheet after every ten labels. Display Name and weight information are primary;
+Package Identifier remains visible but secondary.
 
 QR codes, barcodes, and automated label integrations are future enhancements.
 
@@ -753,7 +787,7 @@ GET /api/inventory
 Supports searching by:
 
 * product
-* recipe
+* product or Preparation Metadata
 * package
 * storage location
 * status
@@ -763,10 +797,19 @@ Supports searching by:
 ## Mark Package Depleted
 
 ```http
-POST /api/packages/{id}/deplete
+POST /api/v1/packages/{id}/deplete
 ```
 
-Updates Inventory Status.
+```json
+{
+  "effectiveAt": "2026-07-21T10:42:00Z",
+  "notes": "Made soup"
+}
+```
+
+`effectiveAt` is optional and defaults to the current time. `notes` is optional.
+
+Atomically updates Inventory Status to Depleted and appends one Package Status History record.
 
 Historical production information remains unchanged.
 
@@ -775,10 +818,19 @@ Historical production information remains unchanged.
 ## Mark Package Given Away
 
 ```http
-POST /api/packages/{id}/give-away
+POST /api/v1/packages/{id}/give-away
 ```
 
-Updates Inventory Status to Given Away.
+```json
+{
+  "effectiveAt": "2026-07-21T10:42:00Z",
+  "notes": "Gift for Mary"
+}
+```
+
+`effectiveAt` is optional and defaults to the current time. `notes` is optional.
+
+Atomically updates Inventory Status to Given Away and appends one Package Status History record.
 
 Historical production information remains unchanged.
 
@@ -786,33 +838,49 @@ This workflow belongs to Milestone 5 Inventory, not Milestone 4 Packaging.
 
 ---
 
-# Recipe Endpoints
-
-## List Recipes
+## Get Package Status History
 
 ```http
-GET /api/recipes
+GET /api/v1/packages/{id}/status-history
 ```
+
+Returns the Package's append-only Package Status History ordered by Effective Time and then Recorded Time.
+
+Each item includes:
+
+* previous status
+* current status
+* effective time
+* recorded time
+* optional notes
 
 ---
 
-## Create Recipe
+# Preparation Preset Endpoints
+
+## List Preparation Presets
 
 ```http
-POST /api/recipes
+GET /api/preparation-presets
 ```
 
----
-
-## Update Recipe
+## Create Preparation Preset
 
 ```http
-PATCH /api/recipes/{id}
+POST /api/preparation-presets
+```
+
+## Update Preparation Preset
+
+```http
+PATCH /api/preparation-presets/{id}
 ```
 
 Historical Production Batches remain unaffected.
 
-Historical Trays that were previously created from the Recipe remain unaffected.
+Historical Trays that were previously created from the Preparation Preset remain unaffected.
+
+Preparation Presets are optional. Tray APIs accept one-off Ingredients and Preparation Methods without requiring preset creation.
 
 ---
 
@@ -911,7 +979,7 @@ Initial version:
 ```
 /api/v1/production-batches
 /api/v1/trays
-/api/v1/recipes
+/api/v1/preparation-presets
 ```
 
 Future breaking changes should create new API versions rather than modifying existing endpoints.
@@ -923,7 +991,7 @@ Future breaking changes should create new API versions rather than modifying exi
 Possible future endpoints include:
 
 * QR code generation
-* Server-managed label templates and printer integrations
+* Server-managed printable label layouts, styles, and printer integrations
 * Barcode scanning
 * User management
 * Cloud synchronization
@@ -950,7 +1018,7 @@ The basic demo endpoint is:
 POST /dev/demo/basic
 ```
 
-It creates representative Freeze Dryers, Tray Slots, Physical Trays, Recipes,
+It creates representative Freeze Dryers, Tray Slots, Physical Trays, Preparation Presets,
 Production Batches, Drying Runs, Weight Checks, Packaging Operations, Package
 Types, Packages, Storage Locations, Storage Location History, and inventory
 states while preserving valid relationships and lifecycle states.

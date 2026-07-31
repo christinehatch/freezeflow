@@ -2,6 +2,8 @@ export type Avery5163Label = {
   packageIdentifier: string;
   productName: string;
   preparationSummary: string;
+  netWeightDisplay?: string | null;
+  freshEquivalentDisplay?: string | null;
   freshEquivalentGrams: string | null;
   finishedProductWeightGrams: string | null;
   packageType: string;
@@ -10,7 +12,7 @@ export type Avery5163Label = {
   packagedAt: string;
 };
 
-const LABELS_PER_SHEET = 10;
+export const AVERY_5163_LABELS_PER_SHEET = 10;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const LABEL_WIDTH = 288;
@@ -19,23 +21,72 @@ const LEFT_MARGIN = 13.5;
 const TOP_MARGIN = 36;
 const COLUMN_GAP = 9;
 
+export type Avery5163PrintOutput = {
+  close: () => void;
+  load: (labels: Avery5163Label[]) => boolean;
+};
+
+export function reserveAvery5163PrintOutput(): Avery5163PrintOutput | null {
+  const pdfWindow = window.open("", "_blank", "height=900,width=900");
+  if (!pdfWindow) return null;
+
+  showPrintOutputLoadingState(pdfWindow);
+
+  return {
+    close: () => {
+      try {
+        if (!pdfWindow.closed) pdfWindow.close();
+      } catch {
+        // The output window may have been closed or navigated by the browser.
+      }
+    },
+    load: (labels) => loadAvery5163PrintOutput(pdfWindow, labels),
+  };
+}
+
 export function printAvery5163Labels(labels: Avery5163Label[]) {
+  const output = reserveAvery5163PrintOutput();
+  if (!output) return false;
+
+  const loaded = output.load(labels);
+  if (!loaded) output.close();
+  return loaded;
+}
+
+function loadAvery5163PrintOutput(pdfWindow: Window, labels: Avery5163Label[]) {
+  if (pdfWindow.closed) return false;
+
   const pdf = buildPdf(labels);
   const blob = new Blob([pdf], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
-  const pdfWindow = window.open(url, "_blank", "height=900,width=900");
-
-  if (!pdfWindow) {
+  try {
+    pdfWindow.location.replace(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch {
     URL.revokeObjectURL(url);
     return false;
   }
+}
 
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return true;
+function showPrintOutputLoadingState(pdfWindow: Window) {
+  try {
+    pdfWindow.document.title = "Preparing Avery 5163 output";
+    pdfWindow.document.body.replaceChildren();
+    const status = pdfWindow.document.createElement("p");
+    status.textContent =
+      "Freezeflow is recording the Print Events and preparing Avery 5163 output…";
+    status.style.cssText =
+      "font: 16px system-ui, sans-serif; margin: 2rem; color: #334155;";
+    pdfWindow.document.body.append(status);
+  } catch {
+    // A browser may restrict access to the reserved window before navigation.
+  }
 }
 
 function buildPdf(labels: Avery5163Label[]) {
-  const pages = chunkLabels(labels, LABELS_PER_SHEET);
+  const pages = paginateAvery5163Items(labels);
+  if (pages.length === 0) pages.push([]);
   const pageContentObjects = pages.map(renderPageContent);
   const pageReferences = pages
     .map((_, index) => `${3 + index * 2} 0 R`)
@@ -77,11 +128,16 @@ function renderLabel(label: Avery5163Label, index: number) {
   ].filter((line): line is string => Boolean(line));
 
   return [
-    pdfText(textX, yFromTop(labelTop + 20), label.packageIdentifier.toUpperCase(), {
-      font: "F2",
-      size: 8,
-      color: "0.28 0.33 0.41",
-    }),
+    pdfText(
+      textX,
+      yFromTop(labelTop + 20),
+      label.packageIdentifier.toUpperCase(),
+      {
+        font: "F2",
+        size: 8,
+        color: "0.28 0.33 0.41",
+      },
+    ),
     ...productLines.map((line, lineIndex) =>
       pdfText(textX, yFromTop(labelTop + 38 + lineIndex * 15), line, {
         font: "F2",
@@ -102,16 +158,29 @@ function renderLabel(label: Avery5163Label, index: number) {
       }),
     ),
     ...detailLines.map((line, lineIndex) =>
-      pdfText(textX, yFromTop(labelTop + 98 + lineIndex * 11), truncateText(line, 48), {
-        font: "F1",
-        size: 8,
-        color: "0.20 0.25 0.33",
-      }),
+      pdfText(
+        textX,
+        yFromTop(labelTop + 98 + lineIndex * 11),
+        truncateText(line, 48),
+        {
+          font: "F1",
+          size: 8,
+          color: "0.20 0.25 0.33",
+        },
+      ),
     ),
   ].join("\n");
 }
 
 function freshEquivalentLine(label: Avery5163Label) {
+  if (label.netWeightDisplay || label.freshEquivalentDisplay) {
+    return [
+      label.freshEquivalentDisplay
+        ? `${label.freshEquivalentDisplay} fresh`
+        : "Fresh equivalent unavailable",
+      label.netWeightDisplay ?? "Freeze-dried weight unavailable",
+    ].join(" = ");
+  }
   if (
     label.freshEquivalentGrams === null ||
     label.finishedProductWeightGrams === null
@@ -177,12 +246,16 @@ function serializePdf(objects: string[]) {
   return `${lines.join("")}${xref}`;
 }
 
-function chunkLabels(labels: Avery5163Label[], chunkSize: number) {
-  const chunks: Avery5163Label[][] = [];
-  for (let index = 0; index < labels.length; index += chunkSize) {
-    chunks.push(labels.slice(index, index + chunkSize));
+export function paginateAvery5163Items<Item>(items: Item[]) {
+  const chunks: Item[][] = [];
+  for (
+    let index = 0;
+    index < items.length;
+    index += AVERY_5163_LABELS_PER_SHEET
+  ) {
+    chunks.push(items.slice(index, index + AVERY_5163_LABELS_PER_SHEET));
   }
-  return chunks.length > 0 ? chunks : [[]];
+  return chunks;
 }
 
 function escapePdfText(value: string) {
@@ -198,7 +271,9 @@ function formatNumber(value: number) {
 }
 
 function truncateText(value: string, maxLength: number) {
-  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+  return value.length > maxLength
+    ? `${value.slice(0, maxLength - 3)}...`
+    : value;
 }
 
 function wrapText(value: string, maxLength: number, maxLines: number) {

@@ -4,11 +4,7 @@ import { Link, useParams } from "react-router";
 
 import { Tray, WeightCheck, packagingApi, productionApi } from "../api/client";
 import { printAvery5163Labels } from "../utils/avery5163Labels";
-import {
-  WEIGHT_UNIT_OPTIONS,
-  WeightUnit,
-  toGrams,
-} from "../utils/weights";
+import { WEIGHT_UNIT_OPTIONS, WeightUnit, toGrams } from "../utils/weights";
 
 export function TrayDetailsPage() {
   const { trayId } = useParams();
@@ -130,7 +126,8 @@ export function TrayDetailsPage() {
             <div>
               <h3 className="section-title">Packaging</h3>
               <p className="mt-1 text-sm text-slate-600">
-                Packaged {formatDate(packaging.packaged_at)}
+                Packaged{" "}
+                {formatDate(packaging.completed_at ?? packaging.started_at)}
               </p>
             </div>
             <button
@@ -140,6 +137,11 @@ export function TrayDetailsPage() {
               onClick={() =>
                 labelMutation.mutate({
                   package_ids: packaging.packages.map((item) => item.id),
+                  batch_number: packaging.batch_number,
+                  freeze_dryer: packaging.freeze_dryer,
+                  product_summary: tray.product_name,
+                  preparation_summary: tray.preparation,
+                  source_starting_weight_grams: tray.starting_weight_grams,
                 })
               }
             >
@@ -172,12 +174,12 @@ export function TrayDetailsPage() {
                   {packageItem.package_type}
                 </p>
                 <p className="text-sm text-slate-700">
-                  Finished product: {formatWeight(
-                    packageItem.finished_product_weight_grams,
-                  )}
+                  Finished product:{" "}
+                  {formatWeight(packageItem.finished_product_weight_grams)}
                 </p>
                 <p className="text-sm text-slate-700">
-                  Sealed package: {formatWeight(packageItem.package_weight_grams)}
+                  Sealed package:{" "}
+                  {formatWeight(packageItem.package_weight_grams)}
                 </p>
                 <p className="text-sm text-slate-700">
                   Storage: {packageItem.storage_location}
@@ -299,9 +301,7 @@ function WeightCheckHistoryRow({
                 aria-label={`Correct weight unit for Run ${runNumber}`}
                 className="table-input"
                 value={unit}
-                onChange={(event) =>
-                  setUnit(event.target.value as WeightUnit)
-                }
+                onChange={(event) => setUnit(event.target.value as WeightUnit)}
               >
                 {WEIGHT_UNIT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>

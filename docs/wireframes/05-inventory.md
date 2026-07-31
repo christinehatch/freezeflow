@@ -22,7 +22,7 @@ Searching should be significantly faster than browsing.
 A user should be able to:
 
 * Find a Package in seconds.
-* Search by product name.
+* Search by Package Label Display Name or product name.
 * Search by preparation.
 * Search by Storage Location.
 * View package status.
@@ -99,7 +99,7 @@ Search should match:
 
 * Product Name
 * Preparation
-* Recipe, if applicable
+* Preparation Preset, if applicable
 * Notes
 * Storage Location
 
@@ -122,7 +122,7 @@ Future filters may include:
 * Date Packaged
 * Freeze Dryer
 * Production Batch
-* Recipe
+* Preparation Preset
 
 ---
 
@@ -131,6 +131,7 @@ Future filters may include:
 Each result should display:
 
 * Package Identifier
+* Package Label Display Name
 * Product Name
 * Package Weight
 * Current Storage Location
@@ -173,7 +174,7 @@ Try:
 
 * removing filters
 
-* searching by Product instead of Recipe
+* searching by Product instead of Preparation Preset
 ```
 
 ---

@@ -2,18 +2,17 @@
 
 # Purpose
 
-The Package Details screen provides the complete history and traceability of a finished Package.
+The Package Details screen identifies one physical Package and separates information by purpose.
 
-It allows the user to answer:
+It must distinguish:
 
-* What is this?
-* Where did it come from?
-* How was it prepared?
-* Which trays contributed to it?
-* Where has it been stored?
-* Is it still in inventory?
+* Package identity and current state
+* human-facing Package Label content
+* immutable Production History
+* Packaging information
+* Inventory History
 
-This screen is optimized for understanding and traceability rather than data entry.
+Editing a Package Label must never rewrite Production History.
 
 ---
 
@@ -21,25 +20,24 @@ This screen is optimized for understanding and traceability rather than data ent
 
 A user should be able to:
 
-* Verify the contents of a Package.
-* Review package information.
-* See where the Package is currently stored.
-* Trace the Package back to its source Trays.
-* Open the original Tray Details.
-* Mark the Package as depleted.
-* Mark the Package as given away.
-* Move the Package to another Storage Location.
+* identify the Package immediately
+* review and edit its Package Label
+* reprint its label
+* trace it to every source Tray
+* review Packaging and Inventory History
+* move an In Storage Package
+* mark an In Storage Package Given Away or Depleted
 
 ---
 
 # Primary Actions
 
-* Mark Package Depleted
-* Mark Package Given Away
+* Edit Package Label
+* Reprint Package Label
 * Move Package
-* Edit Notes
+* Mark Given Away
+* Mark Depleted
 * View Source Trays
-* View Production History
 
 ---
 
@@ -47,170 +45,168 @@ A user should be able to:
 
 ```text
 +====================================================================================+
-| Package PKG-104                                              In Storage            |
+| Package PKG-2026-000104                                      In Storage            |
 +====================================================================================+
 
-Product
+Package
 
-Taco Chicken
-
-Package Weight
-
-10.8 oz
-
-Packaged
-
-April 27, 2026
-
-Storage Location
-
-Bin A
+Package Type: Quart Mylar
+Finished Product Weight: 8.2 oz
+Sealed Package Weight: 8.5 oz
+Current Storage Location: Bin A
 
 ------------------------------------------------------------------------------
 
-Preparation
+Package Label
 
-Cubed into 1-inch pieces
+Status: Ready
 
-Seasoned with taco seasoning
+Display Name: Martin's Taco Meal
+Subtitle / Description: Chicken and vegetables
+Ingredients Summary: Chicken, cabbage, tomatoes, onion, cilantro, lemon juice
+Net Weight: 8.2 oz
+Fresh Equivalent: 2 lb fresh
+Packaging Date: July 5, 2026
+Package Identifier: PKG-2026-000104
+Preparation Summary: Cubed and seasoned
+Serving Notes: Two-cup meal
+Rehydration Instructions: Add 2 cups water and wait 15 minutes
 
-Pre-frozen overnight
+[ Edit Package Label ] [ Print / Reprint Label ]
+
+Print History
+
+July 5, 2026  Printed  Avery 5163
 
 ------------------------------------------------------------------------------
 
-Source Trays
+Production History
 
-Tray 1
-
-Harvest Right #1
-
-Batch #24
-
-Finished Product Weight: 8.2 oz
-
---------------------------------------------------
-
-Tray 2
-
-Harvest Right #1
-
-Batch #24
-
-Finished Product Weight: 8.1 oz
-
---------------------------------------------------
-
-Tray 3
-
-Harvest Right #1
-
-Batch #24
-
-Finished Product Weight: 8.3 oz
-
---------------------------------------------------
-
-Tray 4
-
-Harvest Right #1
-
-Batch #24
-
-Finished Product Weight: 8.2 oz
+Source Tray 1 | Batch 24 | Black Freeze Dryer | Final Dry Weight 4.1 oz
+Source Tray 2 | Batch 24 | Black Freeze Dryer | Final Dry Weight 4.1 oz
 
 [ View Tray Details ]
 
 ------------------------------------------------------------------------------
 
-History
+Packaging
 
-Packaged
-
-Moved to Bin A
-
-Currently In Storage
+Packaged: July 5, 2026
+Oxygen Absorber: 500cc
+Packaging Notes: No notes
 
 ------------------------------------------------------------------------------
 
-Notes
+Inventory History
 
-____________________________________________________
+July 5, 2026  In Storage  Unassigned
+July 6, 2026  Moved       Bin A
 
-------------------------------------------------------------------------------
-
-[ Move Package ]
-
-[ Mark Depleted ]
+[ Move Package ] [ Mark Given Away ] [ Mark Depleted ]
 ```
 
 ---
 
 # Information Priority
 
-Information should appear in the following order:
+Information should appear in this order:
 
-1. Product
-2. Inventory Status
-3. Storage Location
-4. Preparation
-5. Source Trays
-6. Package History
-7. Notes
+1. Package
+2. Package Label
+3. Production History
+4. Packaging
+5. Inventory History
 
-Users should immediately understand what the Package is and where it is located.
+The Package Label helps the user recognize and use the food. Production History preserves traceability. They must remain visibly distinct.
 
 ---
 
-# Package Information
+# Package
 
 Display:
 
-* Product
-* Package Weight
-* Package Date
-* Storage Location
-* Current Status
+* Package Identifier
+* Package Type
+* Finished Product Weight
+* Sealed Package Weight
+* current Inventory Status
+* current Storage Location
 
-These values represent the Package's current state.
-
----
-
-# Preparation
-
-Display the historical preparation information copied from the source Trays.
-
-Users should not need to open a Tray to understand what the Package contains.
+These values describe the physical Package and its current state.
 
 ---
 
-# Source Trays
+# Package Label
 
-Every Package should display the Trays that contributed to its creation.
+Every Package owns exactly one editable Package Label.
 
-Each Tray should display:
+Display:
+
+* Display Name
+* Subtitle or Description
+* Ingredients Summary
+* Net Weight
+* Fresh Equivalent
+* Packaging Date
+* Package Identifier
+* Preparation Summary
+* Serving Notes
+* Rehydration Instructions
+* Label Status: Draft, Ready, or Needs Reprint
+
+Package Identifier, Packaging Date, and weights should be rendered from authoritative Package records where documented rather than duplicated as unrelated editable values.
+
+Before Milestone 8, editing a Package Label overwrites its current presentation fields. Milestone 8 adds correction and audit history. Label edits must not alter source Trays, Preparation Metadata, Weight Checks, or other Production History.
+
+Printing does not change the Package lifecycle. Every print or reprint appends a Print Event. Editing a previously printed label changes its current Label Status to Needs Reprint.
+
+---
+
+# Production History
+
+Display the immutable historical Preparation Metadata and every source Tray.
+
+Each Tray should show:
 
 * Tray Slot
 * Physical Tray
+* Product
+* Ingredients
+* Preparation Methods
 * Production Batch
 * Freeze Dryer
+* Starting Weight
 * Finished Product Weight
 
 Each Tray should be clickable.
 
 ---
 
-# History
+# Packaging
 
-The Package timeline should display significant events.
+Display:
+
+* Packaging date
+* Package Type
+* oxygen absorber
+* Packaging notes
+* source Packaging Operation as internal history, not a user-managed destination
+* source Packaging Allocation and its selected completed Trays
+
+The Packaging Allocation is an identified child of the Packaging Operation. It preserves how completed product was allocated to this Package without becoming a user-managed aggregate root.
+
+---
+
+# Inventory History
+
+Display the append-only Package Status History and Storage Location History chronologically.
 
 Examples:
 
-* Package Created
-* Storage Location Changed
-* Package Depleted
-* Corrections, future
-
-History should be chronological.
+* Package created In Storage
+* Storage Location changed
+* Package marked Given Away
+* Package marked Depleted
 
 ---
 
@@ -218,44 +214,21 @@ History should be chronological.
 
 ## In Storage
 
-Package is available.
-
-Primary Actions:
+Primary actions:
 
 * Move Package
+* Mark Given Away
 * Mark Depleted
-
----
-
-## Depleted
-
-Package remains visible as historical information.
-
-No longer appears in default Inventory searches.
-
-Primary Action:
-
-View History
-
----
 
 ## Given Away
 
-Package remains visible as historical information.
+The Package remains visible as history and is excluded from default active Inventory results.
 
-No longer appears in default active Inventory searches.
+## Depleted
 
-Primary Action:
+The Package remains visible as history and is excluded from default active Inventory results.
 
-View History
-
----
-
-# Empty State
-
-Not applicable.
-
-Package Details always represents an existing Package.
+Given Away and Depleted Packages may still have their Package Label viewed or reprinted.
 
 ---
 
@@ -263,18 +236,18 @@ Package Details always represents an existing Package.
 
 If Package information cannot be loaded:
 
-* Explain the problem.
-* Preserve unsaved Notes.
-* Allow retry.
+* explain the problem
+* preserve unsaved Package Label changes
+* allow retry
 
 ---
 
 # Mobile Considerations
 
 * Stack sections vertically.
-* Display one Source Tray per card.
-* Large action buttons.
-* Sticky Package Status.
+* Keep Package identity and Inventory Status visible.
+* Display one source Tray per row or compact card.
+* Keep label edit and reprint actions easy to reach.
 
 ---
 
@@ -282,11 +255,12 @@ If Package information cannot be loaded:
 
 A user should be able to:
 
-* Identify the Package immediately.
-* Verify how it was prepared.
-* Trace it back to every contributing Tray.
-* Understand where it is currently stored.
-* Perform common inventory actions without searching elsewhere.
+* identify the Package immediately
+* understand what the printed label says
+* edit and reprint Package Label presentation without changing Production History
+* trace the Package to every contributing Tray
+* understand its current location and lifecycle
+* perform valid Inventory actions without searching elsewhere
 
 ---
 
@@ -295,9 +269,8 @@ A user should be able to:
 Future versions may include:
 
 * Package photos
-* QR code labels
-* Printable labels
-* Nutritional information
-* Shelf-life estimates
-* Moisture monitoring history
-* Storage movement timeline
+* QR codes or barcodes
+* Package Label history through the Audit system
+* nutritional information
+* shelf-life estimates
+* moisture monitoring history

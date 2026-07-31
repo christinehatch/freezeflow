@@ -48,9 +48,9 @@ Product
 
 Taco Chicken
 
-Recipe
+Preparation Preset
 
-Taco Chicken (Optional Template)
+Sliced Chicken Tacos (Optional Preset)
 
 Preparation
 
@@ -194,6 +194,18 @@ Users should be able to trace the Tray forward into inventory.
 Reprinted Avery 5163 labels use the same server-derived label data as Packaging
 Complete, including preparation, Packaging Date, separate Package Finished
 Product Weight, and fresh-to-dry equivalence. Storage Location is not printed.
+
+Package Details reached from this screen organizes information by purpose:
+
+1. Package
+2. Package Label
+3. Production History
+4. Packaging
+5. Inventory History
+
+The Package Label section supports editing human-facing presentation content and
+reprinting. The Production History section remains read-only except through the
+documented correction workflow; label edits never rewrite it.
 
 ---
 

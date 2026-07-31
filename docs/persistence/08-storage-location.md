@@ -6,7 +6,7 @@ These tables exist to support the persistence layer and are not considered first
 
 Current association tables include:
 
-- PackagingOperationTray
+- PackagingAllocation
 
 # Storage Location
 

@@ -74,7 +74,9 @@ test("edits, archives, and restores a Freeze Dryer", async ({ page }) => {
   await editForm.getByLabel("Tray Slots").fill("5");
   await editForm.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByRole("heading", { name: "matte black" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "matte black" }),
+  ).toBeVisible();
   await expect(page.getByText("main production dryer")).toBeVisible();
   await expect(page.getByText("5 Tray Slots")).toBeVisible();
 
@@ -92,7 +94,9 @@ test("edits, archives, and restores a Freeze Dryer", async ({ page }) => {
     .getByRole("button", { name: "Restore" })
     .click();
 
-  await expect(page.getByRole("heading", { name: "matte black" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "matte black" }),
+  ).toBeVisible();
   await expect(cardFor(page, "matte black").getByText("Idle")).toBeVisible();
 
   expect(fakeBackend.updateFreezeDryerBodies).toEqual([

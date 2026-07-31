@@ -9,8 +9,9 @@ from app.models import (
     DryingRunStatus,
     FreezeDryer,
     Package,
-    PackagingOperation,
-    PackagingOperationTray,
+    PackageLabel,
+    PackagingAllocation,
+    PackagingAllocationSourceTray,
     PhysicalTray,
     ProductionBatch,
     ProductionBatchStatus,
@@ -241,14 +242,19 @@ def get_tray(db: Session, tray_id: UUID) -> Tray:
             selectinload(Tray.tray_slot),
             selectinload(Tray.physical_tray),
             selectinload(Tray.weight_checks).selectinload(WeightCheck.drying_run),
-            selectinload(Tray.packaging_operation_link)
-            .selectinload(PackagingOperationTray.packaging_operation)
-            .selectinload(PackagingOperation.packages)
+            selectinload(Tray.packaging_allocation_links)
+            .selectinload(PackagingAllocationSourceTray.packaging_allocation)
+            .selectinload(PackagingAllocation.packages)
             .selectinload(Package.package_type),
-            selectinload(Tray.packaging_operation_link)
-            .selectinload(PackagingOperationTray.packaging_operation)
-            .selectinload(PackagingOperation.packages)
+            selectinload(Tray.packaging_allocation_links)
+            .selectinload(PackagingAllocationSourceTray.packaging_allocation)
+            .selectinload(PackagingAllocation.packages)
             .selectinload(Package.storage_location),
+            selectinload(Tray.packaging_allocation_links)
+            .selectinload(PackagingAllocationSourceTray.packaging_allocation)
+            .selectinload(PackagingAllocation.packages)
+            .selectinload(Package.label)
+            .selectinload(PackageLabel.print_events),
         )
     )
     if tray is None:

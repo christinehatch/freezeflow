@@ -126,7 +126,7 @@ Version 1 allows corrections to:
 * Final Dry Weight
 * Package Weight
 * Storage Location
-* Recipe information
+* Preparation Metadata or Preparation Preset information
 * Package notes
 
 Additional fields may become correctable in future versions.

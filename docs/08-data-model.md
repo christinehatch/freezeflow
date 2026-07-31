@@ -16,25 +16,28 @@ It serves as the foundation for database design, API development, and applicatio
 
 ```text
 Freeze Dryer ──< Tray Slot
-Freeze Dryer ──< Production Batch ──< Tray >── Recipe
+Freeze Dryer ──< Production Batch ──< Tray >── Preparation Preset
 Production Batch ──< Drying Run
 Physical Tray ───────────────────────> Tray
 Tray ──< Weight Check >── Drying Run
-Tray ──< Packaging Operation Tray >── Packaging Operation ──< Package >── Storage Location
-Package Type ───────────────────────────────────────────────> Package
+Production Batch ── Packaging Operation ──< Packaging Allocation
+Tray ──< Packaging Allocation Tray >── Packaging Allocation ──< Package >── Storage Location
+Package Type ─────────────────────────────────────────────────> Package ── Package Label ──< Print Event
 ```
 
-A Packaging Operation may contain one or more completed Trays.
+A Packaging Operation may contain one or more Packaging Allocations that
+reference completed Trays from its Production Batch.
 
 A Packaging Operation may produce one or more Packages.
 
-A Tray may participate in only one Packaging Operation.
+Completed product may participate in only one active Packaging Allocation at a
+time.
 
 ---
 
-# Recipe
+# Preparation Preset
 
-Represents a reusable preparation template.
+Represents an optional reusable combination of Preparation Metadata.
 
 ## Fields
 
@@ -42,15 +45,16 @@ Represents a reusable preparation template.
 | ----------- | -------- | ------------------------ |
 | id          | UUID     | Primary identifier       |
 | name        | String   | Display name             |
-| product     | String   | Base product             |
-| preparation | Text     | Preparation instructions |
-| notes       | Text     | Optional                 |
+| product     | String   | Default Product          |
+| ingredients | List     | Default Ingredients      |
+| preparationMethods | List | Default Preparation Methods |
+| notes       | Text     | Default processing Notes |
 | createdAt   | DateTime |                          |
 | updatedAt   | DateTime |                          |
 
-Recipes are templates.
+Preparation Presets are data-entry conveniences.
 
-Historical preparation information is stored on Trays.
+Selecting a Preparation Preset copies its values into the Tray's immutable Preparation Metadata snapshot. A Tray does not require a preset.
 
 ---
 
@@ -148,19 +152,20 @@ Represents one tray within a Production Batch.
 | productionBatchId | UUID               |
 | physicalTrayId    | UUID               |
 | traySlotId        | UUID               |
-| recipeId          | UUID (optional)    |
+| preparationPresetId | UUID (optional)  |
 | productName       | String             |
-| preparation       | Text               |
+| ingredients       | List               |
+| preparationMethods | List              |
 | startingWeight    | Decimal (optional) |
 | finalDryWeight    | Decimal (optional) |
 | status            | Enum               |
 | notes             | Text               |
 
-The Recipe relationship is optional.
+The Preparation Preset relationship is optional.
 
-The product name and preparation fields preserve the historical preparation information used for the Tray.
+The Product, Ingredients, Preparation Methods, and Notes preserve the historical Preparation Metadata used for the Tray.
 
-Editing a Recipe does not update existing Trays.
+Editing a Preparation Preset does not update existing Trays.
 
 The Physical Tray and Tray Slot preserve which reusable tray was placed in which Freeze Dryer position for that Production Batch.
 
@@ -221,28 +226,27 @@ Every Weight Check belongs to exactly one Tray and exactly one Drying Run.
 
 # Packaging Operation
 
-Represents one packaging action.
-
-The system creates a Packaging Operation when the user packages one or more completed Trays.
+Represents the resumable aggregate root for Packaging one Production Batch.
 
 ## Fields
 
 | Field             | Type     |
 | ----------------- | -------- |
 | id                | UUID     |
-| packagedAt        | DateTime |
-| totalSourceWeight | Decimal  |
+| productionBatchId | UUID     |
+| status            | Enum: Open, Completed |
+| completedAt       | DateTime, nullable |
 | notes             | Text     |
 | createdAt         | DateTime |
 | updatedAt         | DateTime |
 
 ---
 
-# Packaging Operation Tray
+# Packaging Allocation
 
-Represents the relationship between completed Trays and a Packaging Operation.
+Represents one identified product allocation inside a Packaging Operation.
 
-This entity preserves traceability from Packages back to their source Trays.
+It references the exact completed Trays supplying one or more Packages.
 
 ## Fields
 
@@ -250,12 +254,48 @@ This entity preserves traceability from Packages back to their source Trays.
 | -------------------- | ---- |
 | id                   | UUID |
 | packagingOperationId | UUID |
-| trayId               | UUID |
+| notes                | Text, nullable |
+| createdAt            | DateTime |
+| updatedAt            | DateTime |
 
 Business Rules:
 
-* A Tray may appear in only one Packaging Operation.
-* A Packaging Operation must reference one or more completed Trays.
+* An Allocation belongs to exactly one Packaging Operation.
+* An Allocation may exist before Packages are recorded.
+* Source, allocated, and remaining weights are derived.
+
+---
+
+# Packaging Allocation Tray
+
+Represents the source-Tray relationship owned by a Packaging Allocation.
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| packagingAllocationId | UUID |
+| trayId | UUID |
+
+The same completed product may not belong to competing active Allocations.
+
+---
+
+# Planned Package Row
+
+Represents durable planning data within an Open Packaging Allocation before a
+Package is intentionally recorded.
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| packagingAllocationId | UUID |
+| packageTypeId | UUID, nullable |
+| labelDraftData | JSON/Text, nullable |
+| notes | Text, nullable |
+| createdAt | DateTime |
+| updatedAt | DateTime |
+
+A Planned Package Row has no Package Identifier and is not inventory.
 
 ---
 
@@ -296,7 +336,7 @@ Represents one sealed storage package.
 | Field                | Type     |
 | -------------------- | -------- |
 | id                   | UUID     |
-| packagingOperationId | UUID     |
+| packagingAllocationId | UUID     |
 | packageTypeId        | UUID     |
 | packageIdentifier    | String   |
 | packageWeight        | Decimal  |
@@ -310,9 +350,8 @@ Represents one sealed storage package.
 
 ---
 
-Packages do not store an independent package date.
-
-The packaging date is inherited from the parent Packaging Operation's `packagedAt`.
+Packages record the effective Packaging Date used for the physical Package and
+label presentation.
 
 Packages created without a selected Storage Location reference the implicit Unassigned Storage Location.
 
@@ -324,6 +363,77 @@ latter null; existing sealed weights are not reinterpreted.
 
 Package Fresh Equivalent is derived from `finishedProductWeight` and the
 combined source Tray Starting and Final Dry Weights. It is not persisted.
+
+---
+
+# Package Label
+
+Represents the editable human-readable presentation printed for one Package.
+
+## Fields
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| packageId | UUID |
+| displayName | String |
+| subtitle | String, nullable |
+| ingredientsSummary | Text, nullable |
+| netWeightDisplay | String, nullable |
+| freshEquivalentDisplay | String, nullable |
+| preparationSummary | Text, nullable |
+| servingNotes | Text, nullable |
+| rehydrationInstructions | Text, nullable |
+| status | Enum: Draft, Ready, Needs Reprint |
+| createdAt | DateTime |
+| updatedAt | DateTime |
+
+Every Package owns exactly one Package Label.
+
+Package Identifier and Packaging Date are rendered from the related Package.
+
+Package Label edits overwrite the current label until Milestone 8 introduces revision history through Audit History. Label edits never modify Production History.
+
+---
+
+# Print Event
+
+Represents one append-only label print or reprint event.
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| packageLabelId | UUID |
+| printedAt | DateTime |
+| template | String |
+| notes | Text, nullable |
+| createdAt | DateTime |
+
+Printing does not modify Production History or inventory lifecycle state.
+
+---
+
+# Package Status History
+
+Represents one append-only Inventory lifecycle event for a Package.
+
+## Fields
+
+| Field          | Type              |
+| -------------- | ----------------- |
+| id             | UUID              |
+| packageId      | UUID              |
+| previousStatus | Enum, nullable    |
+| currentStatus  | Enum              |
+| effectiveAt    | DateTime          |
+| recordedAt     | DateTime          |
+| notes          | Text, nullable    |
+
+---
+
+Creating a Package automatically creates its initial In Storage Package Status History record.
+
+Every later Inventory Status transition appends a new record. Existing Package Status History records are never edited or deleted.
 
 # Storage Location
 
@@ -373,15 +483,15 @@ Depleted
 
 # Relationship Summary
 
-## Recipe
+## Preparation Preset
 
-1 Recipe
+1 Preparation Preset
 
 ↓
 
 Many Trays
 
-The relationship is optional.
+The relationship is optional. Trays preserve an immutable Preparation Metadata snapshot.
 
 ---
 
@@ -421,9 +531,10 @@ Many Weight Checks
 
 ↓
 
-Many Trays
+Many Packaging Allocations
 
-(via Packaging Operation Tray)
+Each Packaging Allocation references one or more completed source Trays and may
+exist before any Packages are recorded.
 
 ↓
 
@@ -445,11 +556,23 @@ The relationship preserves which package format was selected while allowing Pack
 
 ## Package
 
+1 Packaging Operation
+
+↓
+
+Many Packages
+
 1 Package
 
 ↓
 
-1 Packaging Operation
+Many Package Status History records
+
+1 Package
+
+↓
+
+1 Package Label
 
 ---
 
@@ -468,14 +591,18 @@ Many Packages
 The following constraints must always be enforced.
 
 * Every Tray belongs to one Production Batch.
-* Every Tray records historical product and preparation information.
-* A Tray may optionally reference the Recipe it was created from.
+* Every Tray records an immutable historical Preparation Metadata snapshot.
+* A Tray may optionally reference the Preparation Preset it was created from.
 * Every Weight Check belongs to one Tray.
 * Every Weight Check belongs to one Drying Run.
 * Every Packaging Operation references one or more completed Trays.
 * Every Package has a Package Type.
 * Every Package belongs to one Storage Location.
 * Every Package belongs to one Packaging Operation.
+* Every Package has one current Inventory Status.
+* Every Package has one or more append-only Package Status History records.
+* Every Package has exactly one editable Package Label.
+* A Package's current Inventory Status matches its most recently recorded Package Status History event.
 * A Tray may only appear in one Packaging Operation.
 * A Packaging Operation may only reference Trays from one Production Batch.
 * Historical records are never deleted.
@@ -492,8 +619,7 @@ Possible future entities include:
 * Organizations
 * Cost Tracking
 * Suppliers
-* Ingredients
-* Label Templates
+* Additional printable label layout and style definitions
 * QR Codes
 * Attachments
 * Photos

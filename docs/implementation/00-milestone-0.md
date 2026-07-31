@@ -127,7 +127,7 @@ Milestone 0 does not include:
 * Packaging
 * Inventory
 * Reports
-* Recipes
+* Preparation Presets
 * Business rules
 * Database models
 * Authentication
@@ -164,4 +164,3 @@ Before Milestone 0 is considered complete:
 Implementation should stop once these conditions are met.
 
 Milestone 1 will begin implementing the Freezeflow domain model.
-

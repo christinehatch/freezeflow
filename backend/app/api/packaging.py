@@ -9,27 +9,42 @@ from app.api.serializers import (
     package_data,
     package_label_data,
     package_type_data,
+    packaging_allocation_data,
     packaging_operation_data,
     packaging_worksheet_data,
     storage_location_data,
 )
 from app.database.session import get_db
 from app.schemas import (
-    PackageLabelRequest,
-    PackageSelectedTrays,
+    PackageLabelSelection,
+    PackageLabelUpdate,
     PackageTypeCreate,
     PackageTypeUpdate,
+    PackagingAllocationCreateRequest,
+    PackagingAllocationUpdateRequest,
+    PackagingOperationComplete,
+    PackagingOperationStart,
+    RecordAllocationPackages,
 )
 from app.services.errors import BusinessRuleError
 from app.services.packaging import (
+    complete_packaging_operation,
     create_package_type,
+    create_packaging_allocation,
+    get_batch_packaging_operation,
     get_package,
+    get_package_label,
+    get_packaging_operation,
     get_packaging_worksheet,
-    labels_for_packages,
     list_package_types,
     list_storage_locations,
-    package_selected_trays,
+    preview_package_labels,
+    print_package_labels,
+    record_allocation_packages,
+    start_or_resume_packaging_operation,
+    update_package_label,
     update_package_type,
+    update_packaging_allocation,
 )
 
 router = APIRouter(tags=["packaging"])
@@ -89,39 +104,126 @@ def list_storage_locations_endpoint(db: DBSession) -> dict[str, object]:
     return success([storage_location_data(location) for location in locations])
 
 
-@router.post("/packages", status_code=201)
-def package_selected_trays_endpoint(
-    data: PackageSelectedTrays,
+@router.post(
+    "/production-batches/{batch_id}/packaging-operation",
+    status_code=201,
+)
+def start_or_resume_packaging_operation_endpoint(
+    batch_id: UUID,
+    data: PackagingOperationStart,
     db: DBSession,
 ) -> dict[str, object]:
     try:
-        result = package_selected_trays(db, data)
+        operation = start_or_resume_packaging_operation(db, batch_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_operation_data(operation))
+
+
+@router.get("/production-batches/{batch_id}/packaging-operation")
+def get_batch_packaging_operation_endpoint(
+    batch_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        operation = get_batch_packaging_operation(db, batch_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_operation_data(operation))
+
+
+@router.get("/packaging-operations/{operation_id}")
+def get_packaging_operation_endpoint(
+    operation_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        operation = get_packaging_operation(db, operation_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_operation_data(operation))
+
+
+@router.post(
+    "/packaging-operations/{operation_id}/allocate-trays",
+    status_code=201,
+)
+def create_packaging_allocation_endpoint(
+    operation_id: UUID,
+    data: PackagingAllocationCreateRequest,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        allocation = create_packaging_allocation(db, operation_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_allocation_data(allocation))
+
+
+@router.patch(
+    "/packaging-operations/{operation_id}/allocations/{allocation_id}",
+)
+def update_packaging_allocation_endpoint(
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: PackagingAllocationUpdateRequest,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        allocation = update_packaging_allocation(
+            db,
+            operation_id,
+            allocation_id,
+            data,
+        )
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_allocation_data(allocation))
+
+
+@router.post(
+    "/packaging-operations/{operation_id}/allocations/{allocation_id}/packages",
+    status_code=201,
+)
+def record_allocation_packages_endpoint(
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: RecordAllocationPackages,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        packages = record_allocation_packages(
+            db,
+            operation_id,
+            allocation_id,
+            data,
+        )
+        operation = get_packaging_operation(db, operation_id)
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(
         {
-            "packaging_operation": packaging_operation_data(
-                result["packaging_operation"]
-            ),
-            "packages": [package_data(package) for package in result["packages"]],
-            "warnings": result["warnings"],
-            "source_weight_grams": result["source_weight_grams"],
-            "package_weight_grams": result["package_weight_grams"],
-            "labels": [package_label_data(label) for label in result["labels"]],
+            "packages": [package_data(package) for package in packages],
+            "packaging_operation": packaging_operation_data(operation),
         }
     )
 
 
-@router.post("/packages/labels")
-def package_labels_endpoint(
-    data: PackageLabelRequest,
+@router.post("/packaging-operations/{operation_id}/complete")
+def complete_packaging_operation_endpoint(
+    operation_id: UUID,
+    data: PackagingOperationComplete,
     db: DBSession,
 ) -> dict[str, object]:
     try:
-        labels = labels_for_packages(db, data)
+        operation = complete_packaging_operation(
+            db,
+            operation_id,
+            completed_at=data.completed_at,
+        )
     except BusinessRuleError as error:
         raise_api_error(error)
-    return success([package_label_data(label) for label in labels])
+    return success(packaging_operation_data(operation))
 
 
 @router.get("/packages/{package_id}")
@@ -134,3 +236,57 @@ def get_package_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(package_data(package))
+
+
+@router.get("/packages/{package_id}/label")
+def get_package_label_endpoint(
+    package_id: UUID,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        label = get_package_label(db, package_id)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(package_label_data(label))
+
+
+@router.patch("/packages/{package_id}/label")
+def update_package_label_endpoint(
+    package_id: UUID,
+    data: PackageLabelUpdate,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        label = update_package_label(db, package_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(package_label_data(label))
+
+
+@router.post("/package-labels/preview")
+def preview_package_labels_endpoint(
+    data: PackageLabelSelection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        labels = preview_package_labels(db, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success([package_label_data(label) for label in labels])
+
+
+@router.post("/package-labels/print")
+def print_package_labels_endpoint(
+    data: PackageLabelSelection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        result = print_package_labels(db, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(
+        {
+            "print_job_id": result["print_job_id"],
+            "labels": [package_label_data(label) for label in result["labels"]],
+        }
+    )

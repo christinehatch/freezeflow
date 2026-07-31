@@ -54,38 +54,32 @@ ADR-0008 defines this event-oriented production history principle.
 
 ---
 
-# Recipe
+# Preparation Metadata
 
-A Recipe describes a reusable way to prepare a product before freeze drying.
+Preparation Metadata describes what was freeze dried and how it was prepared.
 
-Recipes exist to reduce repetitive data entry and ensure preparation methods are recorded consistently.
+It may include:
 
-A recipe may include:
+* primary Product
+* Ingredients and seasonings
+* Preparation Methods
+* processing Notes
 
-* Product name
-* Preparation method
-* Ingredients
-* Notes
-* Default settings
+Preparation Metadata is production history, not cooking instructions. A Tray owns
+an immutable snapshot of the metadata recorded for that production use.
 
-Examples:
+Users may enter one-off values directly. Reusable Ingredient and Preparation
+Method suggestions should emerge naturally from prior entry and must not require
+administrative setup before Production can continue.
 
-* Costco Grilled Chicken
-* Taco Chicken
-* Fresh Strawberries
-* Skittles
+# Preparation Preset
 
-Recipes are templates.
+A Preparation Preset is an optional reusable combination of Product,
+Ingredients, Preparation Methods, and default Notes.
 
-When a Tray is created from a Recipe, the relevant recipe information is copied onto the Tray as historical preparation data.
-
-After the Tray is created, it no longer depends on the current state of the Recipe.
-
-Recipes may be reused across many Trays.
-
-Recipes should reduce repeated typing, not replace the user's actual production notes.
-
-Tray Preparation is the source of truth for what was actually made.
+Applying a Preparation Preset copies its values into the Tray's Preparation
+Metadata snapshot. Later changes to the preset or reusable suggestions never
+rewrite historical Trays. Production never requires a saved preset.
 
 ---
 
@@ -175,8 +169,8 @@ A tray records:
 * Tray Slot
 * Physical Tray
 * Product
-* Recipe reference (optional)
-* Historical preparation data
+* Preparation Preset reference (optional)
+* immutable Preparation Metadata snapshot
 * Starting weight
 * Final dry weight
 * Notes
@@ -256,34 +250,36 @@ They are part of the production timeline, not merely edits to a current weight f
 
 # Packaging Operation
 
-A Packaging Operation represents the act of converting one or more completed trays into one or more sealed packages.
+A Packaging Operation is the aggregate root and resumable workspace for converting
+completed product from one Production Batch into labeled inventory.
 
-Packaging Operations are internal records created automatically when the user packages selected trays.
+It has an `Open` or `Completed` lifecycle. One Production Batch may have at most
+one Open Packaging Operation. Users start, resume, and explicitly complete this
+workspace without managing its internal entities directly.
 
-Users do not manage Packaging Operations directly.
+An Open Packaging Operation durably preserves allocations, planned package rows,
+draft label information, recorded Packages, notes, and progress. Closing the
+application must not discard this work.
 
-Only compatible trays should be included in the same Packaging Operation.
+---
 
-For Version 1, compatible trays must come from the same Production Batch.
+# Packaging Allocation
 
-Because a Production Batch belongs to exactly one Freeze Dryer, this also preserves same-Freeze-Dryer packaging history.
+A Packaging Allocation is an identified child entity within one Packaging
+Operation. It references the exact completed Trays that supply product for one
+or more Packages.
 
-The user may still decide which eligible trays should be packaged together.
+Separate combinations of product use separate Packaging Allocations. For
+example, three chicken Trays may supply one Allocation while a strawberry Tray
+supplies another Allocation in the same Packaging Operation.
 
-Examples:
+An Allocation has stable identity and may exist before any Package is recorded,
+but it never exists independently of its Packaging Operation. It is not an
+aggregate root and is not a separately managed user concept.
 
-* Six trays of Taco Chicken
-* Four trays of Strawberries
-
-Important:
-
-A tray may belong to only one Packaging Operation.
-
-Once assigned to a Packaging Operation, it cannot be assigned again.
-
-The Packaging Operation preserves which trays were packaged together and becomes the source for one or more Packages.
-
-A Packaging Operation may record the total source weight from all included trays.
+Selected source weight, allocated weight, and remaining weight are derived from
+the Allocation's source Trays and Package Finished Product Weights. Remaining
+weight is never an independently editable or persisted total.
 
 ---
 
@@ -304,7 +300,36 @@ The Package inherits its packaging date from the parent Packaging Operation's `p
 
 Packages are the primary inventory units.
 
-Each package belongs to exactly one Packaging Operation.
+Each Package belongs to exactly one Packaging Allocation and is therefore part
+of exactly one Packaging Operation.
+
+A Package is created when the operator intentionally records a Package in
+Freezeflow. Freezeflow does not attempt to infer when a physical bag came into
+exist and does not introduce a Draft Package inventory state.
+
+Every Package owns exactly one editable Package Label. Package Label content is
+presentation data for the physical bag and is separate from immutable Production
+History. Editing a Package Label never changes its source Trays, Weight Checks,
+or Packaging Operation.
+
+# Package Label
+
+A Package Label is the persistent, human-readable presentation owned by one
+Package. It may include a Display Name, Description, Ingredients Summary,
+Preparation Summary, Rehydration Instructions, Serving Notes, Net Weight display,
+Fresh Equivalent display, and Packaging Date presentation.
+
+Package Label state is `Draft`, `Ready`, or `Needs Reprint`. Printing is an
+append-only Print Event rather than a Package Label state. Editing a previously
+printed Package Label makes it `Needs Reprint` without changing inventory or
+Production History.
+
+Package Identifier and Packaging Date are rendered from the Package and its
+Packaging Operation rather than duplicated as editable production facts.
+
+Before Milestone 8, Package Label edits replace the current label content. The
+Package remains traceable to unchanged Production History. Milestone 8 adds
+label-edit history through the Audit system.
 
 Packages are preservation records before they are inventory search results.
 
@@ -379,13 +404,14 @@ Given Away indicates that the Package left the user's inventory as a gift or tra
 
 The following relationships define the domain.
 
-## Recipe
+## Preparation Preset
 
-A Recipe may be used by many Trays.
+A Preparation Preset may be applied to many Trays.
 
-The Recipe relationship is optional.
+The Preparation Preset relationship is optional.
 
-Trays preserve their own historical preparation data even when they were created from a Recipe.
+Trays preserve their own immutable Preparation Metadata snapshots even when a
+preset supplied the defaults.
 
 ---
 
@@ -449,11 +475,23 @@ A Package occupies one Storage Location.
 
 A Package has one Inventory Status.
 
+A Package has many Package Status History records.
+
+A Package owns exactly one Package Label.
+
 ---
 
 ## Storage Location
 
 A Storage Location contains many Packages.
+
+---
+
+## Package Status History
+
+A Package Status History record belongs to one Package.
+
+It preserves one append-only Inventory Status lifecycle event with its Effective Time, Recorded Time, and optional Notes.
 
 ---
 

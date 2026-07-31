@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,10 +16,17 @@ from app.models import (
     FreezeDryer,
     InventoryStatus,
     Package,
+    PackageLabel,
+    PackageLabelStatus,
+    PackageStatusHistory,
     PackageType,
+    PackagingAllocation,
+    PackagingAllocationSourceTray,
     PackagingOperation,
-    PackagingOperationTray,
+    PackagingOperationStatus,
     PhysicalTray,
+    PlannedPackageRow,
+    PrintEvent,
     ProductionBatch,
     ProductionBatchStatus,
     Recipe,
@@ -44,9 +52,14 @@ class DeveloperDataService:
         DryingRun,
         WeightCheck,
         PackagingOperation,
-        PackagingOperationTray,
+        PackagingAllocation,
+        PackagingAllocationSourceTray,
+        PlannedPackageRow,
         PackageType,
         Package,
+        PackageStatusHistory,
+        PackageLabel,
+        PrintEvent,
         StorageLocation,
         StorageLocationHistory,
     )
@@ -97,7 +110,7 @@ class DeveloperDataService:
             notes="Current production run with four loaded trays.",
         )
 
-        ready_batch, _ = self._create_batch(
+        ready_batch, ready_trays = self._create_batch(
             dryer=data["dryers"][1],
             slots=data["slots"][1],
             physical_trays=data["physical_trays"][4:7],
@@ -110,6 +123,12 @@ class DeveloperDataService:
             started_at=self.now - timedelta(days=2, hours=9),
             completed_runs=3,
             notes="Completed batch ready for packaging.",
+        )
+        self._plan_batch_packaging(
+            ready_batch,
+            ready_trays,
+            data["package_types"],
+            data["locations"],
         )
 
         packaged_batch, packaged_trays = self._create_batch(
@@ -362,25 +381,45 @@ class DeveloperDataService:
                 check.weight_grams = current
             if tray.status in (TrayStatus.COMPLETED, TrayStatus.PACKAGED):
                 tray.final_dry_weight_grams = current
-        for operation in self.db.scalars(select(PackagingOperation)):
+        for allocation in self.db.scalars(select(PackagingAllocation)):
             source = sum(
                 (
                     link.tray.final_dry_weight_grams or Decimal("0")
-                    for link in operation.tray_links
+                    for link in allocation.source_tray_links
                 ),
                 Decimal("0"),
             )
-            if not operation.packages:
-                continue
-            share = (source / len(operation.packages)).quantize(Decimal("0.001"))
-            remaining = source
-            for index, package in enumerate(operation.packages):
-                product_weight = (
-                    remaining if index == len(operation.packages) - 1 else share
-                )
-                package.finished_product_weight_grams = product_weight
-                package.package_weight_grams = product_weight + Decimal("12.000")
-                remaining -= product_weight
+            if allocation.packages:
+                share = (source / len(allocation.packages)).quantize(Decimal("0.001"))
+                remaining = source
+                for index, package in enumerate(allocation.packages):
+                    product_weight = (
+                        remaining if index == len(allocation.packages) - 1 else share
+                    )
+                    package.finished_product_weight_grams = product_weight
+                    package.package_weight_grams = product_weight + Decimal("12.000")
+                    if package.planned_package_row is not None:
+                        package.planned_package_row.finished_product_weight_grams = (
+                            product_weight
+                        )
+                        package.planned_package_row.sealed_package_weight_grams = (
+                            package.package_weight_grams
+                        )
+                    remaining -= product_weight
+            else:
+                planned_rows = allocation.planned_package_rows
+                if not planned_rows:
+                    continue
+                planned_total = (source * Decimal("0.900")).quantize(Decimal("0.001"))
+                share = (planned_total / len(planned_rows)).quantize(Decimal("0.001"))
+                remaining = planned_total
+                for index, row in enumerate(planned_rows):
+                    product_weight = (
+                        remaining if index == len(planned_rows) - 1 else share
+                    )
+                    row.finished_product_weight_grams = product_weight
+                    row.sealed_package_weight_grams = product_weight + Decimal("12.000")
+                    remaining -= product_weight
         self.db.commit()
         return self._result(
             "randomize-weights",
@@ -612,15 +651,27 @@ class DeveloperDataService:
     ) -> None:
         packaged_at = (batch.completed_at or self.now) + timedelta(hours=4)
         operation = PackagingOperation(
-            packaged_at=packaged_at,
+            production_batch=batch,
+            status=PackagingOperationStatus.COMPLETED,
+            started_at=packaged_at,
+            completed_at=packaged_at + timedelta(minutes=20),
             notes="Combined trays and divided finished product among packages.",
         )
         self.db.add(operation)
         self.db.flush()
+        allocation = PackagingAllocation(
+            packaging_operation=operation,
+            notes="All completed trays allocated to demo Packages.",
+        )
+        self.db.add(allocation)
+        self.db.flush()
         for tray in trays:
             tray.status = TrayStatus.PACKAGED
             self.db.add(
-                PackagingOperationTray(packaging_operation=operation, tray=tray)
+                PackagingAllocationSourceTray(
+                    packaging_allocation=allocation,
+                    tray=tray,
+                )
             )
 
         source = sum(
@@ -636,9 +687,10 @@ class DeveloperDataService:
         location_choices = (locations[1], locations[0], locations[2])
         for index, product_weight in enumerate(weights):
             package = Package(
-                packaging_operation=operation,
+                packaging_allocation=allocation,
                 package_type=package_types[index % 2],
                 package_identifier=f"PKG-{packaged_at.year}-{index + 1:06d}",
+                packaged_at=packaged_at + timedelta(minutes=index),
                 package_weight_grams=product_weight + Decimal("12"),
                 finished_product_weight_grams=product_weight,
                 oxygen_absorber=package_types[index % 2].default_oxygen_absorber,
@@ -649,12 +701,124 @@ class DeveloperDataService:
             self.db.add(package)
             self.db.flush()
             self.db.add(
+                PlannedPackageRow(
+                    packaging_allocation=allocation,
+                    package_type=package.package_type,
+                    finished_product_weight_grams=product_weight,
+                    finished_product_weight_unit="g",
+                    sealed_package_weight_grams=package.package_weight_grams,
+                    sealed_package_weight_unit="g",
+                    oxygen_absorber=package.oxygen_absorber,
+                    storage_location=package.storage_location,
+                    notes="Recorded package retained from the packaging plan.",
+                    label_status=PackageLabelStatus.READY,
+                    label_display_name=trays[0].product_name,
+                    label_preparation_summary=trays[0].preparation,
+                    label_net_weight_display=f"{product_weight} g freeze-dried",
+                    label_fresh_equivalent_display=(
+                        "Derived from completed production Trays"
+                    ),
+                    recorded_package=package,
+                )
+            )
+            self.db.add(
+                PackageStatusHistory(
+                    package=package,
+                    previous_status=None,
+                    current_status=InventoryStatus.IN_STORAGE,
+                    effective_at=packaged_at,
+                    recorded_at=packaged_at,
+                    notes="Initial status recorded during Packaging.",
+                )
+            )
+            if statuses[index] != InventoryStatus.IN_STORAGE:
+                self.db.add(
+                    PackageStatusHistory(
+                        package=package,
+                        previous_status=InventoryStatus.IN_STORAGE,
+                        current_status=statuses[index],
+                        effective_at=packaged_at + timedelta(days=index),
+                        recorded_at=packaged_at + timedelta(days=index),
+                        notes="Demo inventory lifecycle transition.",
+                    )
+                )
+            self.db.add(
                 StorageLocationHistory(
                     package=package,
                     previous_storage_location=None,
                     current_storage_location=location_choices[index],
                     moved_at=packaged_at,
                     notes="Initial location assigned during Packaging.",
+                )
+            )
+            label = PackageLabel(
+                package=package,
+                status=PackageLabelStatus.READY,
+                display_name=trays[0].product_name,
+                preparation_summary=trays[0].preparation,
+                net_weight_display=f"{product_weight} g freeze-dried",
+                fresh_equivalent_display="Derived from completed production Trays",
+            )
+            self.db.add(label)
+            self.db.flush()
+            if index == 0:
+                self.db.add(
+                    PrintEvent(
+                        package_label=label,
+                        printed_at=packaged_at + timedelta(minutes=25),
+                        recorded_at=packaged_at + timedelta(minutes=25),
+                        template="Avery 5163",
+                        print_job_id=uuid4(),
+                        notes="Initial demo label print.",
+                    )
+                )
+
+    def _plan_batch_packaging(
+        self,
+        batch: ProductionBatch,
+        trays: list[Tray],
+        package_types: list[PackageType],
+        locations: list[StorageLocation],
+    ) -> None:
+        """Create resumable packaging work without prematurely creating inventory."""
+        started_at = (batch.completed_at or self.now) + timedelta(hours=2)
+        operation = PackagingOperation(
+            production_batch=batch,
+            status=PackagingOperationStatus.OPEN,
+            started_at=started_at,
+            notes="Packaging plan paused before the physical bags were recorded.",
+        )
+        allocation = PackagingAllocation(
+            packaging_operation=operation,
+            notes="Two pork trays selected; the apple tray remains packaging-ready.",
+        )
+        self.db.add_all((operation, allocation))
+        self.db.flush()
+        for tray in trays[:2]:
+            self.db.add(
+                PackagingAllocationSourceTray(
+                    packaging_allocation=allocation,
+                    tray=tray,
+                )
+            )
+
+        for index, product_weight in enumerate((Decimal("300"), Decimal("300"))):
+            self.db.add(
+                PlannedPackageRow(
+                    packaging_allocation=allocation,
+                    package_type=package_types[index],
+                    finished_product_weight_grams=product_weight,
+                    finished_product_weight_unit="g",
+                    sealed_package_weight_grams=product_weight + Decimal("12"),
+                    sealed_package_weight_unit="g",
+                    oxygen_absorber=package_types[index].default_oxygen_absorber,
+                    storage_location=locations[index],
+                    notes="Durable package plan; no inventory Package exists yet.",
+                    label_status=PackageLabelStatus.DRAFT,
+                    label_display_name="Pork Shoulder",
+                    label_preparation_summary=trays[index].preparation,
+                    label_net_weight_display=f"{product_weight} g freeze-dried",
+                    label_fresh_equivalent_display="Fresh equivalent pending review",
                 )
             )
 

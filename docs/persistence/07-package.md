@@ -17,9 +17,10 @@ Packages preserve the connection between inventory and historical production thr
 | Field | Required | Editable | Notes |
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
-| packagingOperationId | Yes | No | Parent Packaging Operation |
+| packagingAllocationId | Yes | No | Source Packaging Allocation |
 | packageTypeId | Yes | Yes* | Selected Package Type |
 | packageIdentifier | Yes | No | System-generated human-readable identifier |
+| packagedAt | Yes | Yes* | Effective date/time the Package was recorded |
 | storageLocationId | Yes | Yes* | Current Storage Location |
 | packageWeightGrams | Yes | Yes* | Total sealed package weight |
 | finishedProductWeightGrams | No** | Yes* | Freeze-dried food placed in the Package |
@@ -37,14 +38,16 @@ Packages preserve the connection between inventory and historical production thr
 
 A Package:
 
-- belongs to one Packaging Operation
+- belongs to one Packaging Allocation
+- is traceable through that Allocation to one Packaging Operation and exact source Trays
 - belongs to one Package Type
 - belongs to one current Storage Location
 - has many Storage Location History records
+- has many Package Status History records
+- owns exactly one Package Label
 
-A Package does not belong directly to any Tray.
-
-Production traceability is preserved through its Packaging Operation.
+A Package does not own a Tray. Production traceability is preserved through the
+Allocation's explicit source-Tray relationships.
 
 ---
 
@@ -58,14 +61,21 @@ Changing a Storage Location does not affect production traceability.
 
 Packages are never deleted.
 
-Packages do not store an independent packaging date.
+Creating a Package automatically creates its initial In Storage Package Status History record.
 
-The packaging date is inherited from the parent Packaging Operation.
+Every later Inventory Status transition updates the Package's current status and appends a Package Status History record in the same transaction.
 
-All Packages created during the same Packaging Operation share the same `packagedAt` timestamp.
+Creating a Package creates its one persistent Package Label from shared
+Allocation defaults and Package-level overrides. Planned Package rows are
+durable Open-operation work but are not inventory and never use a Draft Package
+status.
+
+Each Package records its effective `packagedAt` because a resumable operation may
+record Packages at different times. The value defaults to now and may be entered
+to reflect the real event time.
 
 Package Fresh Equivalent is derived from Package Finished Product Weight and
-the Packaging Operation's source Tray weights. It is not persisted. Existing
+the Packaging Allocation's source Tray weights. It is not persisted. Existing
 `packageWeightGrams` values remain Sealed Package Weights.
 
 ---
@@ -121,16 +131,14 @@ Package-level inventory is defined in ADR-0007.
 
 PA-001
 
-Every Package belongs to exactly one Packaging Operation.
-The Packaging Operation provides the historical packaging date and preserves the relationship between source Trays and resulting Packages.
+Every Package belongs to exactly one Packaging Allocation.
+The Allocation preserves the exact relationship between source Trays and the Package.
 
 ---
 
 PA-002
 
-A Package inherits its packaging date from its parent Packaging Operation.
-
-Packages created during the same Packaging Operation share the same packaging timestamp.
+A Package records the effective date/time at which the operator intentionally recorded it.
 
 ---
 
@@ -201,6 +209,22 @@ Given Away means the Package left the user's inventory as a gift or transfer.
 PA-013
 
 Every Package has a system-generated Package identifier suitable for human-readable labels.
+
+---
+
+PA-014
+
+Every Package has one current Inventory Status and an append-only Package Status History.
+
+The Package's current Inventory Status must match its most recently recorded Package Status History event.
+
+---
+
+PA-015
+
+Every Package owns exactly one editable Package Label.
+
+Package Label edits and reprints never rewrite Production History, Package Identifier, Packaging Date, Package weights, or Inventory History.
 
 ---
 

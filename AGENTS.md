@@ -91,8 +91,21 @@ docs/wireframes/
 These documents describe the intended user experience and interaction patterns.
 
 ---
+## 6. Design System
 
-## 6. Implementation Plan
+If implementing or modifying user interface features, read every document in:
+
+docs/design-system/
+
+These documents define the visual language, interaction patterns,
+layout principles, and user experience philosophy of Freezeflow.
+
+The Design System is the authoritative source for frontend
+presentation and interaction decisions.
+
+---
+
+## 7. Implementation Plan
 
 Read:
 
@@ -109,10 +122,11 @@ Do not implement functionality assigned to later milestones.
 When documentation overlaps, use the following order of precedence:
 
 1. Architecture Decision Records (ADRs)
-2. Persistence Documentation (for persistence implementation)
+2. Persistence Documentation
 3. Core Architecture Documents
-4. Wireframes
-5. Implementation Milestones
+4. Design System (frontend presentation and interaction)
+5. Wireframes
+6. Implementation Milestones
 
 If implementation requires a decision that is not documented:
 
@@ -335,6 +349,8 @@ The interface should:
 * match the real-world workflow
 * expose important history
 * remain predictable
+* minimize cognitive load
+* follow the documented Design System
 
 Build interfaces around user tasks—not data models.
 

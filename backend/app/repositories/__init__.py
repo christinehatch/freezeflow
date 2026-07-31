@@ -1,11 +1,18 @@
 from app.repositories.audit_entries import audit_entry_repository
 from app.repositories.drying_runs import drying_run_repository
 from app.repositories.freeze_dryers import freeze_dryer_repository
+from app.repositories.package_history import (
+    package_status_history_repository,
+    print_event_repository,
+)
+from app.repositories.package_labels import package_label_repository
 from app.repositories.package_types import package_type_repository
 from app.repositories.packages import package_repository
 from app.repositories.packaging_operations import (
+    packaging_allocation_repository,
+    packaging_allocation_source_tray_repository,
     packaging_operation_repository,
-    packaging_operation_tray_repository,
+    planned_package_row_repository,
 )
 from app.repositories.physical_trays import physical_tray_repository
 from app.repositories.production_batches import production_batch_repository
@@ -23,9 +30,14 @@ __all__ = [
     "drying_run_repository",
     "freeze_dryer_repository",
     "package_type_repository",
+    "package_label_repository",
     "package_repository",
+    "package_status_history_repository",
+    "packaging_allocation_repository",
+    "packaging_allocation_source_tray_repository",
     "packaging_operation_repository",
-    "packaging_operation_tray_repository",
+    "planned_package_row_repository",
+    "print_event_repository",
     "physical_tray_repository",
     "production_batch_repository",
     "recipe_repository",

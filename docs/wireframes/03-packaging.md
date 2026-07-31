@@ -1,441 +1,326 @@
-# 03 - Packaging
-
-Each Package editor presents separate **Finished Product Weight** and **Sealed
-Package Weight** inputs. Avery 5163 labels emphasize product name and the
-fresh-to-dry equivalence, then show preparation or contents, Packaging Date,
-Package identifier, Package Type, Production Batch, Freeze Dryer, and oxygen
-absorber. Labels show `Fresh equivalent unavailable` when source history is
-incomplete. Storage Location is not printed.
+# 03 - Packaging Workspace
 
 # Purpose
 
-The Packaging screen guides the user through preparing and executing a Packaging Session.
+The Packaging workspace helps the operator convert completed product into
+labeled inventory while supporting the order in which physical work actually
+happens.
 
-Packaging should feel like a worksheet for the real packaging table, not a data entry form.
+The screen is a resumable workspace, not a list of Packaging Operation records.
 
-The user selects completed Trays, plans Package Types and package count, prints human-readable labels, records sealed weights, and creates one or more Packages.
+# User Goal
 
-The system automatically creates the internal Packaging Operation required for complete historical traceability.
+> I am done drying. Help me convert this food into labeled inventory without
+> losing track of product or forcing me to package, weigh, and print in a fixed
+> order.
 
-Users should never need to understand or manage Packaging Operations directly.
+# Entry Points
 
----
+- **Start Packaging** from a completed Production Batch
+- **Resume Packaging** from a Production Batch with an Open operation
+- **Packaging** in primary navigation
+- **Reprint Label** from Package or Tray Details
 
-# User Goals
-
-A user should be able to:
-
-* Choose the Production Batch to package without scrolling through every Batch.
-* Select eligible Trays from that Production Batch.
-* Review a Packaging Worksheet.
-* Select or create Package Types inline.
-* Print human-readable labels.
-* Create one or more finished Packages.
-* Record package weights.
-* Select Storage Locations or use Unassigned.
-* Complete packaging with minimal typing.
-
----
-
-# Primary Actions
-
-* Select Completed Trays
-* Review Packaging Worksheet
-* Create Packages
-* Print Labels
-* Select Storage Locations or Unassigned
-* Finish Packaging
-
----
-
-# Screen Layout
-
-```text
-+====================================================================================+
-| Packaging                                                                          |
-+====================================================================================+
-
-Completed Trays
-
-Production Batch
-
-[ Batch 014 / Freeze Dryer Black / 32.8 oz ready v ]
-
-[x] Tray 1   Taco Chicken      8.2 oz
-
-[x] Tray 2   Taco Chicken      8.1 oz
-
-[x] Tray 3   Taco Chicken      8.3 oz
-
-[x] Tray 4   Taco Chicken      8.2 oz
-
-------------------------------------------------------------------------------
-
-Selected Trays
-
-4 Trays
-
-Total Dry Weight
-
-32.8 oz
-
-------------------------------------------------------------------------------
-
-Packaging Worksheet
-
-Batch 014 / Freeze Dryer Black
-
-Package Count
-
-[ 3 ]
-
-Print Labels
-
-[ Print Planned Labels ]
-
-------------------------------------------------------------------------------
-
-Packages
-
-Package 1
-
-Package Identifier
-
-PKG-2026-000123
-
-Package Type
-
-[ 1 qt Mylar v ]
-
-Oxygen Absorber
-
-[ 500cc ]
-
-Package Weight
-
-[________]
-
-Storage Location
-
-[ Bin A v ]
-
---------------------------------------------------
-
-Package 2
-
-Package Identifier
-
-PKG-2026-000124
-
-Package Type
-
-[ 1 qt Mylar v ]
-
-Package Weight
-
-[________]
-
-Storage Location
-
-[ Unassigned v ]
-
---------------------------------------------------
-
-Package 3
-
-Package Identifier
-
-PKG-2026-000125
-
-Package Type
-
-[ 1 qt Mylar v ]
-
-Package Weight
-
-[________]
-
-Storage Location
-
-[ Bin B v ]
-
---------------------------------------------------
-
-[ + Add Another Package ]
-
-------------------------------------------------------------------------------
-
-Weight Summary
-
-Source Weight
-
-32.8 oz
-
-Package Weight Total
-
-32.5 oz
-
-Difference
-
-0.3 oz
-
-Review before saving
-
-------------------------------------------------------------------------------
-
-[ Finish Packaging ]
-
-------------------------------------------------------------------------------
-
-Packaging Complete
-
-3 Packages created
-
-[ Print Labels ]  [ Done ]
-```
-
----
+Launching from Production opens the relevant Production Batch directly.
 
 # Information Priority
 
-The screen should emphasize:
+1. Selected Production Batch and operation progress
+2. Current Packaging Allocation and source Trays
+3. Selected, Allocated, and Remaining Weight
+4. Planned and recorded Packages
+5. Package Label readiness
+6. Print queue and operation completion
+7. Package Type setup
 
-1. Source Trays
-2. Total available product
-3. Packages being created
-4. Weight validation
-5. Storage assignment
-
-The workflow should feel linear and predictable.
-
----
-
-# Tray Selection
-
-Only Completed Trays should appear.
-
-Running Trays should never be selectable.
-
-Completed Trays should remain visible until they have been packaged.
-
-Once packaged, they should disappear from this screen.
-
-For Version 1, the user first chooses one Production Batch. The workspace then
-shows only the eligible Trays from that Batch.
-
-The user may select multiple eligible Trays from the same group.
-
-Selected Trays form one combined source pool for the Packaging Operation. This
-models physically mixing several Trays before dividing the product among one or
-more Packages.
-
-The user should not be able to combine Trays from different Production Batches in one Packaging Operation.
-
-Because a Production Batch belongs to one Freeze Dryer, this also prevents cross-freeze-dryer packaging.
-
----
-
-# Package Creation
-
-Users should be able to create any number of Packages.
-
-Examples:
-
-* 1 Tray -> 1 Package
-* 4 Trays -> 1 Package
-* 4 Trays -> 3 Packages
-* 8 Trays -> 12 Packages
-
-The interface should never assume a fixed relationship.
-
-The interface should show the selected source weight, the Finished Product
-Weight already allocated across Package rows, and the remaining Finished Product
-Weight still to package. These values update as Package rows are edited.
-
-The final action should be labeled **Finish Packaging** so it cannot be confused
-with adding another Package row. While Finished Product Weight remains
-unallocated, the interface should offer **Add Package for Remaining** and must not
-allow the user to finish Packaging. Each weight input must keep its selected unit
-visibly readable.
-
-Sealed Package Weight remains separate and does not reduce the remaining source
-pool because bags and oxygen absorbers add weight.
-
-Each Package should have a Package Type.
-
-Package Type should prefill sensible defaults, such as oxygen absorber size and printable label template, while allowing the user to edit Package-level values.
-
-Package Types may be created or edited inline during Packaging.
-
-Package identifiers should be generated automatically.
-
----
-
-# Printable Labels
-
-Printable human-readable labels are part of Milestone 4.
-
-Labels should be available from planned Package data before physical packaging and from created Package data after Packaging is complete.
-
-Labels should include Package identifier, product summary, Package Type,
-packaging date, preparation or contents, and Package Fresh Equivalent when
-available. Mutable Storage Location should not appear on permanent printed
-labels.
-
-QR codes, barcode labels, and automated label integrations are future enhancements.
-
----
-
-# Storage Assignment
-
-Every Package should have a current Storage Location during creation.
-
-If the user does not select a Storage Location, the interface should use Unassigned.
-
-Users should be able to change the location for individual Packages or leave individual Packages Unassigned.
-
----
-
-# Weight Validation
-
-The application should automatically compare:
-
-Source Weight
-
-vs
-
-Total Package Weight
-
-If the values differ significantly, display a warning.
-
-Warnings should inform the user but should not block completion.
-
-The user remains responsible for the final decision.
-
----
-
-# Packaging Workflow
-
-Typical workflow:
+# Workspace Layout
 
 ```text
-Choose Production Batch
+Packaging
 
-Select Trays
+[Production Batch selector]             [Open · Saved]
 
-Review Packaging Worksheet
+Operation Progress
+2 Allocations · 8 Packages · 3 Labels Ready
 
+Allocations
+┌────────────────────────────────────────────────────────────┐
+│ Chicken · Trays 1, 2, 3                         [Continue] │
+│ 1,086 g selected · 700 g allocated · 386 g remaining      │
+└────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Strawberries · Tray 4                           [Continue] │
+│ 327 g selected · no Packages recorded                      │
+└────────────────────────────────────────────────────────────┘
+
+[+ Select Trays for Another Allocation]
+```
+
+The operator sees one Production Batch at a time. Switching batches must not
+erase saved Open work.
+
+# Start or Resume
+
+If the selected Production Batch has no Open Packaging Operation:
+
+```text
+Batch 014 · black
+4 completed Trays · 1,413 g ready
+
+[Start Packaging]
+```
+
+If Open work exists:
+
+```text
+Batch 014 · Packaging in progress
+Last saved Jul 18 at 2:42 PM
+
+[Resume Packaging]
+```
+
+The interface should use operator language. It may show “Packaging in progress”
+instead of asking users to manage a Packaging Operation entity.
+
+# Create an Allocation
+
+The operator selects one or more completed Trays from the selected Production
+Batch.
+
+```text
+Select Completed Product
+
+☑ Slot 1 · Chicken · 371 g
+☑ Slot 2 · Chicken · 335 g
+☑ Slot 3 · Chicken · 380 g
+☐ Slot 4 · Strawberries · 327 g
+
+Selected source: 1,086 g from 3 Trays
+
+[Package Selected Product]
+```
+
+Selecting the Trays creates or resumes an identified Packaging Allocation behind
+the workspace. The UI does not ask the user to name or administer the Allocation.
+
+Separate product combinations use separate selections. Ineligible or already
+allocated product is not selectable and explains why.
+
+# Allocation Workspace
+
+```text
+Chicken
+Source: Slots 1, 2, 3
+
+Selected Source       Allocated             Remaining
+1,086 g               700 g                 386 g
+
+Packages
+1  Quart Mylar   350 g product   365 g sealed   Label Ready
+2  Quart Mylar   350 g product   366 g sealed   Label Draft
+
+[+ Add Package for Remaining]
+```
+
+Selected, Allocated, and Remaining Weight remain visible together. Units must be
+readable without opening a control.
+
+The Add Package for Remaining action appears after the current Package rows near
+the disabled completion action, following the operator's downward reading path.
+
+# Planned Package Rows
+
+The operator may plan Package rows before recording inventory.
+
+```text
+Package 3 · Planned
+
+Package Type       [Quart Mylar]
+Finished Product   [386] [g]
+Sealed Weight      [   ] [g]
+Oxygen Absorber    [500cc]
+Storage            [Unassigned]
+
+[Edit Label] [Record Package] [Remove Plan]
+```
+
+Planned rows are saved with the Open workspace. They are not Packages and do not
+appear in Inventory until the operator selects Record Package.
+
+# Record Package
+
+The operator may record a Package before or after physically filling it. Required
+Package information is validated when recording and when completing the overall
+operation; the UI does not claim to know when the bag physically exists.
+
+Recording a Package creates:
+
+- the Package and auto-generated identifier
+- its editable Package Label
+- initial In Storage Package Status History
+- initial Storage Location History
+
+Unassigned is used when no Storage Location is selected.
+
+# Package Label Editor
+
+```text
+Package Label                                      Draft
+
+Display Name              [Martin's Taco Meal]
+Subtitle                  [Chicken and vegetables]
+Ingredients Summary       [Chicken, cabbage, tomatoes...]
+Preparation Summary       [Shredded, seasoned]
+Freeze-Dried Weight       5.29 oz
+Fresh Equivalent          0.94 lb
+Packaging Date            [Jul 18, 2026]
+Rehydration Instructions  [Add 2 cups water...]
+Serving Notes             [Serves 2]
+Label Notes               [                    ]
+
+[Save Draft] [Mark Ready] [Preview]
+```
+
+Initial values come from immutable Production History. Editing Package
+Presentation must not alter source Trays or Preparation Metadata.
+
+Allocation-level defaults may populate repeated label fields. Each Package may
+override them.
+
+# Label States
+
+## Draft
+
+Printable information is incomplete or still being reviewed.
+
+## Ready
+
+The Package Label is eligible for printing.
+
+## Needs Reprint
+
+Printable content changed after a previous Print Event.
+
+Printed and Reprinted are events shown in label history, not status badges.
+
+# Print Labels
+
+One print queue accepts Package Labels selected from:
+
+- a Package
+- an Allocation
+- the current Packaging workspace
+- a Production Batch
+- today's Ready or Needs Reprint labels
+- a custom selection
+
+```text
 Print Labels
 
-Create Packages
+☑ Pork Shoulder · PKG-2026-000006 · Ready
+☑ Pork Shoulder · PKG-2026-000007 · Needs Reprint
+☐ Strawberries · PKG-2026-000008 · Ready
 
-Select Storage Locations or Unassigned
+2 labels selected
+1 Avery 5163 sheet
 
-Review Weight Difference
-
-Complete Packaging
+[Preview Avery 5163] [Print]
 ```
 
-The user should remain on a single screen throughout the process.
+The preview uses two columns and five rows on Letter paper. More than ten labels
+creates additional sheets.
 
----
+The label gives primary emphasis to Display Name and weight equivalence. The
+Package identifier is visible but secondary.
 
-# States
-
-## No Completed Trays
+# Complete Packaging
 
 ```text
-No Completed Trays are ready for Packaging.
+Packaging Progress
 
-Finish drying a Production Batch before creating Packages.
+Allocation A · Complete · 0 g remaining
+Allocation B · 177 g remaining
+
+177 g still needs a Package.
+
+[+ Add Package for Remaining]
+[Complete Packaging] disabled
 ```
 
----
+Completion is available only when all selected product is allocated to recorded
+Packages and required Package and label data is valid.
 
-## Trays Selected
-
-The Package editor becomes active.
-
----
-
-## Validation Warning
-
-Examples:
-
-* Weight mismatch
-* Empty Package Weight
-
-Warnings should be easy to understand.
-
-Missing Storage Location should resolve to Unassigned rather than block Packaging.
-
----
-
-## Complete
-
-Display confirmation.
-
-Example:
+When complete:
 
 ```text
 Packaging Complete
 
-3 Packages created successfully.
+15 Packages created
+15 labels Ready · 12 printed
 
-[ Print Labels ]  [ Done ]
+[Print Remaining Labels] [View Inventory]
 ```
 
----
+The operator explicitly completes Packaging. The selected Trays then display as
+Packaged. Inventory actions such as Given Away and Depleted are not offered here.
 
-# Empty State
+# States
+
+## No Eligible Product
 
 ```text
-No Trays are currently waiting for Packaging.
+No completed product is ready for Packaging.
+[View Production]
 ```
 
----
+## Open Work Saved
 
-# Error States
+```text
+Packaging progress saved.
+You can safely leave and resume later.
+```
 
-If packaging fails:
+## Weight Warning
 
-* Preserve all entered Package information.
-* Explain the error.
-* Allow retry without re-entering data.
+Warnings explain measurement differences without substituting Sealed Package
+Weight for Finished Product Weight.
 
----
+## Completion Blocked
+
+The screen names the exact Allocation, missing field, or remaining quantity and
+places the corrective action beside the problem.
+
+# Error Handling
+
+The UI should clearly handle:
+
+- stale source eligibility
+- Package or label save failure
+- attempted over-allocation
+- invalid weight or unit
+- print preview failure
+- operation completion conflict
+
+Saved Open work remains intact after recoverable errors.
 
 # Mobile Considerations
 
-* One Package editor per card.
-* Large numeric inputs.
-* Storage Location picker optimized for touch.
-* Sticky Complete Packaging button.
-
----
+- show one Allocation at a time
+- keep the Remaining Weight summary sticky when entering Packages
+- stack Package fields into a readable form
+- keep units adjacent to values
+- avoid horizontal tables for primary actions
+- keep Print and Complete actions reachable without losing context
 
 # Success Criteria
 
-A user should be able to:
+The Packaging workspace succeeds when:
 
-* Select completed Trays quickly.
-* Create multiple Packages without confusion.
-* Understand how much product is being packaged.
-* Notice unexpected weight differences immediately.
-* Print human-readable labels before or after physical Packaging.
-* Complete packaging without understanding internal Packaging Operations.
-
----
-
-# Future Enhancements
-
-Future versions may include:
-
-* Custom label-template design
-* Direct printer integrations
-* QR code generation
-* Barcode support
-* Suggested package sizes
-* Smart Storage Location recommendations
-* Bluetooth scale integration
-* Packaging supply stock tracking
+- operators can pause and resume without losing work
+- separate product combinations remain traceable
+- multiple Trays can supply multiple Packages
+- unallocated product cannot silently disappear
+- Package and label data can be prepared in a flexible order
+- Package Labels can be edited, selected, printed, and reprinted
+- bulk Avery output matches the physical labeling task
+- completing Packaging creates a clear handoff to Inventory

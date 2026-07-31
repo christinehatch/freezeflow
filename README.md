@@ -86,7 +86,7 @@ The software should support the workflow—not force users to change it.
 # High-Level Workflow
 
 ```text
-Recipe / Product
+Preparation Preset / Product
         │
         ▼
 Food Preparation
@@ -299,7 +299,10 @@ npm run format
 npm run build
 ```
 
-Milestones 0 through 3 are complete. Production setup, Drying Runs, Weight Checks, Tray completion, and explicit Production Batch completion are functional. See `docs/implementation/README.md` for the current milestone status.
+Milestones 0 through 4 are complete. Production setup, Drying Runs, Weight
+Checks, Tray completion, explicit Production Batch completion, and the resumable
+Packaging and Package Label workflow are functional. See
+`docs/implementation/README.md` for the current milestone status.
 
 ---
 
@@ -319,7 +322,7 @@ Freezeflow is intended to become a complete production management platform for f
 
 Future versions may include:
 
-* Recipe management
+* Preparation Preset management
 * QR code package labels
 * Barcode support
 * Cost analysis

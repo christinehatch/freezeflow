@@ -51,10 +51,16 @@ If V1 accomplishes these goals well, it is considered successful.
 * Manage Package Types inline during Packaging
 * Record Package Weight
 * Select Storage Location or use implicit Unassigned Storage Location
-* Automatic Packaging Operation creation
+* Resumable Packaging Operations with Open and Completed states
+* One open Packaging Operation per Production Batch
+* Packaging Allocations with stable identity inside their Packaging Operation
 * Weight comparison warnings
 * Auto-generated Package identifiers
 * Printable human-readable labels
+* Durable Planned Package Rows and Package Label work
+* One editable Package Label per created Package
+* Package Label editing and reprinting
+* Selection-based Avery 5163 label printing and append-only Print Events
 
 ---
 
@@ -81,20 +87,22 @@ Every Package can be traced back to:
 * Weight Checks
 * Drying Runs
 * Preparation Information
-* Recipe Template, if used
+* Preparation Preset, if used
 
 Historical records remain available even after inventory is depleted or given away.
 
 ---
 
-## Recipes
+## Preparation Metadata and Presets
 
-* Create Recipes
-* Edit Recipes
-* Archive Recipes
-* Search Recipes
-* Optional Recipe usage
-* Tray preparation snapshots
+* Record Product, Ingredients, Preparation Methods, and processing Notes
+* Enter one-off preparation values without catalog administration
+* Create Preparation Presets
+* Edit Preparation Presets
+* Archive Preparation Presets
+* Search Preparation Presets
+* Optional Preparation Preset usage
+* Immutable Tray Preparation Metadata snapshots
 
 ---
 
@@ -116,7 +124,7 @@ Search should support:
 
 * Product Name
 * Preparation
-* Recipe Name
+* Preparation Preset Name
 * Storage Location
 * Notes
 
@@ -211,14 +219,14 @@ service integrations, QR codes, barcodes, and scanning remain out of scope.
 
 ---
 
-## Recipe Enhancements
+## Preparation Preset Enhancements
 
 * Ingredient databases
 * Nutrition facts
-* Scaling recipes
+* Scaling saved preparations
 * Photos
 * Categories
-* Recipe sharing
+* Preparation Preset sharing
 
 ---
 
@@ -268,7 +276,7 @@ Potential future releases may include:
 * Native mobile applications
 * Bluetooth scale integration
 * QR code labels
-* Custom label templates and direct printer integrations
+* Custom printable label layouts and direct printer integrations
 * Cloud synchronization
 * Multi-user workspaces
 * Package photos

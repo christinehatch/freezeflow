@@ -1,30 +1,48 @@
 from datetime import UTC, datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     FreezeDryer,
-    InventoryStatus,
     Package,
+    PackageLabel,
+    PackageLabelStatus,
     PackageType,
+    PackagingAllocation,
+    PackagingAllocationSourceTray,
     PackagingOperation,
-    PackagingOperationTray,
+    PackagingOperationStatus,
+    PlannedPackageRow,
+    PrintEvent,
     ProductionBatch,
+    ProductionBatchStatus,
     StorageLocation,
-    StorageLocationHistory,
     Tray,
     TrayStatus,
-    WeightCheck,
 )
-from app.repositories import package_type_repository
+from app.repositories import (
+    package_repository,
+    package_type_repository,
+    packaging_allocation_repository,
+    packaging_operation_repository,
+    planned_package_row_repository,
+)
 from app.schemas import (
-    PackageLabelRequest,
-    PackageSelectedTrays,
+    PackageCreate,
+    PackageLabelSelection,
+    PackageLabelUpdate,
+    PackageLineCreate,
     PackageTypeCreate,
     PackageTypeUpdate,
+    PackagingAllocationCreateRequest,
+    PackagingAllocationUpdateRequest,
+    PackagingOperationCreate,
+    PackagingOperationStart,
+    PlannedPackageInput,
+    RecordAllocationPackages,
 )
 from app.services.errors import BusinessRuleError
 
@@ -33,9 +51,7 @@ ALLOCATION_TOLERANCE_GRAMS = Decimal("0.001")
 
 
 def list_package_types(
-    db: Session,
-    *,
-    include_archived: bool = False,
+    db: Session, *, include_archived: bool = False
 ) -> list[PackageType]:
     statement = select(PackageType).order_by(PackageType.name)
     if not include_archived:
@@ -59,37 +75,23 @@ def create_package_type(db: Session, data: PackageTypeCreate) -> PackageType:
         },
     )
     db.commit()
-    db.refresh(package_type)
     return package_type
 
 
 def update_package_type(
-    db: Session,
-    package_type_id: UUID,
-    data: PackageTypeUpdate,
+    db: Session, package_type_id: UUID, data: PackageTypeUpdate
 ) -> PackageType:
     package_type = _get_package_type(db, package_type_id, allow_archived=True)
-    values: dict[str, object | None] = {}
-    if data.name is not None:
-        if not data.name.strip():
+    values = data.model_dump(exclude_unset=True)
+    if "name" in values:
+        if not values["name"] or not values["name"].strip():
             raise BusinessRuleError("Package Type name is required.")
-        values["name"] = data.name.strip()
-    if data.default_oxygen_absorber is not None:
-        values["default_oxygen_absorber"] = _clean_optional_text(
-            data.default_oxygen_absorber
-        )
-    if data.default_label_template is not None:
-        values["default_label_template"] = _clean_optional_text(
-            data.default_label_template
-        )
-    if data.notes is not None:
-        values["notes"] = _clean_optional_text(data.notes)
-    if data.archived is not None:
-        values["archived"] = data.archived
-
+        values["name"] = values["name"].strip()
+    for key in ("default_oxygen_absorber", "default_label_template", "notes"):
+        if key in values:
+            values[key] = _clean_optional_text(values[key])
     updated = package_type_repository.update(db, package_type, values)
     db.commit()
-    db.refresh(updated)
     return updated
 
 
@@ -111,7 +113,7 @@ def get_packaging_worksheet(db: Session) -> list[ProductionBatch]:
             select(ProductionBatch)
             .join(ProductionBatch.trays)
             .where(Tray.status == TrayStatus.COMPLETED)
-            .where(~Tray.packaging_operation_link.has())
+            .where(~Tray.packaging_allocation_links.any())
             .options(
                 selectinload(ProductionBatch.freeze_dryer).selectinload(
                     FreezeDryer.tray_slots
@@ -127,319 +129,578 @@ def get_packaging_worksheet(db: Session) -> list[ProductionBatch]:
     )
 
 
-def package_selected_trays(
+def start_or_resume_packaging_operation(
     db: Session,
-    data: PackageSelectedTrays,
-) -> dict[str, object]:
-    trays = _get_eligible_trays(db, data.tray_ids)
-    if len({tray.production_batch_id for tray in trays}) != 1:
-        raise BusinessRuleError(
-            "A Packaging Session may only include Trays from one Production Batch."
+    batch_id: UUID,
+    data: PackagingOperationStart,
+) -> PackagingOperation:
+    batch = db.get(ProductionBatch, batch_id)
+    if batch is None:
+        raise BusinessRuleError("Production Batch does not exist.")
+    if batch.status != ProductionBatchStatus.COMPLETED:
+        raise BusinessRuleError("Only a Completed Production Batch may be packaged.")
+    existing = db.scalar(
+        select(PackagingOperation).where(
+            PackagingOperation.production_batch_id == batch_id,
+            PackagingOperation.status == PackagingOperationStatus.OPEN,
         )
-
-    packaged_at = data.packaged_at or datetime.now(UTC)
-    package_types = {
-        package_type.id: package_type
-        for package_type in db.scalars(
-            select(PackageType).where(
-                PackageType.id.in_([line.package_type_id for line in data.packages])
-            )
-        ).all()
-    }
-    storage_locations = _storage_locations_for_package_lines(db, data)
-    _validate_package_lines(data, package_types, storage_locations)
-
-    source_weight_grams = sum(
-        (tray.final_dry_weight_grams for tray in trays),
-        Decimal("0"),
     )
-    allocated_finished_product_weight_grams = sum(
-        (line.finished_product_weight_grams for line in data.packages),
-        Decimal("0"),
-    )
-    _validate_complete_source_allocation(
-        source_weight_grams,
-        allocated_finished_product_weight_grams,
-    )
-    package_weight_grams = sum(
-        (line.package_weight_grams for line in data.packages),
-        Decimal("0"),
-    )
-    warnings = _packaging_warnings(source_weight_grams, package_weight_grams)
-
-    operation = PackagingOperation(
-        packaged_at=packaged_at,
-        notes=_clean_optional_text(data.notes),
-    )
-    db.add(operation)
-    db.flush()
-
-    for tray in trays:
-        db.add(
-            PackagingOperationTray(
-                packaging_operation_id=operation.id,
-                tray_id=tray.id,
-            )
-        )
-        tray.status = TrayStatus.PACKAGED
-        db.add(tray)
-
-    created_packages: list[Package] = []
-    for line in data.packages:
-        package_type = package_types[line.package_type_id]
-        storage_location = _storage_location_for_line(
-            line.storage_location_id,
-            storage_locations,
-        )
-        package = Package(
-            packaging_operation_id=operation.id,
-            package_type_id=package_type.id,
-            package_identifier=_next_package_identifier(db, packaged_at),
-            package_weight_grams=line.package_weight_grams,
-            finished_product_weight_grams=line.finished_product_weight_grams,
-            oxygen_absorber=_effective_oxygen_absorber(
-                line.oxygen_absorber,
-                package_type,
-            ),
-            storage_location_id=storage_location.id,
-            status=InventoryStatus.IN_STORAGE,
-            notes=_clean_optional_text(line.notes),
-        )
-        db.add(package)
-        db.flush()
-        db.add(
-            StorageLocationHistory(
-                package_id=package.id,
-                previous_storage_location_id=None,
-                current_storage_location_id=storage_location.id,
-                moved_at=packaged_at,
-                notes="Initial placement during Packaging.",
-            )
-        )
-        created_packages.append(package)
-
-    db.commit()
-    return {
-        "packaging_operation": _get_packaging_operation(db, operation.id),
-        "packages": [_get_package(db, package.id) for package in created_packages],
-        "warnings": warnings,
-        "source_weight_grams": source_weight_grams,
-        "package_weight_grams": package_weight_grams,
-        "labels": labels_for_packages(
-            db,
-            PackageLabelRequest(
-                package_ids=[package.id for package in created_packages],
-            ),
+    if existing is not None:
+        return get_packaging_operation(db, existing.id)
+    operation = packaging_operation_repository.create(
+        db,
+        PackagingOperationCreate(
+            production_batch_id=batch_id,
+            started_at=data.started_at or datetime.now(UTC),
+            notes=_clean_optional_text(data.notes),
         ),
-    }
-
-
-def _validate_complete_source_allocation(
-    source_weight_grams: Decimal,
-    allocated_weight_grams: Decimal,
-) -> None:
-    difference = allocated_weight_grams - source_weight_grams
-    if abs(difference) <= ALLOCATION_TOLERANCE_GRAMS:
-        return
-
-    if difference < 0:
-        detail = f"{abs(difference)} g remain unallocated."
-    else:
-        detail = f"{difference} g are over allocated."
-    raise BusinessRuleError(
-        "Package Finished Product Weights must allocate the complete source "
-        f"Finished Product Weight before Packaging can finish. {detail}"
     )
+    db.commit()
+    return get_packaging_operation(db, operation.id)
 
 
-def labels_for_packages(
-    db: Session,
-    data: PackageLabelRequest,
-) -> list[dict[str, object]]:
-    packages = [_get_package(db, package_id) for package_id in data.package_ids]
-    return [_label_data(package) for package in packages]
-
-
-def get_package(db: Session, package_id: UUID) -> Package:
-    return _get_package(db, package_id)
-
-
-def _get_package_type(
-    db: Session,
-    package_type_id: UUID,
-    *,
-    allow_archived: bool = False,
-) -> PackageType:
-    package_type = db.get(PackageType, package_type_id)
-    if package_type is None:
-        raise BusinessRuleError("Package Type was not found.", status_code=404)
-    if package_type.archived and not allow_archived:
-        raise BusinessRuleError("Archived Package Types cannot be used for Packaging.")
-    return package_type
-
-
-def _get_package(db: Session, package_id: UUID) -> Package:
-    package = db.scalar(
-        select(Package)
-        .where(Package.id == package_id)
-        .options(
-            selectinload(Package.package_type),
-            selectinload(Package.storage_location),
-            selectinload(Package.packaging_operation)
-            .selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.production_batch)
-            .selectinload(ProductionBatch.freeze_dryer),
-            selectinload(Package.packaging_operation)
-            .selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.weight_checks)
-            .selectinload(WeightCheck.drying_run),
-            selectinload(Package.packaging_operation)
-            .selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.tray_slot),
-            selectinload(Package.packaging_operation)
-            .selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.physical_tray),
-        )
+def get_batch_packaging_operation(db: Session, batch_id: UUID) -> PackagingOperation:
+    operation = db.scalar(
+        select(PackagingOperation)
+        .where(PackagingOperation.production_batch_id == batch_id)
+        .order_by(PackagingOperation.started_at.desc())
     )
-    if package is None:
-        raise BusinessRuleError("Package was not found.", status_code=404)
-    return package
+    if operation is None:
+        raise BusinessRuleError("Production Batch has no Packaging Operation.")
+    return get_packaging_operation(db, operation.id)
 
 
-def _get_packaging_operation(db: Session, operation_id: UUID) -> PackagingOperation:
+def get_packaging_operation(db: Session, operation_id: UUID) -> PackagingOperation:
     operation = db.scalar(
         select(PackagingOperation)
         .where(PackagingOperation.id == operation_id)
         .options(
-            selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.production_batch)
-            .selectinload(ProductionBatch.freeze_dryer),
-            selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
+            selectinload(PackagingOperation.production_batch).selectinload(
+                ProductionBatch.freeze_dryer
+            ),
+            selectinload(PackagingOperation.allocations)
+            .selectinload(PackagingAllocation.source_tray_links)
+            .selectinload(PackagingAllocationSourceTray.tray)
             .selectinload(Tray.tray_slot),
-            selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
+            selectinload(PackagingOperation.allocations)
+            .selectinload(PackagingAllocation.source_tray_links)
+            .selectinload(PackagingAllocationSourceTray.tray)
             .selectinload(Tray.physical_tray),
-            selectinload(PackagingOperation.tray_links)
-            .selectinload(PackagingOperationTray.tray)
-            .selectinload(Tray.weight_checks),
-            selectinload(PackagingOperation.packages).selectinload(
-                Package.package_type
+            selectinload(PackagingOperation.allocations).selectinload(
+                PackagingAllocation.planned_package_rows
             ),
-            selectinload(PackagingOperation.packages).selectinload(
-                Package.storage_location
-            ),
+            selectinload(PackagingOperation.allocations)
+            .selectinload(PackagingAllocation.packages)
+            .selectinload(Package.label)
+            .selectinload(PackageLabel.print_events),
+            selectinload(PackagingOperation.allocations)
+            .selectinload(PackagingAllocation.packages)
+            .selectinload(Package.package_type),
+            selectinload(PackagingOperation.allocations)
+            .selectinload(PackagingAllocation.packages)
+            .selectinload(Package.storage_location),
         )
     )
     if operation is None:
-        raise BusinessRuleError("Packaging Operation was not found.", status_code=404)
+        raise BusinessRuleError("Packaging Operation does not exist.")
     return operation
 
 
-def _get_eligible_trays(db: Session, tray_ids: list[UUID]) -> list[Tray]:
-    unique_ids = list(dict.fromkeys(tray_ids))
-    if len(unique_ids) != len(tray_ids):
-        raise BusinessRuleError("A Tray can only be selected once for Packaging.")
+def create_packaging_allocation(
+    db: Session,
+    operation_id: UUID,
+    data: PackagingAllocationCreateRequest,
+) -> PackagingAllocation:
+    try:
+        allocation = packaging_allocation_repository.create_with_sources(
+            db,
+            packaging_operation_id=operation_id,
+            tray_ids=data.tray_ids,
+            notes=_clean_optional_text(data.notes),
+        )
+        db.commit()
+        return get_packaging_allocation(db, allocation.id)
+    except ValueError as exc:
+        db.rollback()
+        raise BusinessRuleError(str(exc)) from exc
 
-    trays = list(
-        db.scalars(
-            select(Tray)
-            .where(Tray.id.in_(unique_ids))
-            .options(
-                selectinload(Tray.production_batch).selectinload(
-                    ProductionBatch.freeze_dryer
+
+def get_packaging_allocation(db: Session, allocation_id: UUID) -> PackagingAllocation:
+    allocation = db.scalar(
+        select(PackagingAllocation)
+        .where(PackagingAllocation.id == allocation_id)
+        .options(
+            selectinload(PackagingAllocation.packaging_operation),
+            selectinload(PackagingAllocation.source_tray_links)
+            .selectinload(PackagingAllocationSourceTray.tray)
+            .selectinload(Tray.tray_slot),
+            selectinload(PackagingAllocation.source_tray_links)
+            .selectinload(PackagingAllocationSourceTray.tray)
+            .selectinload(Tray.physical_tray),
+            selectinload(PackagingAllocation.planned_package_rows),
+            selectinload(PackagingAllocation.packages).selectinload(Package.label),
+        )
+    )
+    if allocation is None:
+        raise BusinessRuleError("Packaging Allocation does not exist.")
+    return allocation
+
+
+def update_packaging_allocation(
+    db: Session,
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: PackagingAllocationUpdateRequest,
+) -> PackagingAllocation:
+    allocation = _open_allocation(db, operation_id, allocation_id)
+    if data.tray_ids is not None:
+        if allocation.packages or allocation.planned_package_rows:
+            raise BusinessRuleError(
+                "Source Trays cannot change after package planning begins."
+            )
+        _replace_allocation_sources(db, allocation, data.tray_ids)
+    if "notes" in data.model_fields_set:
+        allocation.notes = _clean_optional_text(data.notes)
+    if data.planned_packages is not None:
+        _reconcile_planned_rows(db, allocation, data.planned_packages)
+    db.flush()
+    db.expire(allocation, ["planned_package_rows"])
+    if allocation.remaining_weight_grams < -ALLOCATION_TOLERANCE_GRAMS:
+        db.rollback()
+        raise BusinessRuleError(
+            "Planned Packages cannot exceed the selected product weight."
+        )
+    db.commit()
+    return get_packaging_allocation(db, allocation.id)
+
+
+def record_allocation_packages(
+    db: Session,
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: RecordAllocationPackages,
+) -> list[Package]:
+    allocation = _open_allocation(db, operation_id, allocation_id)
+    created: list[Package] = []
+    current_allocated = allocation.allocated_weight_grams
+    try:
+        for line in data.packages:
+            values, planned = _resolve_package_line(db, allocation, line)
+            finished_weight = values["finished_product_weight_grams"]
+            planned_weight = (
+                planned.finished_product_weight_grams
+                if planned is not None and planned.recorded_package_id is None
+                else Decimal("0")
+            ) or Decimal("0")
+            projected = current_allocated - planned_weight + finished_weight
+            if (
+                projected - allocation.selected_weight_grams
+                > ALLOCATION_TOLERANCE_GRAMS
+            ):
+                raise BusinessRuleError(
+                    "Packages cannot exceed the selected product weight."
+                )
+            package_type = _get_package_type(db, values["package_type_id"])
+            storage_id = values.get("storage_location_id")
+            if storage_id is not None:
+                _get_storage_location(db, storage_id)
+            label_values = _default_label_values(allocation, values, line, planned)
+            package = package_repository.create(
+                db,
+                PackageCreate(
+                    packaging_allocation_id=allocation.id,
+                    package_type_id=package_type.id,
+                    package_identifier=_next_package_identifier(
+                        db, values["packaged_at"]
+                    ),
+                    packaged_at=values["packaged_at"],
+                    storage_location_id=storage_id,
+                    package_weight_grams=values["sealed_package_weight_grams"],
+                    finished_product_weight_grams=finished_weight,
+                    oxygen_absorber=values.get("oxygen_absorber")
+                    or package_type.default_oxygen_absorber,
+                    notes=_clean_optional_text(values.get("notes")),
+                    label=label_values,
                 ),
-                selectinload(Tray.tray_slot),
-                selectinload(Tray.physical_tray),
-                selectinload(Tray.weight_checks),
-                selectinload(Tray.packaging_operation_link),
+            )
+            if planned is not None:
+                planned.recorded_package_id = package.id
+                db.add(planned)
+            created.append(package)
+            current_allocated = projected
+        db.commit()
+    except (BusinessRuleError, ValueError):
+        db.rollback()
+        raise
+    return [get_package(db, package.id) for package in created]
+
+
+def complete_packaging_operation(
+    db: Session,
+    operation_id: UUID,
+    *,
+    completed_at: datetime | None = None,
+) -> PackagingOperation:
+    operation = get_packaging_operation(db, operation_id)
+    if operation.status != PackagingOperationStatus.OPEN:
+        raise BusinessRuleError("Only an Open Packaging Operation may be completed.")
+    if not operation.allocations:
+        raise BusinessRuleError(
+            "A Packaging Operation requires at least one Allocation."
+        )
+    for allocation in operation.allocations:
+        if not allocation.packages:
+            raise BusinessRuleError("Every Allocation requires at least one Package.")
+        if any(
+            row.recorded_package_id is None for row in allocation.planned_package_rows
+        ):
+            raise BusinessRuleError(
+                "Every planned Package must be recorded before completion."
+            )
+        if abs(allocation.remaining_weight_grams) > ALLOCATION_TOLERANCE_GRAMS:
+            raise BusinessRuleError(
+                "All selected product must be allocated before completion."
+            )
+        if any(
+            package.label.status == PackageLabelStatus.DRAFT
+            for package in allocation.packages
+        ):
+            raise BusinessRuleError(
+                "Every Package Label must be Ready before completion."
+            )
+    for allocation in operation.allocations:
+        for source in allocation.source_tray_links:
+            source.tray.status = TrayStatus.PACKAGED
+            db.add(source.tray)
+    try:
+        packaging_operation_repository.complete(
+            db, operation, completed_at=completed_at
+        )
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise BusinessRuleError(str(exc)) from exc
+    return get_packaging_operation(db, operation_id)
+
+
+def get_package(db: Session, package_id: UUID) -> Package:
+    package = db.scalar(
+        select(Package)
+        .where(Package.id == package_id)
+        .options(
+            selectinload(Package.packaging_allocation)
+            .selectinload(PackagingAllocation.packaging_operation)
+            .selectinload(PackagingOperation.production_batch)
+            .selectinload(ProductionBatch.freeze_dryer),
+            selectinload(Package.packaging_allocation)
+            .selectinload(PackagingAllocation.source_tray_links)
+            .selectinload(PackagingAllocationSourceTray.tray),
+            selectinload(Package.package_type),
+            selectinload(Package.storage_location),
+            selectinload(Package.label).selectinload(PackageLabel.print_events),
+            selectinload(Package.storage_location_history),
+            selectinload(Package.status_history),
+        )
+    )
+    if package is None:
+        raise BusinessRuleError("Package does not exist.")
+    return package
+
+
+def get_package_label(db: Session, package_id: UUID) -> PackageLabel:
+    package = get_package(db, package_id)
+    return package.label
+
+
+def update_package_label(
+    db: Session, package_id: UUID, data: PackageLabelUpdate
+) -> PackageLabel:
+    label = get_package_label(db, package_id)
+    if (
+        label.package.packaging_allocation.packaging_operation.status
+        != PackagingOperationStatus.OPEN
+    ):
+        raise BusinessRuleError("Completed Packaging Operations cannot be changed.")
+    values = data.model_dump(exclude_unset=True, exclude={"status"})
+    for field, value in values.items():
+        setattr(
+            label,
+            field,
+            _clean_optional_text(value) if isinstance(value, str) else value,
+        )
+    if not label.display_name or not label.display_name.strip():
+        raise BusinessRuleError("Package Label display name is required.")
+    label.status = (
+        PackageLabelStatus.NEEDS_REPRINT
+        if label.print_events
+        else PackageLabelStatus.READY
+    )
+    db.add(label)
+    db.commit()
+    db.refresh(label)
+    return label
+
+
+def preview_package_labels(
+    db: Session, data: PackageLabelSelection
+) -> list[PackageLabel]:
+    return _selected_labels(db, data.package_label_ids, require_printable=False)
+
+
+def print_package_labels(db: Session, data: PackageLabelSelection) -> dict[str, object]:
+    labels = _selected_labels(db, data.package_label_ids, require_printable=True)
+    print_job_id = uuid4()
+    printed_at = data.printed_at or datetime.now(UTC)
+    for label in labels:
+        db.add(
+            PrintEvent(
+                package_label_id=label.id,
+                printed_at=printed_at,
+                template=data.template,
+                print_job_id=print_job_id,
+                notes=_clean_optional_text(data.notes),
+            )
+        )
+        label.status = PackageLabelStatus.READY
+        db.add(label)
+    db.commit()
+    return {"print_job_id": print_job_id, "labels": labels}
+
+
+def _open_allocation(
+    db: Session, operation_id: UUID, allocation_id: UUID
+) -> PackagingAllocation:
+    allocation = get_packaging_allocation(db, allocation_id)
+    if allocation.packaging_operation_id != operation_id:
+        raise BusinessRuleError(
+            "Allocation does not belong to this Packaging Operation."
+        )
+    if allocation.packaging_operation.status != PackagingOperationStatus.OPEN:
+        raise BusinessRuleError("Completed Packaging Operations cannot be changed.")
+    return allocation
+
+
+def _replace_allocation_sources(
+    db: Session, allocation: PackagingAllocation, tray_ids: list[UUID]
+) -> None:
+    if not tray_ids or len(tray_ids) != len(set(tray_ids)):
+        raise BusinessRuleError("Select one or more unique source Trays.")
+    trays = list(db.scalars(select(Tray).where(Tray.id.in_(tray_ids))).all())
+    if len(trays) != len(tray_ids):
+        raise BusinessRuleError("Every source Tray must exist.")
+    occupied = set(
+        db.scalars(
+            select(PackagingAllocationSourceTray.tray_id).where(
+                PackagingAllocationSourceTray.tray_id.in_(tray_ids),
+                PackagingAllocationSourceTray.packaging_allocation_id != allocation.id,
             )
         ).all()
     )
-    if len(trays) != len(unique_ids):
-        raise BusinessRuleError(
-            "One or more selected Trays were not found.",
-            status_code=404,
-        )
     for tray in trays:
-        if tray.packaging_operation_link is not None:
-            raise BusinessRuleError("Completed Trays can only be packaged once.")
+        if tray.id in occupied:
+            raise BusinessRuleError(
+                "A completed Tray may only belong to one Packaging Allocation."
+            )
         if tray.status != TrayStatus.COMPLETED:
-            raise BusinessRuleError("Only Completed Trays are eligible for Packaging.")
-        if tray.final_dry_weight_grams is None:
+            raise BusinessRuleError("Only Completed Trays may supply an Allocation.")
+        if (
+            tray.production_batch_id
+            != allocation.packaging_operation.production_batch_id
+        ):
             raise BusinessRuleError(
-                "Every selected Tray must have a Final Dry Weight before Packaging."
+                "Source Trays must belong to the operation's Production Batch."
             )
-    return sorted(trays, key=lambda tray: tray.tray_slot.slot_number)
+    allocation.source_tray_links.clear()
+    db.flush()
+    allocation.source_tray_links.extend(
+        PackagingAllocationSourceTray(tray_id=tray_id) for tray_id in tray_ids
+    )
 
 
-def _validate_package_lines(
-    data: PackageSelectedTrays,
-    package_types: dict[UUID, PackageType],
-    storage_locations: dict[UUID, StorageLocation],
+def _reconcile_planned_rows(
+    db: Session, allocation: PackagingAllocation, inputs: list[PlannedPackageInput]
 ) -> None:
-    for line in data.packages:
-        package_type = package_types.get(line.package_type_id)
-        if package_type is None:
-            raise BusinessRuleError("Package Type was not found.", status_code=404)
-        if package_type.archived:
-            raise BusinessRuleError(
-                "Archived Package Types cannot be used for Packaging."
+    existing = {row.id: row for row in allocation.planned_package_rows}
+    requested_ids = {item.id for item in inputs if item.id is not None}
+    for row in list(existing.values()):
+        if row.id not in requested_ids:
+            if row.recorded_package_id is not None:
+                raise BusinessRuleError("Recorded package plans cannot be removed.")
+            db.delete(row)
+    for item in inputs:
+        values = item.model_dump(exclude={"id"}, exclude_unset=True)
+        _validate_plan_references(db, values)
+        if item.id is None:
+            planned_package_row_repository.create(
+                db,
+                {"packaging_allocation_id": allocation.id, **values},
             )
-        if line.package_weight_grams <= 0:
-            raise BusinessRuleError("Sealed Package Weight must be greater than zero.")
-        if line.finished_product_weight_grams <= 0:
-            raise BusinessRuleError(
-                "Finished Product Weight must be greater than zero."
-            )
-        if (
-            line.storage_location_id is not None
-            and line.storage_location_id not in storage_locations
-        ):
-            raise BusinessRuleError("Storage Location was not found.", status_code=404)
-        if (
-            line.storage_location_id is not None
-            and storage_locations[line.storage_location_id].archived
-        ):
-            raise BusinessRuleError("Archived Storage Locations cannot be selected.")
+        else:
+            row = existing.get(item.id)
+            if row is None:
+                raise BusinessRuleError(
+                    "Planned Package does not belong to this Allocation."
+                )
+            if row.recorded_package_id is not None:
+                raise BusinessRuleError("Recorded package plans cannot be edited.")
+            planned_package_row_repository.update(db, row, values)
+    db.flush()
 
 
-def _storage_locations_for_package_lines(
+def _validate_plan_references(db: Session, values: dict[str, object]) -> None:
+    package_type_id = values.get("package_type_id")
+    if package_type_id is not None:
+        _get_package_type(db, package_type_id)
+    storage_location_id = values.get("storage_location_id")
+    if storage_location_id is not None:
+        _get_storage_location(db, storage_location_id)
+
+
+def _resolve_package_line(
     db: Session,
-    data: PackageSelectedTrays,
-) -> dict[UUID, StorageLocation]:
-    storage_ids = {
-        line.storage_location_id
-        for line in data.packages
-        if line.storage_location_id is not None
-    }
-    storage_locations = {
-        location.id: location
-        for location in db.scalars(
-            select(StorageLocation).where(StorageLocation.id.in_(storage_ids))
+    allocation: PackagingAllocation,
+    line: PackageLineCreate,
+) -> tuple[dict[str, object], PlannedPackageRow | None]:
+    planned = None
+    values = line.model_dump(
+        exclude={"planned_package_row_id", "label"}, exclude_none=True
+    )
+    if line.planned_package_row_id is not None:
+        planned = db.get(PlannedPackageRow, line.planned_package_row_id)
+        if planned is None or planned.packaging_allocation_id != allocation.id:
+            raise BusinessRuleError(
+                "Planned Package does not belong to this Allocation."
+            )
+        if planned.recorded_package_id is not None:
+            raise BusinessRuleError("Planned Package has already been recorded.")
+        planned_values = {
+            "package_type_id": planned.package_type_id,
+            "finished_product_weight_grams": planned.finished_product_weight_grams,
+            "sealed_package_weight_grams": planned.sealed_package_weight_grams,
+            "oxygen_absorber": planned.oxygen_absorber,
+            "storage_location_id": planned.storage_location_id,
+            "notes": planned.notes,
+        }
+        planned_values.update(values)
+        values = planned_values
+    required = (
+        "package_type_id",
+        "finished_product_weight_grams",
+        "sealed_package_weight_grams",
+    )
+    if any(values.get(field) is None for field in required):
+        raise BusinessRuleError("Package Type and both Package weights are required.")
+    values["packaged_at"] = values.get("packaged_at") or datetime.now(UTC)
+    return values, planned
+
+
+def _default_label_values(
+    allocation: PackagingAllocation,
+    values: dict[str, object],
+    line: PackageLineCreate,
+    planned: PlannedPackageRow | None,
+):
+    from app.schemas import PackageLabelCreate
+
+    trays = [link.tray for link in allocation.source_tray_links]
+    products = list(dict.fromkeys(tray.product_name for tray in trays))
+    display_name = products[0] if len(products) == 1 else "Mixed Product"
+    preparation = (
+        "; ".join(dict.fromkeys(filter(None, (tray.preparation for tray in trays))))
+        or None
+    )
+    label_values = line.label.model_dump(exclude_none=True) if line.label else {}
+    if planned is not None:
+        planned_labels = {
+            "display_name": planned.label_display_name,
+            "description": planned.label_description,
+            "ingredients_summary": planned.label_ingredients_summary,
+            "preparation_summary": planned.label_preparation_summary,
+            "rehydration_instructions": planned.label_rehydration_instructions,
+            "serving_notes": planned.label_serving_notes,
+            "net_weight_display": planned.label_net_weight_display,
+            "fresh_equivalent_display": planned.label_fresh_equivalent_display,
+        }
+        label_values = {
+            **{k: v for k, v in planned_labels.items() if v is not None},
+            **label_values,
+        }
+    label_values.setdefault("display_name", display_name)
+    label_values.setdefault("preparation_summary", preparation)
+    label_values.setdefault(
+        "net_weight_display",
+        f'{Decimal(values["finished_product_weight_grams"]):.1f} g',
+    )
+    fresh = _fresh_equivalent(
+        allocation, Decimal(values["finished_product_weight_grams"])
+    )
+    if fresh is not None:
+        label_values.setdefault("fresh_equivalent_display", f"{fresh:.1f} g fresh")
+    return PackageLabelCreate(status=PackageLabelStatus.READY, **label_values)
+
+
+def _fresh_equivalent(
+    allocation: PackagingAllocation, package_weight: Decimal
+) -> Decimal | None:
+    dry = allocation.selected_weight_grams
+    if dry <= 0:
+        return None
+    fresh = sum(
+        (
+            link.tray.starting_weight_grams or Decimal("0")
+            for link in allocation.source_tray_links
+        ),
+        start=Decimal("0"),
+    )
+    return package_weight * fresh / dry if fresh > 0 else None
+
+
+def _selected_labels(
+    db: Session, ids: list[UUID], *, require_printable: bool
+) -> list[PackageLabel]:
+    if len(ids) != len(set(ids)):
+        raise BusinessRuleError("Select each Package Label only once.")
+    labels = list(
+        db.scalars(
+            select(PackageLabel)
+            .where(PackageLabel.id.in_(ids))
+            .options(
+                selectinload(PackageLabel.package).selectinload(Package.package_type),
+                selectinload(PackageLabel.package).selectinload(
+                    Package.storage_location
+                ),
+                selectinload(PackageLabel.print_events),
+            )
         ).all()
-    }
-    unassigned = _get_or_create_unassigned_storage_location(db)
-    storage_locations[unassigned.id] = unassigned
-    return storage_locations
-
-
-def _storage_location_for_line(
-    storage_location_id: UUID | None,
-    storage_locations: dict[UUID, StorageLocation],
-) -> StorageLocation:
-    if storage_location_id is None:
-        return next(
-            location
-            for location in storage_locations.values()
-            if location.name == UNASSIGNED_STORAGE_LOCATION_NAME
+    )
+    if len(labels) != len(ids):
+        raise BusinessRuleError("Every selected Package Label must exist.")
+    if require_printable and any(
+        label.status == PackageLabelStatus.DRAFT for label in labels
+    ):
+        raise BusinessRuleError(
+            "Draft Package Labels must be made Ready before printing."
         )
-    return storage_locations[storage_location_id]
+    labels_by_id = {label.id: label for label in labels}
+    return [labels_by_id[label_id] for label_id in ids]
+
+
+def _get_package_type(
+    db: Session, package_type_id: UUID, *, allow_archived: bool = False
+) -> PackageType:
+    package_type = db.get(PackageType, package_type_id)
+    if package_type is None:
+        raise BusinessRuleError("Package Type does not exist.")
+    if package_type.archived and not allow_archived:
+        raise BusinessRuleError("Archived Package Types cannot be used.")
+    return package_type
+
+
+def _get_storage_location(db: Session, storage_location_id: UUID) -> StorageLocation:
+    location = db.get(StorageLocation, storage_location_id)
+    if location is None or location.archived:
+        raise BusinessRuleError("Storage Location is not available.")
+    return location
 
 
 def _get_or_create_unassigned_storage_location(db: Session) -> StorageLocation:
@@ -448,124 +709,39 @@ def _get_or_create_unassigned_storage_location(db: Session) -> StorageLocation:
             StorageLocation.name == UNASSIGNED_STORAGE_LOCATION_NAME
         )
     )
-    if location is not None:
-        if location.archived:
-            location.archived = False
-            db.add(location)
-            db.flush()
-        return location
-
-    location = StorageLocation(
-        name=UNASSIGNED_STORAGE_LOCATION_NAME,
-        notes=(
-            "System location for Packages created before a Storage Location "
-            "is assigned."
-        ),
-        archived=False,
-    )
-    db.add(location)
-    db.flush()
+    if location is None:
+        location = StorageLocation(
+            name=UNASSIGNED_STORAGE_LOCATION_NAME,
+            notes="System-provided location for Packages not yet assigned.",
+            archived=False,
+        )
+        db.add(location)
+        db.flush()
     return location
 
 
 def _next_package_identifier(db: Session, packaged_at: datetime) -> str:
     year = packaged_at.year
     prefix = f"PKG-{year}-"
-    existing_count = db.scalar(
-        select(func.count(Package.id)).where(
-            Package.package_identifier.like(f"{prefix}%")
+    count = (
+        db.scalar(
+            select(func.count())
+            .select_from(Package)
+            .where(Package.package_identifier.like(f"{prefix}%"))
         )
+        or 0
     )
-    next_number = int(existing_count or 0) + 1
-    while True:
-        identifier = f"{prefix}{next_number:06d}"
-        exists = db.scalar(
-            select(Package.id).where(Package.package_identifier == identifier)
+    candidate = count + 1
+    while (
+        db.scalar(
+            select(Package.id).where(
+                Package.package_identifier == f"{prefix}{candidate:06d}"
+            )
         )
-        if exists is None:
-            return identifier
-        next_number += 1
-
-
-def _effective_oxygen_absorber(
-    override: str | None,
-    package_type: PackageType,
-) -> str | None:
-    return _clean_optional_text(override) or package_type.default_oxygen_absorber
-
-
-def _packaging_warnings(
-    source_weight_grams: Decimal,
-    package_weight_grams: Decimal,
-) -> list[str]:
-    if source_weight_grams == package_weight_grams:
-        return []
-    difference = package_weight_grams - source_weight_grams
-    return [
-        (
-            "Package weights differ from the selected Tray Final Dry Weight total "
-            f"by {difference} g. Review before sealing; this warning does not "
-            "block Packaging."
-        )
-    ]
-
-
-def _label_data(package: Package) -> dict[str, object]:
-    trays = [link.tray for link in package.packaging_operation.tray_links]
-    production_batch = trays[0].production_batch
-    products = sorted({tray.product_name for tray in trays})
-    product_summary = (
-        products[0] if len(products) == 1 else "Mixed: " + ", ".join(products)
-    )
-    preparations = sorted(
-        {
-            tray.preparation.strip()
-            for tray in trays
-            if tray.preparation and tray.preparation.strip()
-        }
-    )
-    preparation_summary = "; ".join(preparations) or "No preparation recorded"
-    return {
-        "package_id": package.id,
-        "package_identifier": package.package_identifier,
-        "batch_number": production_batch.batch_number,
-        "freeze_dryer": production_batch.freeze_dryer.name,
-        "product_summary": product_summary,
-        "package_type": package.package_type.name,
-        "finished_product_weight_grams": package.finished_product_weight_grams,
-        "package_weight_grams": package.package_weight_grams,
-        "fresh_equivalent_grams": _fresh_equivalent_grams(package, trays),
-        "preparation_summary": preparation_summary,
-        "oxygen_absorber": package.oxygen_absorber,
-        "packaged_at": package.packaging_operation.packaged_at,
-        "label_template": package.package_type.default_label_template,
-    }
-
-
-def _fresh_equivalent_grams(
-    package: Package,
-    trays: list[Tray],
-) -> Decimal | None:
-    finished_weight = package.finished_product_weight_grams
-    if finished_weight is None:
-        return None
-    if any(
-        tray.starting_weight_grams is None
-        or tray.starting_weight_grams <= 0
-        or tray.final_dry_weight_grams is None
-        or tray.final_dry_weight_grams <= 0
-        for tray in trays
+        is not None
     ):
-        return None
-    total_final = sum(
-        (tray.final_dry_weight_grams for tray in trays),
-        Decimal("0"),
-    )
-    total_starting = sum(
-        (tray.starting_weight_grams for tray in trays),
-        Decimal("0"),
-    )
-    return total_starting * (finished_weight / total_final)
+        candidate += 1
+    return f"{prefix}{candidate:06d}"
 
 
 def _clean_optional_text(value: str | None) -> str | None:

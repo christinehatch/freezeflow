@@ -40,9 +40,9 @@ Later milestones extend existing functionality rather than replacing it.
 | 1 - Persistence Layer | Complete |
 | 2 - Production Workflow | Complete |
 | 3 - Weight Tracking | Complete |
-| 4 - Packaging | Complete |
+| 4 - Packaging | Reopened |
 | 5 - Inventory | Planned |
-| 6 - Recipes | Planned |
+| 6 - Preparation Presets | Planned |
 | 7 - Reporting | Planned |
 | 8 - Application Polish | Planned |
 | 9 - Version 1 Release | Planned |
@@ -149,12 +149,18 @@ Includes:
 - Traceability
 - Packaging Worksheet
 - Printable human-readable labels
+- Durable Package Label work within a resumable open Packaging Operation
+- Packaging Allocations that connect selected completed Trays to one or more Packages
+- Planned Package Rows that may exist before Package creation
+- Selection-based label printing with append-only Print Events
+- One editable Package Label persisted for every created Package
+- Package Label editing and reprinting
 - Separate Package Finished Product and Sealed Package Weights
 - Derived fresh-to-dry equivalence, Packaging Date, and preparation on labels
 - Auto-generated Package identifiers
 - Selected Storage Location or implicit Unassigned Storage Location
 
-Package attributes (sealed weight, oxygen absorber, notes) are recorded directly on each Package.
+Package attributes (finished product weight, sealed weight, oxygen absorber, notes) are recorded directly on each Package. A Package is created when the operator intentionally records it. Package Label editing and printing remain flexible and do not dictate the order of physical packaging work.
 
 Package Type should provide reusable package formats and defaults such as oxygen absorber size and printable label template while remaining editable during packaging.
 
@@ -184,17 +190,19 @@ The primary user outcome is answering:
 
 ---
 
-## Milestone 6 — Recipes
+## Milestone 6 — Preparation Presets
 
 Improve production efficiency.
 
 Includes:
 
-- Recipe management
-- Recipe templates
-- Applying Recipes to Trays
-- Recipe search
-- Recipe organization
+- Preparation Preset management
+- Reusable Products, Ingredients, and Preparation Methods
+- Autocomplete with inline one-off values
+- Applying Preparation Presets to Trays
+- Preparation Preset search and organization
+
+Production never requires a saved Preparation Preset. Trays always preserve their own immutable Preparation Metadata snapshot.
 
 ---
 

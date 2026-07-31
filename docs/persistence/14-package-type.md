@@ -4,7 +4,7 @@
 
 A Package Type represents a reusable packaging format used when creating finished Packages.
 
-Package Types reduce repeated entry during Packaging and help the application suggest appropriate defaults such as oxygen absorber size and printable label template.
+Package Types reduce repeated entry during Packaging and help the application suggest appropriate defaults such as oxygen absorber size and printable label layout or style.
 
 Examples:
 
@@ -22,7 +22,7 @@ Examples:
 | id | Yes | No | Unique identifier |
 | name | Yes | Yes | Display name |
 | defaultOxygenAbsorber | No | Yes | Suggested absorber for this package format |
-| defaultLabelTemplate | No | Yes | Suggested human-readable label template |
+| defaultLabelTemplate | No | Yes | Suggested label layout or style; not label content |
 | notes | No | Yes | Optional setup notes |
 | archived | Yes | Yes | Archived Package Types are hidden from new Packaging |
 
@@ -82,7 +82,7 @@ PTYPE-003
 
 Package Type defaults may prefill Package fields, but Package-level values remain editable during Packaging.
 
-Milestone 4 defaults are limited to oxygen absorber and printable label template.
+Milestone 4 defaults are limited to oxygen absorber and printable label layout or style. Package Label content belongs to the Package and is not stored on the Package Type.
 
 ---
 

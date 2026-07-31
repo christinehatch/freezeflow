@@ -114,7 +114,7 @@ Version 1 focuses on managing the complete freeze-drying workflow.
 
 This includes:
 
-* Recipes and product preparation
+* Preparation Metadata and optional Preparation Presets
 * Production batches
 * Freeze dryer management
 * Tray tracking

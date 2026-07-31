@@ -26,9 +26,10 @@ Every Tray preserves its own production history.
 | productionBatchId | Yes | No | Parent Production Batch |
 | traySlotId | Yes | No* | Freeze Dryer Tray Slot used during the Batch |
 | physicalTrayId | Yes | No* | Reusable Physical Tray used during the Batch |
-| recipeId | No | No | Optional Recipe template used |
+| preparationPresetId | No | No | Optional Preparation Preset used |
 | productName | Yes | Yes** | Historical product name |
-| preparation | Yes | Yes** | Historical preparation snapshot |
+| ingredients | No | Yes** | Immutable Ingredient snapshot |
+| preparationMethods | No | Yes** | Immutable Preparation Method snapshot |
 | notes | No | Yes | Optional production notes |
 | status | Yes | System | Lifecycle state |
 | startingWeightGrams | No | Yes*** | Recorded before drying |
@@ -50,7 +51,7 @@ A Tray:
 - belongs to one Production Batch
 - references one Tray Slot
 - references one Physical Tray
-- may reference one Recipe
+- may reference one Preparation Preset
 - has many Weight Checks
 - belongs to zero or one Packaging Operation
 
@@ -62,10 +63,12 @@ A Tray never belongs to more than one Packaging Operation.
 
 The Tray owns its historical production information.
 
-When a Recipe is selected:
+When a Preparation Preset is selected:
 
-- the Recipe is copied onto the Tray
-- future Recipe edits do not affect the Tray
+- its Product, Ingredients, Preparation Methods, and Notes are copied onto the Tray
+- future Preparation Preset edits do not affect the Tray
+
+Users may also enter one-off Ingredients and Preparation Methods without creating reusable records.
 
 The Tray remains the permanent historical record of how that product was produced.
 
@@ -165,7 +168,7 @@ A Tray preserves its own historical preparation information.
 
 TR-005
 
-A Tray may reference one optional Recipe.
+A Tray may reference one optional Preparation Preset.
 
 ---
 
@@ -219,7 +222,7 @@ They are never deleted.
 
 The Tray is the central production entity within Freezeflow.
 
-Production history, drying progress, recipe snapshots, and packaging traceability all originate from the Tray.
+Production history, drying progress, Preparation Metadata snapshots, and packaging traceability all originate from the Tray.
 
 Most historical reports are ultimately derived from Tray records.
 

@@ -166,7 +166,8 @@ When a user creates a Production Batch from an idle Freeze Dryer:
 * the user can edit the suggested Batch Number before saving
 * the Draft Production Batch shows the Freeze Dryer's Tray Slots
 * the user selects which Physical Tray is placed in each Tray Slot
-* the user records Product, Recipe, Preparation, and Notes for each selected tray
+* the user records Product, Ingredients, Preparation Methods, and Notes for each selected tray
+* the user may apply an optional Preparation Preset to preload those fields
 
 The user-facing action should remain focused on starting the production workflow, not on database records.
 

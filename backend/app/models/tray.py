@@ -22,7 +22,7 @@ from app.models.enums import TrayStatus, enum_values
 from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
-    from app.models.packaging_operation import PackagingOperationTray
+    from app.models.packaging_operation import PackagingAllocationSourceTray
     from app.models.physical_tray import PhysicalTray
     from app.models.production_batch import ProductionBatch
     from app.models.recipe import Recipe
@@ -92,6 +92,15 @@ class Tray(IdMixin, Base):
     physical_tray: Mapped[PhysicalTray] = relationship(back_populates="trays")
     recipe: Mapped[Recipe | None] = relationship(back_populates="trays")
     weight_checks: Mapped[list[WeightCheck]] = relationship(back_populates="tray")
-    packaging_operation_link: Mapped[PackagingOperationTray | None] = relationship(
-        back_populates="tray"
+    packaging_allocation_links: Mapped[list[PackagingAllocationSourceTray]] = (
+        relationship(back_populates="tray")
+    )
+    # Phase 1 compatibility for existing tray-detail read paths.
+    packaging_operation_link: Mapped[PackagingAllocationSourceTray | None] = (
+        relationship(
+            "PackagingAllocationSourceTray",
+            viewonly=True,
+            uselist=False,
+            overlaps="packaging_allocation_links,tray",
+        )
     )

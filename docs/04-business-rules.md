@@ -317,28 +317,25 @@ Once a Tray has been marked complete, no additional Weight Checks may be recorde
 
 ## TR-010
 
-A completed Tray may participate in only one Packaging Operation.
+A completed Tray may be referenced by only one active Packaging Allocation at a time.
+
+The Packaging Allocation, not the Packaging Operation itself, records which completed Trays supply product to one or more Packages.
 
 ---
 
 ## TR-011
 
-A Packaging Operation may either:
+A Packaging Allocation may reference one completed Tray or combine multiple completed Trays from the same Production Batch.
 
-* package one completed Tray individually, or
-* combine multiple compatible completed Trays before packaging.
-
-A Tray may never participate in more than one Packaging Operation.
+Separate product combinations within one Production Batch use separate Packaging Allocations inside the same open Packaging Operation.
 
 ---
 
 ## TR-012
 
-A Tray cannot be split between multiple Packaging Operations.
+Completed product must not disappear when Packaging is interrupted or partially recorded.
 
-Once a Tray is included in a Packaging Operation, the entire Tray is considered consumed by that operation.
-
-The resulting product may be divided into one or more Packages.
+Selected Source Weight, Allocated Weight, and Remaining Weight are derived for each Packaging Allocation. A Packaging Operation cannot complete while any Allocation has Remaining Weight greater than zero.
 
 ---
 
@@ -399,61 +396,61 @@ Packaging begins only after a Tray has completed drying.
 
 ## PK-002
 
-A Packaging Operation represents one packaging action.
-
-The system creates a Packaging Operation when the user packages one or more completed Trays.
+A Packaging Operation is the resumable aggregate root for converting completed
+product from one Production Batch into labeled inventory.
 
 ---
 
 ## PK-003
 
-A Packaging Operation may contain one or more completed Trays.
+A Packaging Operation has status `Open` or `Completed` and is completed only by
+an explicit user action.
 
 ---
 
 ## PK-004
 
-A Tray may participate in only one Packaging Operation.
+A Production Batch may have at most one Open Packaging Operation.
 
 ---
 
 ## PK-005
 
-Only compatible products should be included in the same Packaging Operation.
-
-Compatibility is determined by the user.
-
-For Version 1, Trays selected for the same Packaging Operation must belong to the same Production Batch.
-
-Because a Production Batch belongs to exactly one Freeze Dryer, this also preserves same-Freeze-Dryer packaging history.
-
-The system may provide suggestions but should not automatically combine products.
+A Packaging Allocation is an identified child of one Packaging Operation. It
+references the exact completed Trays supplying product for one or more Packages.
+It may exist before any Package is recorded but never independently of its
+Packaging Operation.
 
 ---
 
 ## PK-006
 
-A Packaging Operation may produce one or more Packages.
+All source Trays in a Packaging Allocation must belong to the Packaging
+Operation's Production Batch. Separate product combinations use separate
+Packaging Allocations.
 
 ---
 
 ## PK-007
 
-A Packaging Operation records the total source weight of the completed Trays included in the operation.
+Completed product may only be allocated to one active Packaging Allocation at a
+time. A completed Tray already fully represented by completed Packaging work is
+not eligible again.
 
 ---
 
 ## PK-008
 
-The total source weight should be compared with the total weight of the Packages produced.
-
-The system should warn the user when the values differ unexpectedly.
+Selected source weight, allocated weight, and remaining weight are derived from
+source Tray Final Dry Weights and Package Finished Product Weights. Remaining
+weight is not stored as an independently editable field.
 
 ---
 
 ## PK-009
 
-Every Package belongs to exactly one Packaging Operation.
+Every Package belongs to exactly one Packaging Allocation and therefore exactly
+one Packaging Operation.
 
 ---
 
@@ -504,17 +501,83 @@ Package may move after the label is printed.
 
 ## PK-015
 
-Completing a Packaging Operation must allocate the entire source Finished Product
-Weight across the Packages produced by that operation.
+Completing a Packaging Operation must allocate the entire selected source
+Finished Product Weight across Packages in its Allocations.
 
 The sum of Package Finished Product Weights must equal the total Final Dry Weight
 of the selected source Trays. Packaging remains in preparation while product is
 unallocated or overallocated so that no source product silently disappears.
 
-This allocation rule is distinct from the sealed Package Weight comparison in
-PK-008. Differences involving sealed Package Weight remain warnings because bags,
+This allocation rule is distinct from the Finished Product Weight and Sealed
+Package Weight distinction in PK-010. Differences involving Sealed Package Weight remain warnings because bags,
 oxygen absorbers, labels, crumbs, and normal measurement variation may affect the
 sealed weight.
+
+---
+
+## PK-016
+
+Every persisted Package owns exactly one Package Label with state `Draft`,
+`Ready`, or `Needs Reprint`.
+
+A Package Label is presentation data and must not rewrite Production History,
+Weight Checks, source Tray Preparation Metadata, or Packaging Operation facts.
+
+---
+
+## PK-017
+
+Open Packaging work is durable. Allocations, planned package rows, draft label
+information, recorded Packages, notes, and progress must survive navigation and
+application restart. Planned package rows are not Packages or inventory.
+
+---
+
+## PK-018
+
+A Package is created when the operator intentionally records it in Freezeflow.
+The system does not infer the physical sequence and does not use a Draft Package
+inventory state.
+
+---
+
+## PK-019
+
+Package Label content may be edited after Package creation. Editing a previously
+printed label sets its state to `Needs Reprint`. Before Milestone 8, the current
+content is overwritten; Milestone 8 adds label-edit Audit history.
+
+---
+
+## PK-020
+
+Printing and reprinting append Print Events. `Printed` and `Reprinted` are events,
+not Package Label states, and Print Events must not modify inventory or Production
+History.
+
+---
+
+## PK-021
+
+One selection-based print engine supports Package, Packaging Allocation,
+Packaging Operation, Production Batch, today's Ready labels, and custom Package
+selection scopes. Avery 5163 output supports ten labels per sheet.
+
+---
+
+## PK-022
+
+Package creation automatically creates the initial `In Storage` Package Status
+History record and initial Storage Location History using the selected Storage
+Location or the implicit Unassigned Storage Location.
+
+---
+
+## PK-023
+
+The application must not require the operator to perform filling, weighing,
+label preparation, printing, and storage assignment in one fixed physical order.
+All required information must be present before the Packaging Operation completes.
 
 ---
 
@@ -584,29 +647,69 @@ Inventory searches should also include Given Away packages when historical infor
 
 ---
 
-# Recipe Rules
+## IN-006
+
+Creating a Package automatically creates its initial Package Status History record with status In Storage.
+
+---
+
+## IN-007
+
+Every Package Inventory Status transition appends one Package Status History record.
+
+Package Status History is never edited or deleted.
+
+---
+
+## IN-008
+
+Package status transitions record both the Effective Time of the real-world event and the system-assigned Recorded Time.
+
+The Effective Time defaults to the current time and may be changed by the user before confirming the transition.
+
+---
+
+## IN-009
+
+Package status transitions may include optional Notes.
+
+Notes provide context without creating Recipient, Gift, Consumption, or Disposal entities.
+
+---
+
+## IN-010
+
+Correction is not an Inventory Status.
+
+Incorrect lifecycle actions follow the correction and audit policy and never silently overwrite Package Status History.
+
+---
+
+# Preparation Metadata and Preset Rules
 
 ## RC-001
 
-Recipes are reusable preparation templates.
+Preparation Presets are optional reusable combinations of Product, Ingredients,
+Preparation Methods, and default Notes.
 
 ---
 
 ## RC-002
 
-Recipes may be reused across many Trays.
+Preparation Presets may be reused across many Trays.
 
 ---
 
 ## RC-003
 
-When a Tray is created from a Recipe, the relevant Recipe information is copied onto the Tray.
+When a Preparation Preset is applied, its relevant values are copied into the
+Tray's Preparation Metadata snapshot.
 
 ---
 
 ## RC-004
 
-A Tray owns its historical preparation information.
+A Tray owns its immutable historical Preparation Metadata snapshot.
 
 The historical preparation information on a Tray is the source of truth for what was actually prepared.
 
@@ -614,7 +717,8 @@ The historical preparation information on a Tray is the source of truth for what
 
 ## RC-005
 
-Editing a Recipe does not modify historical Trays that previously used that Recipe.
+Editing a Preparation Preset or reusable suggestion does not modify historical
+Trays that previously used it.
 
 Historical Trays preserve the preparation information that existed when they were created.
 
@@ -622,9 +726,10 @@ Historical Trays preserve the preparation information that existed when they wer
 
 ## RC-006
 
-A Tray may be created without a Recipe.
+A Tray may be created without a Preparation Preset.
 
-In that case, the user records the product and preparation information directly on the Tray.
+Users may enter one-off Product, Ingredient, and Preparation Method values inline
+without first creating reusable catalog records.
 
 ---
 
@@ -719,7 +824,8 @@ Every Package must always be traceable to:
 * the Freeze Dryer used
 * the recorded Weight Checks
 * the historical preparation information
-* the Recipe, if one was used
+* the Preparation Metadata snapshot
+* the Preparation Preset, if one supplied defaults
 
 ---
 

@@ -137,17 +137,17 @@ Reports should focus on insight rather than raw data.
 
 ---
 
-# Recipes
+# Preparation Presets
 
 ## Primary Purpose
 
 Reduce repetitive typing.
 
-Recipes are reusable preparation templates.
+Preparation Presets are reusable combinations of Products, Ingredients, Preparation Methods, and default Notes.
 
 They exist to improve efficiency during Production.
 
-Recipes are not historical records.
+Preparation Presets are not historical records.
 
 Historical Production always owns its own preparation information.
 
@@ -187,7 +187,7 @@ Dashboard should not become Reports.
 
 Inventory should not become Production.
 
-Recipes should not become historical records.
+Preparation Presets should not become historical records.
 
 Reports should not become inventory management.
 
@@ -208,6 +208,6 @@ Every screen should answer one primary question.
 | Inventory | Where is my food? |
 | Package Details | Can I trust this Package? |
 | Reports | What can I learn from my history? |
-| Recipes | How can I save time next time? |
+| Preparation Presets | How can I save time next time? |
 
 If a user can answer that question within a few seconds of opening the screen, the design is successful.

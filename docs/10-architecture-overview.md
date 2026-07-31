@@ -33,11 +33,11 @@ ADR-0008 defines this principle.
 # High-Level Flow
 
 ```text
-Recipes (Optional Templates)
+Preparation Presets (Optional)
             │
-            │ copied onto
+            │ prefill
             ▼
-    Production Batch
+ Preparation Metadata
             │
             ▼
          Tray(s)
@@ -55,7 +55,12 @@ Recipes (Optional Templates)
   Packaging Operation
             │
             ▼
+ Packaging Allocation(s)
+            │
+            ▼
        Package(s)
+            │
+            ├──── Package Label
             │
             ▼
    Storage Location
@@ -71,15 +76,18 @@ Recipes (Optional Templates)
 
 # Domain Relationships
 
-## Recipes
+## Preparation Metadata and Presets
 
-Recipes are reusable preparation templates.
+Preparation Metadata records what was freeze dried: Product, Ingredients,
+Preparation Methods, and processing Notes.
 
-Recipes reduce repetitive data entry but are not historical records.
+Users may enter this information directly. Reusable Preparation Presets reduce
+repetitive entry but are never required.
 
-When a Recipe is used, its preparation information is copied onto the Tray.
+When a Preparation Preset is used, its values are copied into the Tray's
+immutable Preparation Metadata snapshot.
 
-Editing a Recipe never changes historical Production.
+Editing a Preparation Preset never changes historical Production.
 
 ---
 
@@ -146,17 +154,25 @@ Total drying time is derived from non-voided Drying Run durations.
 
 ## Packaging Operations
 
-A Packaging Operation represents the act of converting one or more completed Trays into one or more finished Packages.
+A Packaging Operation is the aggregate root and resumable workspace that
+converts completed product from one Production Batch into labeled inventory.
+Its lifecycle is Open to Completed, and a Production Batch may have at most one
+Open operation. The operator explicitly completes it after all selected product
+has been allocated to recorded Packages.
 
-Packaging Operations exist primarily to preserve traceability.
+Packaging Operations are internal workflow records. Users work in a task-focused
+Packaging workspace rather than administering operations as CRUD records.
 
-They are internal system records and are not a primary user-facing concept.
+## Packaging Allocations
 
-For Version 1, a Packaging Operation may combine eligible Trays from the same Production Batch.
+A Packaging Allocation is an identified child of one Packaging Operation. It
+references one or more completed Trays as its exact product source and connects
+that product to planned rows, Package Labels, and Packages. It may exist before
+any Package is recorded, but never independently of its parent operation.
 
-Because a Production Batch belongs to one Freeze Dryer, this also preserves same-Freeze-Dryer history.
-
-Packaging Operations should not mix Trays from different Production Batches.
+Separate product combinations use separate Allocations. Selected Source Weight
+comes from the source Trays, Allocated Weight comes from Package Finished Product
+Weight, and Remaining Weight is derived from their difference.
 
 ---
 
@@ -178,12 +194,39 @@ Packages are the inventory units managed by Freezeflow.
 
 Each Package:
 
-* originates from one Packaging Operation
+* originates from one Packaging Allocation within a Packaging Operation
 * records one Package Type
 * belongs to one current Storage Location
 * has one Inventory Status
+* owns one editable Package Label
 
 Packages are the primary objects users search for after production is complete.
+
+A Package is created when the operator intentionally records it. Freezeflow does
+not infer when the physical bag began to exist or prescribe whether recording,
+filling, weighing, labeling, printing, and storage happen in a fixed order.
+
+## Package Labels
+
+A Package Label is the persistent, editable human-facing presentation owned by
+one Package. Planned Package rows and draft label information are durable child
+work within an Open Packaging Operation and Allocation; they are not Packages
+and do not create inventory.
+
+Package Label states are Draft, Ready, and Needs Reprint. Printing and reprinting
+append Print Events rather than changing inventory or Production History.
+
+Package Label content may summarize Production History, but editing it never
+rewrites the Tray's immutable Preparation Metadata or other Production records.
+Before Milestone 8, editing replaces the current Package Label. Milestone 8
+adds correction and audit history.
+
+## Workflow Flexibility
+
+Freezeflow validates the required final state without forcing physical tasks into
+one sequence. Open Packaging work survives application closure. Operators may
+record Packages and print labels before, during, or after filling bags. See
+ADR-0015.
 
 ---
 
@@ -212,7 +255,7 @@ Reports answer practical questions such as:
 * How long does chicken usually take?
 * How much inventory has been produced?
 
-Reports use historical production records rather than current Recipe definitions.
+Reports use historical production records rather than current Preparation Preset definitions.
 
 ---
 
@@ -239,7 +282,7 @@ Production Batch
 Freeze Dryer
     │
     ▼
-Recipe (if used)
+Preparation Preset (if used)
 ```
 
 This traceability is one of the primary architectural goals of Freezeflow.
@@ -252,7 +295,8 @@ The architecture intentionally separates different responsibilities.
 
 | Responsibility        | Primary Entity      |
 | --------------------- | ------------------- |
-| Preparation Templates | Recipe              |
+| Production Description | Preparation Metadata |
+| Reusable Preparation   | Preparation Preset |
 | Production Session    | Production Batch    |
 | Production History    | Tray                |
 | Reusable Tray Setup   | Physical Tray       |
@@ -262,6 +306,7 @@ The architecture intentionally separates different responsibilities.
 | Packaging Event       | Packaging Operation |
 | Packaging Defaults    | Package Type        |
 | Inventory             | Package             |
+| Package Presentation  | Package Label       |
 | Physical Storage      | Storage Location    |
 | Historical Analysis   | Reports             |
 
@@ -283,7 +328,8 @@ Freezeflow follows several core architectural principles:
 * Prefer explicit relationships over inferred relationships.
 * Build around real-world workflows.
 * Track inventory at the Package level.
-* Treat Recipes as reusable templates, not historical records.
+* Treat Preparation Presets as optional conveniences, not historical records.
+* Keep Production History separate from editable Package presentation.
 * Derive calculated values whenever practical.
 * Record corrections without destroying history.
 

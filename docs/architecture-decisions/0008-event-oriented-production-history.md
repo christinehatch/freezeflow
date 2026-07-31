@@ -61,7 +61,7 @@ Both are required.
 
 Freezeflow is **not** adopting full event sourcing for Version 1.
 
-Primary entities such as Production Batch, Tray, Package, Recipe, Freeze Dryer, and Storage Location continue to store canonical current state.
+Primary entities such as Production Batch, Tray, Package, Preparation Preset, Freeze Dryer, and Storage Location continue to store canonical current state.
 
 Historical event records supplement that state so the application can preserve traceability, explain changes, and support future reporting.
 
@@ -111,9 +111,9 @@ Drying Run duration provides the basis for actual machine drying time.
 
 Packaging is a transformation event.
 
-Completed Trays are consumed by one Packaging Operation and produce one or more Packages.
+Completed Trays supply product to identified Packaging Allocations inside a Packaging Operation. Each Allocation connects its exact source Trays to one or more intentionally recorded Packages.
 
-The Packaging Operation preserves the moment where completed dry product becomes sealed inventory.
+The resumable Packaging Operation preserves the workspace where completed dry product becomes labeled inventory. Its completion marks the end of the operation, while each Package preserves its own `packagedAt` time.
 
 ## Supplies
 

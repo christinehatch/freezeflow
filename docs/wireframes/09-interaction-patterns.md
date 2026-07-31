@@ -148,7 +148,7 @@ Require confirmation only for actions that cannot easily be undone.
 Examples requiring confirmation:
 
 * Cancel Production Batch
-* Archive Recipe
+* Archive Preparation Preset
 * Mark Package Depleted
 * Mark Package Given Away
 
@@ -222,7 +222,7 @@ Examples:
 
 * Freeze Dryers
 * Packages
-* Recipes
+* Preparation Presets
 * Trays, mobile
 
 Cards should emphasize identity and current status.

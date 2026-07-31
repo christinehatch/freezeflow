@@ -28,5 +28,16 @@ class DryingRunStatus(StrEnum):
     VOIDED = "Voided"
 
 
+class PackagingOperationStatus(StrEnum):
+    OPEN = "Open"
+    COMPLETED = "Completed"
+
+
+class PackageLabelStatus(StrEnum):
+    DRAFT = "Draft"
+    READY = "Ready"
+    NEEDS_REPRINT = "Needs Reprint"
+
+
 def enum_values(enum_class: type[StrEnum]) -> list[str]:
     return [member.value for member in enum_class]

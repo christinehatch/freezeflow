@@ -156,8 +156,8 @@ Package Fresh Equivalent is derived, never persisted independently:
 
 `sum(source Tray Starting Weights) * (Package Finished Product Weight / sum(source Tray Final Dry Weights))`
 
-All inputs use canonical grams. For multi-Tray operations, both source sums use
-every Tray in the Packaging Operation. Each Package receives its own derived
+All inputs use canonical grams. For multi-Tray Allocations, both source sums use
+every Tray referenced by the Package's Packaging Allocation. Each Package receives its own derived
 equivalent. Missing source weights or a zero combined Final Dry Weight produce
 `Fresh equivalent unavailable` without blocking label printing.
 

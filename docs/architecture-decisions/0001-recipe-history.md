@@ -2,7 +2,9 @@
 
 # Status
 
-Accepted
+Superseded by ADR-0013
+
+This decision is preserved for historical context. ADR-0013 replaces the Recipe-first model with structured Preparation Metadata and optional Preparation Presets while retaining the same immutable-snapshot principle.
 
 ---
 

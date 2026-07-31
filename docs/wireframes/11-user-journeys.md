@@ -29,7 +29,7 @@ Create Freeze Dryer #2 (optional)
 
 Create Storage Locations
 
-Create Recipes (optional)
+Create Preparation Presets (optional)
 
 Ready to begin Production
 ```
@@ -57,12 +57,14 @@ Create Production Batch
 
 Add one or more Trays
 
-Select a Recipe (optional)
+Select a Preparation Preset (optional)
 
 Enter:
 
 * Product
-* Preparation
+* Ingredients
+* Preparation Methods
+* Notes
 * Starting Weight
 
 Start Production
@@ -157,34 +159,49 @@ Convert completed Trays into finished inventory.
 ```text
 Packaging
 
-Select Completed Trays
+Start or resume the open Packaging Operation for one Production Batch
 
-Review Total Dry Weight
+Create a Packaging Allocation by selecting the completed Trays being combined
+
+Review Selected Source Weight
 
 Review Packaging Worksheet
 
-Create one or more Packages
+Add or adjust Planned Package Rows as useful
+
+Record Packages as the operator intentionally enters them
 
 Enter:
 
 * Package Type
-* Package Weight
+* Finished Product Weight
+* Sealed Package Weight
+* Display Name
+* Description
+* Ingredients Summary
+* Preparation Summary
+* Serving Notes
+* Rehydration Instructions
 * Storage Location or Unassigned
-
-Print human-readable labels
 
 Review or edit suggested oxygen absorber
 
-Review weight comparison
+Review Allocated Weight and Remaining Weight
 
-Complete Packaging
+Edit labels until Ready
+
+Print any selected Ready labels when useful
+
+Complete the Packaging Operation only after every Allocation has zero Remaining Weight
 ```
 
 ### Success Criteria
 
-The user creates finished Packages without needing to understand Packaging Operations.
+The user can stop and resume without losing Allocations, planned rows, Package Label work, or recorded Packages.
 
-The user only combines Trays that belong to the same Production Batch.
+The user creates finished Packages without needing to manage Packaging Allocations as a separate destination.
+
+Labels may be printed before, during, or after the physical packaging work.
 
 ---
 
@@ -368,7 +385,7 @@ Review preparation details
 
 Create a new Production Batch
 
-Reuse the same Recipe (optional)
+Reuse the same Preparation Preset (optional)
 
 Begin Production
 ```

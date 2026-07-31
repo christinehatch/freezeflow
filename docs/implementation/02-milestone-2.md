@@ -136,11 +136,11 @@ Each Tray should support:
 - Tray Slot
 - Physical Tray
 - Product Name
-- Optional Recipe
-- Preparation
+- optional legacy Recipe reference until the Milestone 6 migration to Preparation Presets
+- Preparation Metadata snapshot
 - Notes
 
-Recipe snapshot behavior must follow ADR-0001.
+Preparation snapshot behavior must follow ADR-0013. The current Recipe-oriented persistence name is a legacy implementation detail and must not make a saved template mandatory for Production.
 
 Weight information is intentionally excluded from this milestone.
 
@@ -246,7 +246,7 @@ This milestone does not implement:
 - Packaging
 - Inventory
 - Reports
-- Recipe management
+- Preparation Preset management
 
 Production setup ends when the user starts the Production Batch.
 
@@ -263,7 +263,7 @@ At the completion of Milestone 2:
 - Users can configure reusable Physical Trays.
 - Users can create Production Batches.
 - Users can select Physical Trays for Freeze Dryer Slots in a Draft Production Batch.
-- Users can add and edit Product, Recipe, Preparation, and Notes for selected Slots.
+- Users can add and edit Product, Preparation Metadata, and Notes for selected Slots without requiring a saved Preset.
 - The Dashboard displays production information.
 - Production navigation is functional.
 - Production data persists correctly.

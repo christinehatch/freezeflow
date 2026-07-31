@@ -1,18 +1,19 @@
-# 08 - Recipes
+# 08 - Preparation Presets
+
+The filename is retained temporarily so existing documentation links remain valid while the Recipe-first model is retired.
 
 # Purpose
 
-The Recipes screen allows users to create and manage reusable preparation templates.
+Preparation Presets reduce repetitive typing during Production.
 
-Recipes exist to reduce repetitive data entry during Production.
+A Preparation Preset is an optional saved combination of:
 
-Recipes are optional.
+* Product
+* Ingredients
+* Preparation Methods
+* default Notes
 
-Users should be able to create Trays without using a Recipe.
-
-Editing a Recipe affects only future Production Batches.
-
-Historical Production records always preserve the preparation information that existed when the Tray was created.
+Production never requires a saved Preset. Users may enter one-off Preparation Metadata directly on a Tray without creating catalog or administrative records first.
 
 ---
 
@@ -20,228 +21,97 @@ Historical Production records always preserve the preparation information that e
 
 A user should be able to:
 
-* Browse Recipes.
-* Create new Recipes.
-* Edit existing Recipes.
-* Archive Recipes that are no longer used.
-* Quickly find a Recipe when starting a Production Batch.
+* browse and search Preparation Presets
+* create a Preset from useful combinations they expect to reuse
+* apply a Preset during Production
+* change the preloaded values for the current Tray
+* archive and restore Presets
+* enter a new Ingredient or Preparation Method inline without leaving Production
 
 ---
 
 # Primary Actions
 
-* Create Recipe
-* Edit Recipe
-* Archive Recipe
-* Search Recipes
-
-Recipes should remain simple and easy to maintain.
-
-Preparation entry during Production should remain primary.
-
-Recipes provide reusable defaults, but users should be able to capture actual preparation details directly on the Tray without first maintaining a structured Recipe.
+* Create Preparation Preset
+* Edit Preparation Preset
+* Archive Preparation Preset
+* Restore Preparation Preset
+* Search Preparation Presets
 
 ---
 
-# Screen Layout
+# List Layout
 
 ```text
-+======================================================================================+
-| Recipes                                                                              |
-+======================================================================================+
++====================================================================================+
+| Preparation Presets                                               [ + New Preset ] |
++====================================================================================+
 
-Search
+Search  [ chicken tacos________________________________________ ]
 
-[ __________________________________________ ]
+Sliced Chicken Tacos
+Product: Chicken Breast
+Ingredients: Salt, Pepper, Salsa
+Methods: Sliced, Cooked
 
-------------------------------------------------------------------------------
-
-Recipes
-
-Taco Chicken
-
-Cubed chicken with taco seasoning.
-
-Last Used: April 27, 2026
-
---------------------------------------------------
-
-Garlic Chicken
-
-Cubed chicken with garlic seasoning.
-
-Last Used: May 2, 2026
-
---------------------------------------------------
-
-Strawberries
-
-Fresh strawberries sliced in half.
-
-Last Used: May 10, 2026
-
---------------------------------------------------
-
-Skittles
-
-Original Skittles.
-
-Last Used: May 18, 2026
-
-------------------------------------------------------------------------------
-
-[ + New Recipe ]
+[ Use Preset ] [ Edit ] [ Archive ]
 ```
 
 ---
 
-# Recipe Detail
+# Preset Detail
 
-Selecting a Recipe opens the Recipe Detail screen.
+Display and edit:
+
+* Preset Name
+* Product
+* Ingredients
+* Preparation Methods
+* default Notes
+
+Ingredients and Preparation Methods should support lightweight autocomplete from previously entered values. Typing a new value should offer an inline create action rather than requiring setup elsewhere.
+
+---
+
+# Production Use
+
+Applying a Preparation Preset preloads editable Preparation Metadata for a Tray.
+
+When the Tray is saved, Freezeflow stores an immutable snapshot on that Tray. Later Preset edits or archiving must not change historical Production.
+
+The user may:
+
+* apply a Preset and accept its defaults
+* apply a Preset and change any field for this Tray
+* enter all Preparation Metadata manually
+* optionally save a useful one-off combination as a new Preset
+
+---
+
+# Lifecycle
+
+Preparation Presets move between Active and Archived.
+
+Archived Presets:
+
+* cannot be applied to new Trays
+* remain visible in historical references
+* may be restored
+
+Presets should not be permanently deleted.
+
+---
+
+# Empty State
 
 ```text
-Recipe Name
+No Preparation Presets have been created.
 
-Taco Chicken
+Presets are optional. You can enter Product, Ingredients,
+Preparation Methods, and Notes directly during Production.
 
---------------------------------------
-
-Product Name
-
-Chicken
-
---------------------------------------
-
-Preparation
-
-* Cube into 1-inch pieces
-
-* Toss with taco seasoning
-
-* Freeze overnight
-
---------------------------------------
-
-Notes
-
-_____________________________________
-
---------------------------------------
-
-Last Used
-
-April 27, 2026
-
---------------------------------------
-
-[ Save ]
-
-[ Archive ]
+[ Create Preparation Preset ]
 ```
-
----
-
-# Information Priority
-
-Recipes should emphasize preparation instructions.
-
-Historical production information belongs to Production and Tray Details, not Recipes.
-
-Recipes should not become highly structured preparation forms.
-
-The user may describe preparation in natural language, including source, cut, seasoning, cooking method, and notes.
-
----
-
-# Recipe Fields
-
-A Recipe may include:
-
-* Recipe Name
-* Product Name
-* Preparation Instructions
-* Notes
-
-Recipes intentionally avoid production-specific information such as:
-
-* Starting Weight
-* Finished Product Weight
-* Weight Checks
-* Freeze Dryer
-* Storage Location
-
-These values belong to Production records.
-
----
-
-# Search
-
-Users should be able to search Recipes by:
-
-* Recipe Name
-* Product Name
-* Preparation text
-
-Search should update results as the user types.
-
----
-
-# Archive
-
-Recipes should never be permanently deleted.
-
-Archived Recipes:
-
-* no longer appear in normal selection lists
-* remain associated with historical Production records
-* can be restored if needed
-
----
-
-# States
-
-## Normal
-
-Recipes are available for selection during Production.
-
----
-
-## Empty
-
-```text
-No Recipes have been created yet.
-
-Recipes are optional.
-
-You can create a Production Batch without a Recipe.
-
-[ Create Recipe ]
-```
-
----
-
-## Archived
-
-Archived Recipes remain viewable but cannot be selected for new Production unless restored.
-
----
-
-# Error States
-
-If Recipes cannot be loaded:
-
-* Explain the issue clearly.
-* Preserve the current search text.
-* Allow retry.
-
----
-
-# Mobile Considerations
-
-* Display Recipes as cards.
-* Keep Search pinned at the top.
-* Large touch targets.
-* Easy scrolling.
 
 ---
 
@@ -249,10 +119,11 @@ If Recipes cannot be loaded:
 
 A user should be able to:
 
-* Find a Recipe in under ten seconds.
-* Create a new Recipe in under two minutes.
-* Reuse Recipes without affecting historical Production.
-* Understand that Recipes are templates rather than historical records.
+* start Production without maintaining Presets
+* reuse a successful preparation with minimal typing
+* create new metadata naturally while working
+* understand that Presets are conveniences, not historical records
+* trust that changing a Preset does not rewrite prior Production
 
 ---
 
@@ -260,11 +131,7 @@ A user should be able to:
 
 Future versions may include:
 
-* Recipe categories
-* Favorite Recipes
-* Recipe duplication
-* Photos
-* Ingredient lists
-* Tags
-* Import / Export
-* Suggested Recipes based on previous Production
+* favorite Preparation Presets
+* Preset duplication
+* suggestions based on previous Production
+* richer autocomplete management

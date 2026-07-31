@@ -1,547 +1,476 @@
-# Milestone 4 - Packaging
+# Milestone 4 - Packaging and Package Labels
 
 # Status
 
-Complete
-
----
+Complete.
 
 # Goal
 
-Prepare and execute a Packaging Session.
-
-Milestone 4 converts completed Trays into finished Packages while helping the user make packaging decisions, print human-readable labels, and then physically package food with minimal context switching.
-
----
+Convert completed product into labeled inventory through a flexible, resumable
+Packaging workspace without forcing the operator to perform physical filling,
+weighing, labeling, printing, and storage tasks in one prescribed order.
 
 # Objectives
 
 Implement:
 
-- Packaging Session workflow
-- Packaging Worksheet
-- eligible completed Tray selection
-- same Production Batch packaging constraint
-- internal Packaging Operation creation
-- Package Type inline setup
-- Package Type defaults for oxygen absorber and printable label template
-- multi-tray packaging
-- multi-package creation
-- auto-generated Package identifiers
-- printable human-readable labels
-- sealed Package Weight entry
-- Package Finished Product Weight entry, distinct from Sealed Package Weight
-- warning-only source weight comparison
-- selected Storage Location or implicit Unassigned Storage Location
-- Package creation as active inventory
-- Tray transition to Packaged
-- traceability from Package back to Trays, Production Batch, and Freeze Dryer
-
----
+- one resumable Packaging Operation workspace per Production Batch
+- identified Packaging Allocations within the operation
+- durable selected Tray, planned Package, label, note, and progress data
+- exact source Tray-to-Package traceability
+- separate Finished Product Weight and Sealed Package Weight
+- remaining-product protection
+- Package creation with initial inventory and location history
+- one editable Package Label per Package
+- Ready and Needs Reprint label workflows
+- append-only Print Events
+- package-selection-based Avery 5163 printing
+- explicit Packaging Operation completion
 
 # Scope
 
-Milestone 4 begins after a Production Batch has been completed and one or more Trays are eligible for Packaging.
+Milestone 4 includes:
 
-Milestone 4 ends when the user completes a Packaging Session and Freezeflow has created the internal Packaging Operation, Packages, Package identifiers, label data, and initial Storage Location History records.
-
-Milestone 4 includes the setup required to package efficiently, but only where that setup is part of the Packaging workflow.
-
----
+- starting or resuming Packaging from a completed Production Batch
+- selecting completed Trays from that Production Batch
+- creating separate Packaging Allocations for separate product combinations
+- planning one or more Package rows without creating inventory
+- recording one or more Packages from an Allocation
+- creating Package Types inline
+- applying and overriding Package Type defaults
+- assigning a Storage Location or using Unassigned
+- preparing, editing, previewing, printing, and reprinting Package Labels
+- printing one Package or a selection of eligible Package Labels
+- completing Packaging only after all selected product is allocated
 
 # Out of Scope
 
-Do not include:
+Do not implement:
 
-- Inventory browsing
-- Inventory search
-- Package movement after creation
-- Package depletion
-- marking Packages Given Away
-- Storage Location setup screens
-- Reports
-- Recipe CRUD
-- Corrections UI
-- Audit History UI
-- QR codes
-- barcodes
-- automated label integrations
-- packaging supply stock counts
-- reorder reminders
+- Inventory browsing or search
+- moving Packages between Storage Locations
+- marking Packages Given Away or Depleted
+- Package Status correction UI
+- Preparation Preset CRUD
+- reporting
+- QR codes or barcodes
+- label-edit Audit History
+- correction workflows for completed Packaging Operations
+- hardware or printer integration
+- automatic inference of physical bag state
 
-Given Away is documented as an inventory/disposition state, but the workflow for marking a Package Given Away belongs to Milestone 5.
-
----
+Those behaviors belong to later milestones.
 
 # Workflow Summary
 
-1. A completed Production Batch becomes eligible for Packaging.
-2. The user opens Packaging.
-3. The user selects eligible completed Trays from one Production Batch.
-4. The system shows a Packaging Worksheet.
-5. The user decides package count and Package Types.
-6. The system suggests oxygen absorber defaults from Package Type.
-7. The system supports printable human-readable labels.
-8. The user physically packages the food.
-9. The user records Package Finished Product Weights and sealed Package Weights.
-10. The system requires Package Finished Product Weights to allocate the selected source Finished Product Weight completely.
-11. The system separately compares source Finished Product Weight with total sealed Package Weight; differences produce warnings but do not block.
-12. The user completes Packaging.
-13. The system creates the internal Packaging Operation and Packages.
-14. The system marks source Trays as Packaged.
-15. The system assigns the selected Storage Location or implicit Unassigned Storage Location.
-16. The system shows created Packages with Print Labels and Done actions.
+```text
+Completed Production Batch
 
----
+↓
 
-# Packaging Worksheet
+Start or Resume Packaging
 
-The Packaging Worksheet is the user-facing planning surface for a Packaging Session.
+↓
 
-It should show:
+Open Packaging Operation
 
-- Production Batch
-- Freeze Dryer
-- selected Trays
-- product names
-- preparation summaries
-- Finished Product Weight per Tray
-- total source Finished Product Weight
-- package count
-- Package Type per Package
-- suggested oxygen absorber
-- Package identifiers
-- printable labels
-- selected Storage Location or Unassigned
-- optional notes
+↓
 
-The worksheet should reduce context switching between the computer and the packaging table.
+Create Packaging Allocation by selecting one or more completed Trays
 
----
+↓
 
-# Package Type Setup
+Plan Package rows and label defaults, or record Packages directly
 
-Package Types are part of Milestone 4.
+↓
 
-Package Types are setup data used inline during Packaging. The user should be able to create or edit Package Types without leaving the Packaging workflow.
+Record Finished Product Weight and Package details
 
-Package Types may provide defaults for:
+↓
 
-- oxygen absorber
-- printable label template
+Review and edit Package Labels
 
-Package Type defaults prefill Package-level values. The user may override Package-level oxygen absorber values during Packaging.
+↓
 
-Archived Package Types cannot be selected for new Packages.
+Print any Ready or Needs Reprint labels when useful
 
-Historical Packages preserve the Package Type selected at packaging time.
+↓
 
----
+Repeat for additional Allocations in the Production Batch
 
-# Eligible Tray Selection
+↓
 
-Only Completed Trays are eligible for Packaging.
+Explicitly Complete Packaging Operation
+```
 
-Draft, Running, Cancelled, and Packaged Trays are not eligible.
+The operator may pause and resume at any point while the Packaging Operation is
+Open.
 
-A Packaging Operation may only include Trays from the same Production Batch.
+# Packaging Operation
 
-Because a Production Batch belongs to exactly one Freeze Dryer, this also preserves same-Freeze-Dryer packaging history.
+Packaging Operation is the aggregate root for Packaging work.
 
-Different products within the same Production Batch may be packaged together when intentionally selected by the user.
+- It belongs to exactly one Production Batch.
+- Its lifecycle is `Open` or `Completed`.
+- A Production Batch may have at most one Open Packaging Operation.
+- Starting Packaging creates the Open operation when none exists.
+- Returning to Packaging resumes the existing Open operation.
+- The operator explicitly completes the operation.
+- An Open operation may contain Allocations with no Packages.
+- Package and label information may be edited while the operation is Open.
+- Changes after completion use the future Corrections workflow.
 
-The application should not offer cross-batch Packaging selections.
+The user works in a Packaging workspace and does not administer Packaging
+Operations as generic CRUD records.
 
----
+# Packaging Allocation
 
-# Packaging Operation Behavior
+A Packaging Allocation is an identified child entity within a Packaging
+Operation. It references one or more completed Trays as its product source and
+connects that completed product to planned Package rows, Package Labels, and
+recorded Packages.
 
-Packaging Operation is an internal historical record.
+- It has stable identity independent of its Packages.
+- It is not an aggregate root.
+- It cannot exist independently of its Packaging Operation.
+- It references source Trays; the Production Batch continues to own them.
+- It may exist before any Package is recorded.
+- It may produce one or more Packages.
+- Separate product combinations use separate Allocations.
+- Users select Trays and package product; they do not administer Allocations
+  directly.
 
-Users package selected Trays; they do not manage Packaging Operations directly.
+Example:
 
-When the user completes Packaging, the server creates one Packaging Operation that:
+```text
+Packaging Operation
 
-- references one or more completed source Trays
-- records `packagedAt`
-- preserves optional packaging notes
-- produces one or more Packages
+Allocation A
+  Trays 1, 2, 3: Chicken
+  Packages 1-12
 
-A Tray may participate in only one Packaging Operation.
+Allocation B
+  Tray 4: Strawberries
+  Packages 13-15
+```
 
-Once a Tray is included in a Packaging Operation, the entire Tray is considered consumed by that operation.
+# Weight Allocation
 
----
+For each Allocation, derive:
+
+- **Selected Source Weight:** sum of source Tray Final Dry Weights
+- **Allocated Weight:** sum of Package Finished Product Weights
+- **Remaining Weight:** Selected Source Weight minus Allocated Weight
+
+Remaining Weight is derived and must not be independently stored or edited.
+
+Finished Product Weight records only freeze-dried product placed into a Package
+and reduces Remaining Weight. Sealed Package Weight includes the container,
+absorber, label, and other packaging materials and does not reduce Remaining
+Weight.
+
+Weight comparison warnings may be shown, but a warning must not silently discard
+unallocated product.
+
+# Persistent Open Work
+
+An Open Packaging Operation persists:
+
+- Packaging Allocations
+- selected source Trays
+- planned Package rows
+- draft Package Label information
+- recorded Packages
+- Packaging notes
+- weight allocation progress
+
+Closing the browser, navigating away, or returning later must not erase this
+work. Draft work belongs to its Packaging Operation and Allocation. It does not
+create a Draft Package inventory state.
 
 # Package Creation
 
-Each Package represents one sealed inventory unit.
+A Package is created when the operator intentionally records it in Freezeflow.
+The application does not infer when the physical bag began to exist.
 
-Each Package records:
+The operator may record a Package before or after filling or weighing the bag.
+The workflow validates required information without prescribing the physical
+order of work.
 
-- Package identifier
+Creating a Package:
+
+- generates its Package identifier
+- links it to exactly one Packaging Allocation
+- preserves exact source Tray traceability through that Allocation
+- records Package Type, Finished Product Weight, Sealed Package Weight, oxygen
+  absorber, Packaging Date, notes, and Storage Location
+- creates one Package Label
+- creates initial `In Storage` Package Status History
+- creates initial Storage Location History
+- uses the implicit Unassigned Storage Location when none is selected
+
+# Planned Package Rows
+
+A planned Package row is durable workspace data, not a Package or inventory item.
+It may hold proposed Package Type, weights, label content, absorber, Storage
+Location, and notes before the operator records the Package.
+
+Recording a planned row creates the Package and removes or marks the plan as
+fulfilled within the same operation transaction. Removing an unrecorded plan
+does not delete Package history because no Package exists yet.
+
+# Package Labels
+
+Every Package owns exactly one persistent, editable Package Label.
+
+Package Label is Package Presentation, not Production History. Initial values may
+be derived from immutable source Tray information, but later edits must not
+rewrite the Production Batch, Trays, Preparation Metadata, Drying Runs, or Weight
+Checks.
+
+The Package Label contains:
+
+- Display Name
+- Subtitle or Description
+- Ingredients Summary
+- Preparation Summary
+- Freeze-Dried Product Weight
+- Fresh Equivalent
+- Packaging Date
+- Package Identifier
 - Package Type
-- Package Finished Product Weight
-- sealed Package Weight
+- Oxygen Absorber
+- Rehydration Instructions
+- Serving Notes
+- optional freeform label notes
+
+A saved Recipe or Preparation Preset is never required. Allocation-level defaults
+may reduce repeated typing, with per-Package overrides.
+
+# Label State
+
+Package Label state is:
+
+- `Draft`
+- `Ready`
+- `Needs Reprint`
+
+`Printed` and `Reprinted` are Print Event kinds, not label states.
+
+Editing printable content after any Print Event sets or derives `Needs Reprint`.
+Before Milestone 8, edits replace current Package Label presentation data.
+Milestone 8 adds correction and audit history for prior label content.
+
+# Print Events
+
+Printing a Ready or Needs Reprint Package Label appends a minimal Print Event.
+Each event preserves at least:
+
+- Package Label identifier
+- printedAt
+- print request or print batch identifier
+- initial print or reprint kind
+
+Print Events do not change Production History, Package inventory status, or
+Storage Location. Detailed print auditing remains a future Audit enhancement.
+
+# Label Printing
+
+Use one selection-based print engine. Supported scopes are:
+
+- one Package
+- one Packaging Allocation
+- one Packaging Operation
+- one Production Batch
+- today's Ready or Needs Reprint labels
+- a custom Package selection
+
+Printing operates on Package or Package Label identifiers, never Tray identifiers.
+The preview shows the total label count before output.
+
+Avery 5163 output uses Letter paper, two columns, five rows, and ten labels per
+sheet. More than ten labels creates additional correctly paginated sheets.
+
+Label visual hierarchy is:
+
+1. Display Name
+2. Freeze-Dried Product Weight and Fresh Equivalent
+3. Ingredients or Preparation Summary
+4. Packaging Date
+5. Package Type and Oxygen Absorber
+6. Package Identifier
+
+The Package identifier remains visible but visually secondary.
+
+# Package Type Setup
+
+Package Types are setup data used inline in Packaging. The operator may create a
+Package Type without leaving the workspace.
+
+A Package Type may suggest:
+
 - oxygen absorber
-- current Storage Location
-- notes
-- inventory status
+- label template
 
-Package identifiers are auto-generated by the system.
+Defaults are conveniences, not hard requirements, and may be overridden per
+Package.
 
-Users should rarely type Package identifiers manually.
+# Storage Assignment
 
-Package identifiers must be human-readable and suitable for printed labels.
+Storage Location setup is not part of Milestone 4. The operator may select an
+existing active Storage Location or leave the Package Unassigned.
 
-The exact identifier format may be implementation-defined unless a later document specifies it.
+Package movement, Given Away, Depleted, and Inventory search belong to Milestone
+5.
 
----
+# Packaging Completion
 
-# Multi-Package Creation
+The operator explicitly completes an Open Packaging Operation.
 
-One Packaging Operation may produce one or more Packages.
+Completion requires:
 
-The workflow must support:
+- every Allocation has at least one recorded Package
+- every recorded Package has required Package and label information
+- every selected source Tray remains traceable through its Allocation
+- every Allocation has zero Remaining Weight within the documented measurement
+  tolerance
+- no selected product is silently discarded
 
-- one Tray to one Package
-- one Tray to many Packages
-- many Trays to one Package
-- many Trays to many Packages
-
-The UI should never assume a fixed relationship between selected Trays and created Packages.
-
----
-
-# Multi-Tray Packaging
-
-Multiple eligible Trays may be packaged together when they belong to the same Production Batch.
-
-The selected Trays are treated as the source product for one Packaging Operation.
-
-The resulting product may be divided into any number of Packages.
-
----
-
-# Printable Labels
-
-Milestone 4 includes printable human-readable labels.
-
-Labels may be generated from planned Package data during the Packaging Worksheet step and from created Package data after Packaging is complete.
-
-Labels should include at minimum:
-
-- Package identifier
-- product name or summary
-- Package Type
-- packaging date
-- preparation or contents summary from source Trays
-- Package Fresh Equivalent and Package Finished Product Weight when available
-
-Storage Location is mutable inventory data and must not appear on permanent
-printed labels.
-
-QR codes, barcode labels, and automated label integrations are future enhancements.
-
----
-
-# Package Identifiers
-
-Package identifiers are generated by the server.
-
-They should be stable, human-readable, and appropriate for printed labels.
-
-The user should not need to invent Package identifiers during routine Packaging.
-
----
-
-# Oxygen Absorber Defaults and Overrides
-
-Package Type may provide a default oxygen absorber value.
-
-When a Package Type is selected, the Package's oxygen absorber field may be prefilled.
-
-The Package-level oxygen absorber value remains editable and historical.
-
-Editing a Package Type later must not rewrite historical Package oxygen absorber values.
-
----
-
-# Package Weight
-
-Package Weight is the sealed Package Weight.
-
-It includes:
-
-- dried food
-- bag or container
-- oxygen absorber
-- label if present
-
-Package Weight is distinct from Finished Product Weight.
-
----
-
-# Finished Product Weight vs Sealed Package Weight
-
-Finished Product Weight is recorded on completed Trays and represents dried food only. Package Finished Product Weight records the portion placed into one Package.
-
-Package Weight is recorded on Packages and represents the sealed inventory unit.
-
-Because Package Weight includes packaging materials, it may not equal Finished Product Weight.
-
-Package Fresh Equivalent is calculated separately for each Package in canonical
-grams: `sum(source Starting Weights) * (Package Finished Product Weight / sum(source Final Dry Weights))`.
-The source sums include every Tray in the Packaging Operation. The equivalent
-is derived, not persisted. Missing source weights or a zero Final Dry Weight
-display `Fresh equivalent unavailable` and do not block printing.
-
----
-
-# Weight Comparison Warnings
-
-Freezeflow should compare:
-
-- total source Finished Product Weight
-- total sealed Package Weight
-
-Unexpected differences should produce warnings.
-
-Warnings should never block completing Packaging.
-
-Source allocation is validation, not a warning. Before Packaging completes, the
-sum of Package Finished Product Weights must equal the total Final Dry Weight of
-the selected source Trays. If product remains unallocated or is overallocated,
-the user must adjust Package rows or add another Package. Sealed Package Weight
-differences remain non-blocking warnings.
-
-Legitimate differences may come from bag weight, oxygen absorbers, labels, crumbs, or normal measurement variation.
-
----
-
-# Unassigned Storage Location Behavior
-
-Storage Location setup is not part of Milestone 4.
-
-The user may select an existing Storage Location during Packaging.
-
-If no Storage Location is selected, the system uses an implicit Unassigned Storage Location.
-
-Unassigned is a system-provided Storage Location used to avoid blocking Packaging.
-
-Unassigned allows the user to create Packages now and organize inventory later.
-
-Initial Storage Location History should record either the selected Storage Location or Unassigned.
-
----
-
-# Package Lifecycle
-
-Milestone 4 creates Packages as active inventory.
-
-Packages created during Milestone 4 should start as In Storage, even when the current Storage Location is Unassigned.
-
-Given Away and Depleted are later inventory actions.
-
-The workflow for marking a Package Given Away or Depleted belongs to Milestone 5.
-
----
-
-# Tray Packaging Lifecycle
-
-When Packaging completes, every source Tray transitions from Completed to Packaged.
-
-Packaged Trays cannot be selected for another Packaging Operation.
-
-Packaged Trays remain historical production records.
-
----
-
-# Historical Traceability
-
-Every Package must be traceable to:
-
-- Packaging Operation
-- source Trays
-- Production Batch
-- Freeze Dryer
-- Tray Slot
-- Physical Tray
-- Finished Product Weight
-- Weight Checks
-- Drying Runs
-- historical preparation information
-- Package Type
-- packaging date
-- initial Storage Location or Unassigned
-
----
+Completion transitions the Packaging Operation to `Completed` and its selected
+source Trays to `Packaged`. It does not change Package Status from `In Storage`.
 
 # UI Expectations
 
-The Packaging UI should:
+The Packaging workspace should:
 
-- let the user choose one Production Batch and focus the workspace on that Batch
-- show only the eligible completed Trays from the chosen Production Batch
-- prevent cross-batch Packaging selection
-- treat selected Trays as one combined source pool that can produce multiple Packages
-- show selected source weight, allocated Finished Product Weight, and remaining Finished Product Weight live
-- keep Sealed Package Weight separate from source-pool allocation
-- show the Packaging Worksheet after Tray selection
-- allow inline Package Type creation or editing
-- prefill oxygen absorber from Package Type
-- support printable human-readable labels
-- allow selected Storage Location or Unassigned
-- show weight comparison warnings without blocking
-- preserve entered Package data if saving fails
-- show created Packages after completion
-- provide Print Labels and Done actions after completion
-
-The user should not see a separate Packaging Operation management screen.
-
----
+- open directly for a Production Batch when launched from Production
+- resume existing Open work rather than starting over
+- show one active Allocation at a time while keeping operation progress visible
+- make source Trays and their combined Final Dry Weight clear
+- show Selected, Allocated, and Remaining Weight together
+- place Add Package for Remaining near the current Package rows and disabled
+  completion action
+- allow multiple Package rows without repeated navigation
+- make weight units visible and explicit
+- separate Finished Product Weight from Sealed Package Weight
+- save planned rows and label work before operation completion
+- support label preview, editing, bulk selection, printing, and reprinting
+- explain why completion is unavailable
+- avoid exposing aggregate or persistence terminology as administrative UI
 
 # API Expectations
 
-The API should expose workflow-oriented actions.
+Provide workflow-oriented APIs for:
 
-Expected API capabilities:
+- start or resume Packaging for a Production Batch
+- load an Open Packaging Operation workspace
+- create an Allocation by selecting completed Trays
+- update Allocation defaults and notes
+- create, update, and remove planned Package rows
+- intentionally record a Package from an Allocation
+- update an Open Package
+- read and update a Package Label
+- preview a selected set of Package Labels
+- print a selected set and record Print Events
+- explicitly complete the Packaging Operation
 
-- list eligible Trays for Packaging
-- preview Packaging Worksheet data if needed
-- create or update Package Types inline
-- generate printable label data
-- package selected Trays into one or more Packages
-
-The package action should:
-
-- create the internal Packaging Operation
-- generate Package identifiers
-- create Packages
-- mark source Trays as Packaged
-- create initial Storage Location History records
-- return the created Packages and label data
-
----
+Backend validation enforces aggregate ownership, eligibility, allocation totals,
+and lifecycle rules. The client must not be the only enforcement point.
 
 # Persistence Expectations
 
-Persistence should support:
+Persist:
 
-- Package Type default oxygen absorber
-- Package Type default printable label template
-- Packaging Operation `packagedAt`
-- Package identifier
-- Package Type reference
-- Package Weight in grams
-- Package Finished Product Weight in grams, nullable for historical records
-- oxygen absorber
-- selected Storage Location or Unassigned
-- Package status
-- Storage Location History
-- PackagingOperationTray association
+- Packaging Operation status and timestamps
+- Packaging Allocations with stable identifiers
+- Allocation-to-Tray references
+- planned Package rows owned by Allocations
+- Packages owned by Allocations
+- Package Labels owned one-to-one by Packages
+- append-only Print Events
+- initial Package Status History
+- initial Storage Location History
 
-Packages should not store an independent package date.
-
-Packaging date comes from `PackagingOperation.packagedAt`.
-
----
+Do not persist Remaining Weight as an independent value. Do not create a Draft
+Package inventory status.
 
 # Validation Rules
 
-Milestone 4 must enforce:
-
-- at least one source Tray is required
-- at least one Package is required
-- every source Tray must be Completed
-- source Trays must not already be Packaged
-- source Trays must belong to the same Production Batch
-- source Trays therefore share the same Freeze Dryer
-- Package Type must exist and not be archived
-- Package Weight must be numeric and positive when completing Packaging
-- Package Finished Product Weight must be numeric and positive for new Packages
-- Package Finished Product Weights must allocate the complete source Final Dry
-  Weight before Packaging can finish
-- omitted Storage Location resolves to implicit Unassigned Storage Location
-- oxygen absorber may default from Package Type but can be overridden
-- Package identifiers are generated by the server
-- packaging date is stored on PackagingOperation.packagedAt
-- weight comparison warnings do not block Packaging
-
----
+- Packaging requires a completed Production Batch.
+- A Production Batch may have at most one Open Packaging Operation.
+- Allocation source Trays belong to the operation's Production Batch.
+- Source Trays are Complete and not already fully Packaged.
+- Completed product belongs to only one active Allocation at a time.
+- Every Package belongs to one Allocation.
+- Finished Product Weight is positive and reduces Remaining Weight.
+- Sealed Package Weight is positive but does not reduce Remaining Weight.
+- Over-allocation and unallocated product block operation completion.
+- Weight comparison warnings do not block ordinary data entry.
+- Package Label state accepts only Draft, Ready, or Needs Reprint.
+- Printing requires eligible Package Label identifiers.
+- Editing printed content produces Needs Reprint.
+- Completed operation data is changed only through future Corrections behavior.
 
 # Testing Expectations
 
-Add focused tests for:
+Backend tests cover:
 
-- Package Type inline setup
-- archived Package Types excluded from Packaging
-- Package Type oxygen absorber defaults
-- Package Type label template defaults
-- eligible Tray listing
-- preventing Running, Draft, and Cancelled Trays from Packaging
-- preventing already Packaged Trays from Packaging
-- preventing cross-batch Packaging
-- allowing intentionally selected different products within one Production Batch
-- one Packaging Operation producing multiple Packages
-- one Tray not being split across Packaging Operations
-- selected Storage Location behavior
-- implicit Unassigned Storage Location behavior
-- initial Storage Location History creation with selected Storage Location
-- initial Storage Location History creation with Unassigned
-- auto-generated Package identifiers
-- printable human-readable label data
-- one-Tray, combined-Tray, and per-Package fresh-equivalent calculation
-- missing and zero source-weight label behavior
-- Packaging Date and preparation on labels, with Storage Location excluded
-- source weight vs total Package Weight warning
-- weight warning does not block Packaging
-- preventing Packaging completion while source Finished Product Weight remains
-  unallocated or overallocated
-- oxygen absorber override behavior
-- PackagingOperation.packagedAt editability
-- traceability from Package back to Trays, Production Batch, and Freeze Dryer
+- starting and resuming one Open operation per Production Batch
+- Allocation creation and stable identity
+- cross-batch and duplicate active source rejection
+- Allocation with zero Packages
+- planned rows surviving reload
+- Package recording and exact source traceability
+- initial In Storage and location histories
+- Selected, Allocated, and Remaining Weight derivation
+- Finished Product versus Sealed Package Weight behavior
+- completion rejection with remaining or overallocated product
+- explicit successful completion
+- Package Label creation, editing, and Needs Reprint behavior
+- append-only Print Events
+- selection print scopes and Avery pagination
 
----
+Frontend component and Playwright tests cover:
+
+- Production-to-Packaging handoff
+- resume after navigation or reload
+- multi-Allocation, multi-Tray, and multi-Package workflows
+- visible units and remaining-product guidance
+- durable planned Package and label data
+- Package Label editing and bulk selection
+- initial print and reprint flows
+- explicit completion validation
+
+Physical Avery sheet alignment remains a manual printer check.
 
 # Deliverables
 
-Milestone 4 is delivered when the application includes:
-
-- Packaging page
-- eligible Tray selection
-- Packaging Worksheet
-- inline Package Type setup
-- Package Type defaults
-- printable human-readable labels
-- package creation workflow
-- internal Packaging Operation creation
-- Package identifier generation
-- selected Storage Location or Unassigned behavior
-- initial Storage Location History
-- completed Packaging success state
-- backend validation
-- backend tests
-- frontend tests where supported by the existing setup
-
----
+- Packaging Operation and Allocation persistence
+- planned Package row persistence
+- Package, Package Label, and Print Event persistence
+- migrations and backend workflow APIs
+- resumable Packaging workspace
+- Package and label editing while Open
+- selection-based Avery 5163 preview and printing
+- Production Batch Packaging handoff
+- backend, frontend, and browser regression coverage
+- updated architecture and user documentation
 
 # Definition of Done
 
 Milestone 4 is complete when:
 
-- completed Trays can be selected for Packaging
-- cross-batch Packaging is prevented
-- Packaging Worksheet supports package planning
-- Package Types can be managed inline during Packaging
-- human-readable labels can be printed
-- Packages can be created from one or more Trays
-- one Packaging Operation can produce multiple Packages
-- source Trays become Packaged
-- created Packages are active inventory
-- Packages use selected Storage Location or Unassigned
-- source weight comparison warnings appear and do not block
-- Package identifiers are generated automatically
-- traceability is preserved from Package back to source production history
-- Package depletion, Given Away, inventory search, and package movement remain deferred to Milestone 5
-- tests verify the Milestone 4 business rules
+- Packaging work can be started, paused, resumed, and explicitly completed
+- separate product combinations can be represented by separate Allocations
+- selected product cannot disappear through partial Package recording
+- Packages preserve exact source Tray traceability
+- Package creation initializes inventory and location history
+- Package Labels are editable without rewriting Production History
+- printed labels can become Needs Reprint and retain Print Events
+- one print engine supports Package, Allocation, Operation, Batch, today, and
+  custom scopes
+- Avery 5163 output paginates at ten labels per Letter sheet
+- the UI supports flexible physical work order
+- automated Milestone 4 tests pass
+- physical printer alignment has been manually checked
+- no Milestone 5 Inventory actions were introduced

@@ -14,8 +14,10 @@ Examples include:
 
 * Production Batches
 * Trays
+* Packaging Operations
+* Package Labels
 * Packages
-* Recipes
+* Preparation Presets
 
 Without clearly defined lifecycle states, different parts of the application may interpret the same entity differently.
 
@@ -191,9 +193,8 @@ The Tray is now eligible for Packaging.
 
 ## Packaged
 
-The Tray has been included in a Packaging Operation.
-
-A Tray may belong to only one Packaging Operation.
+The Tray's completed product has been fully allocated through a completed
+Packaging Operation.
 
 Once Packaged, the Tray cannot return to Completed.
 
@@ -265,9 +266,48 @@ Given Away is not the same as deleted, depleted, or Storage Location.
 
 ---
 
-# Recipe Lifecycle
+# Packaging Operation Lifecycle
 
-Recipes are reusable templates.
+```text
+Open
+  |
+  v
+Completed
+```
+
+Persisted status values:
+
+- Open
+- Completed
+
+An Open operation is resumable and may contain Allocations, planned Package
+rows, Labels, and recorded Packages. Completion requires explicit operator
+action and zero Remaining Weight for every Allocation. Completed operations are
+historical; later changes use Corrections.
+
+---
+
+# Package Label Lifecycle
+
+```text
+Draft --> Ready --> Needs Reprint --> Ready
+```
+
+Persisted status values:
+
+- Draft
+- Ready
+- Needs Reprint
+
+Printing is an append-only Print Event, not a state. Editing printable content
+after a label has been printed makes it Needs Reprint. Printing a complete label
+returns it to Ready while preserving every Print Event.
+
+---
+
+# Preparation Preset Lifecycle
+
+Preparation Presets are optional reusable combinations of Preparation Metadata.
 
 ```text
 Active
@@ -283,16 +323,16 @@ Persisted status values:
 
 ## Active
 
-The Recipe may be selected during Production.
+The Preparation Preset may be selected during Production to preload editable metadata.
 
 ---
 
 ## Archived
 
-Archived Recipes:
+Archived Preparation Presets:
 
 * cannot be selected for new Production
-* remain associated with historical Trays
+* remain referenced by historical Trays that used them
 * may be restored in the future
 
 Historical Production is never affected by archiving.
@@ -319,7 +359,7 @@ Some transitions occur automatically.
 Examples:
 
 * Production Batch → Ready to complete when all Trays are completed.
-* Tray → Packaged when included in a Packaging Operation.
+* Tray → Packaged when its Packaging Operation is explicitly completed.
 
 Other transitions require explicit user action.
 
@@ -328,10 +368,11 @@ Examples:
 * Start Production
 * Complete Tray
 * Complete Batch
+* Complete Packaging Operation
 * Cancel Batch
 * Mark Package Depleted
 * Mark Package Given Away
-* Archive Recipe
+* Archive Preparation Preset
 
 Automatic transitions should occur only when there is no ambiguity.
 
@@ -349,7 +390,7 @@ Examples:
 * Cancelled Batches may be excluded from averages.
 * Depleted Packages remain part of historical inventory reports.
 * Given Away Packages remain part of historical inventory reports.
-* Archived Recipes remain associated with historical Production.
+* Archived Preparation Presets remain associated with historical Production.
 
 ---
 

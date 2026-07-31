@@ -1,12 +1,12 @@
-# Recipe
+# Preparation Preset
 
 ## Purpose
 
-A Recipe is an optional reusable preparation template.
+A Preparation Preset is an optional reusable combination of Preparation Metadata.
 
-Recipes exist to reduce repetitive data entry by allowing commonly used preparation information to be reused across multiple Production Batches.
+Preparation Presets reduce repetitive data entry while allowing Product, Ingredients, Preparation Methods, and Notes to be reused across multiple Production Batches.
 
-Recipes are **not** historical production records.
+Preparation Presets are **not** historical production records.
 
 Historical production information belongs to the Tray.
 
@@ -17,57 +17,57 @@ Historical production information belongs to the Tray.
 | Field | Required | Editable | Notes |
 |--------|----------|----------|-------|
 | id | Yes | No | Unique identifier |
-| name | Yes | Yes | User-friendly recipe name |
-| productName | Yes | Yes | Product being prepared (ex. Chicken Breast) |
-| preparation | Yes | Yes | Preparation instructions or description |
-| notes | No | Yes | Optional recipe notes |
-| archived | Yes | Yes | Indicates whether the Recipe may be used for new Trays |
+| name | Yes | Yes | User-friendly preset name |
+| productName | Yes | Yes | Default Product, such as Chicken Breast |
+| ingredients | No | Yes | Default Ingredients |
+| preparationMethods | No | Yes | Default Preparation Methods |
+| notes | No | Yes | Default processing Notes |
+| archived | Yes | Yes | Indicates whether the Preparation Preset may be used for new Trays |
 
 ---
 
 # Relationships
 
-A Recipe:
+A Preparation Preset:
 
 - may be referenced by many Trays
 
 A Tray:
 
-- may reference zero or one Recipe
+- may reference zero or one Preparation Preset
 
-Recipes do not own historical production data.
+Preparation Presets do not own historical production data.
 
 ---
 
 # Historical Behavior
 
-When a Recipe is selected for a Tray:
+When a Preparation Preset is selected for a Tray:
 
-- the Recipe's Product Name is copied to the Tray
-- the Recipe's Preparation is copied to the Tray
+- the preset's Product, Ingredients, Preparation Methods, and Notes are copied to the Tray
 
 After the Tray is created, it owns its own historical preparation information.
 
-Editing a Recipe never changes existing Trays.
+Editing a Preparation Preset never changes existing Trays.
 
-This behavior is defined in ADR-0001.
+This behavior is defined in ADR-0013.
 
 ---
 
 # Lifecycle
 
-Recipes may be:
+Preparation Presets may be:
 
 - Active
 - Archived
 
-Archived Recipes:
+Archived Preparation Presets:
 
 - cannot be selected for new Trays
 - remain visible on historical Trays
 - preserve historical references
 
-Recipes should normally be archived rather than deleted.
+Preparation Presets should normally be archived rather than deleted.
 
 ---
 
@@ -75,7 +75,7 @@ Recipes should normally be archived rather than deleted.
 
 RP-001
 
-Recipes are reusable templates.
+Preparation Presets are reusable data-entry conveniences.
 
 They are not historical records.
 
@@ -83,32 +83,34 @@ They are not historical records.
 
 RP-002
 
-Using a Recipe copies its preparation information onto the Tray.
+Using a Preparation Preset copies its Preparation Metadata onto the Tray.
 
 ---
 
 RP-003
 
-Editing a Recipe affects future Trays only.
+Editing a Preparation Preset affects future Trays only.
 
 ---
 
 RP-004
 
-A Tray may be created without selecting a Recipe.
+A Tray may be created without selecting a Preparation Preset.
 
 ---
 
 RP-005
 
-Recipes should be archived rather than deleted whenever they have been used by historical Trays.
+Preparation Presets should be archived rather than deleted whenever they have been used by historical Trays.
 
 ---
 
 # Notes
 
-Recipes exist to improve efficiency.
+Preparation Presets exist to improve efficiency.
 
-Users should think of Recipes as shortcuts for creating Trays rather than as records of historical production.
+Users should think of Preparation Presets as optional shortcuts for creating Trays rather than as records of historical production.
 
-Historical reporting should always use the preparation information stored on the Tray rather than the current Recipe definition.
+Historical reporting should always use the Preparation Metadata stored on the Tray rather than the current Preparation Preset definition.
+
+The filename is retained temporarily to preserve documentation links during the migration from the Recipe-first model. ADR-0013 is authoritative.

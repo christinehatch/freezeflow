@@ -66,7 +66,10 @@ export type Tray = {
 
 export type TrayPackaging = {
   packaging_operation_id: string;
-  packaged_at: string;
+  packaging_allocation_id: string;
+  packaging_operation_status: PackagingOperationStatus;
+  started_at: string;
+  completed_at: string | null;
   batch_number: string;
   freeze_dryer: string;
   packages: TrayPackageSummary[];
@@ -128,24 +131,88 @@ export type StorageLocation = {
 
 export type Package = {
   id: string;
+  packaging_allocation_id: string;
   packaging_operation_id: string;
   package_type_id: string;
   package_type: PackageType;
   package_identifier: string;
-  package_weight_grams: string;
-  finished_product_weight_grams: string | null;
+  packaged_at: string;
+  package_weight_grams: DecimalValue;
+  finished_product_weight_grams: DecimalValue | null;
   oxygen_absorber: string | null;
   storage_location_id: string;
   storage_location: StorageLocation;
   status: "In Storage" | "Given Away" | "Depleted";
   notes: string | null;
+  label: PackageLabel;
 };
+
+export type PackagingOperationStatus = "Open" | "Completed";
+export type PackageLabelStatus = "Draft" | "Ready" | "Needs Reprint";
 
 export type PackagingOperation = {
   id: string;
-  packaged_at: string;
+  production_batch_id: string;
+  status: PackagingOperationStatus;
+  started_at: string;
+  completed_at: string | null;
   notes: string | null;
-  trays: Tray[];
+  created_at: string;
+  updated_at: string;
+  allocations: PackagingAllocation[];
+  packages: Package[];
+};
+
+export type PackagingAllocationSourceTray = {
+  id: string;
+  production_batch_id: string;
+  tray_slot_id: string;
+  slot_number: number;
+  physical_tray_id: string;
+  physical_tray_label: string;
+  product_name: string;
+  preparation: string;
+  final_dry_weight_grams: DecimalValue;
+  notes: string | null;
+  status: Tray["status"];
+};
+
+export type PlannedPackageRow = {
+  id: string;
+  packaging_allocation_id: string;
+  package_type_id: string | null;
+  finished_product_weight_grams: DecimalValue | null;
+  finished_product_weight_unit: string | null;
+  sealed_package_weight_grams: DecimalValue | null;
+  sealed_package_weight_unit: string | null;
+  oxygen_absorber: string | null;
+  storage_location_id: string | null;
+  notes: string | null;
+  label_status: PackageLabelStatus;
+  label_display_name: string | null;
+  label_description: string | null;
+  label_ingredients_summary: string | null;
+  label_preparation_summary: string | null;
+  label_rehydration_instructions: string | null;
+  label_serving_notes: string | null;
+  label_net_weight_display: string | null;
+  label_fresh_equivalent_display: string | null;
+  recorded_package_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PackagingAllocation = {
+  id: string;
+  packaging_operation_id: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  selected_weight_grams: DecimalValue;
+  allocated_weight_grams: DecimalValue;
+  remaining_weight_grams: DecimalValue;
+  source_trays: PackagingAllocationSourceTray[];
+  planned_packages: PlannedPackageRow[];
   packages: Package[];
 };
 
@@ -155,7 +222,35 @@ export type PackagingWorksheetItem = {
   source_weight_grams: string;
 };
 
+export type PrintEvent = {
+  id: string;
+  package_label_id: string;
+  printed_at: string;
+  recorded_at: string;
+  template: string;
+  print_job_id: string;
+  notes: string | null;
+};
+
 export type PackageLabel = {
+  id: string;
+  package_id: string;
+  status: PackageLabelStatus;
+  display_name: string;
+  description: string | null;
+  ingredients_summary: string | null;
+  preparation_summary: string | null;
+  rehydration_instructions: string | null;
+  serving_notes: string | null;
+  net_weight_display: string | null;
+  fresh_equivalent_display: string | null;
+  created_at: string;
+  updated_at: string;
+  print_events: PrintEvent[];
+};
+
+/** Temporary printable view used by the pre-Phase-3B screens. */
+export type PrintablePackageLabel = {
   package_id: string;
   package_identifier: string;
   batch_number: string;
@@ -169,6 +264,8 @@ export type PackageLabel = {
   oxygen_absorber: string | null;
   packaged_at: string;
   label_template: string | null;
+  storage_location: string;
+  notes: string | null;
 };
 
 export type PackagingResult = {
@@ -177,8 +274,146 @@ export type PackagingResult = {
   warnings: string[];
   source_weight_grams: string;
   package_weight_grams: string;
+  labels: PrintablePackageLabel[];
+};
+
+export type PackagingOperationStart = {
+  started_at?: string | null;
+  notes?: string | null;
+};
+
+export type PackagingOperationComplete = {
+  completed_at?: string | null;
+};
+
+export type PackagingAllocationCreateRequest = {
+  tray_ids: string[];
+  notes?: string | null;
+};
+
+export type PlannedPackageInput = {
+  id?: string;
+  package_type_id?: string | null;
+  finished_product_weight_grams?: DecimalValue | null;
+  finished_product_weight_unit?: string | null;
+  sealed_package_weight_grams?: DecimalValue | null;
+  sealed_package_weight_unit?: string | null;
+  oxygen_absorber?: string | null;
+  storage_location_id?: string | null;
+  notes?: string | null;
+  label_display_name?: string | null;
+  label_description?: string | null;
+  label_ingredients_summary?: string | null;
+  label_preparation_summary?: string | null;
+  label_rehydration_instructions?: string | null;
+  label_serving_notes?: string | null;
+  label_net_weight_display?: string | null;
+  label_fresh_equivalent_display?: string | null;
+};
+
+export type PackagingAllocationUpdateRequest = {
+  tray_ids?: string[];
+  notes?: string | null;
+  planned_packages?: PlannedPackageInput[];
+};
+
+export type PackageLabelValues = {
+  display_name?: string | null;
+  description?: string | null;
+  ingredients_summary?: string | null;
+  preparation_summary?: string | null;
+  rehydration_instructions?: string | null;
+  serving_notes?: string | null;
+  net_weight_display?: string | null;
+  fresh_equivalent_display?: string | null;
+};
+
+export type PackageLineCreate = {
+  planned_package_row_id?: string | null;
+  package_type_id?: string | null;
+  finished_product_weight_grams?: DecimalValue | null;
+  sealed_package_weight_grams?: DecimalValue | null;
+  oxygen_absorber?: string | null;
+  storage_location_id?: string | null;
+  packaged_at?: string | null;
+  notes?: string | null;
+  label?: PackageLabelValues | null;
+};
+
+export type RecordAllocationPackagesRequest = {
+  packages: PackageLineCreate[];
+};
+
+export type RecordAllocationPackagesResponse = {
+  packages: Package[];
+  packaging_operation: PackagingOperation;
+};
+
+export type PackageLabelUpdate = PackageLabelValues & {
+  status?: PackageLabelStatus;
+};
+
+export type PackageLabelSelection = {
+  package_label_ids: string[];
+  template?: string;
+  printed_at?: string | null;
+  notes?: string | null;
+};
+
+export type PackageLabelPrintResult = {
+  print_job_id: string;
   labels: PackageLabel[];
 };
+
+export type LegacyPackageTraysRequest = {
+  production_batch_id: string;
+  tray_ids: string[];
+  packages: {
+    package_type_id: string;
+    finished_product_weight_grams: string;
+    package_weight_grams: string;
+    oxygen_absorber?: string | null;
+    storage_location_id?: string | null;
+    notes?: string | null;
+  }[];
+  packaged_at?: string | null;
+  notes?: string | null;
+  batch_number?: string;
+  freeze_dryer?: string;
+  product_summary?: string;
+  preparation_summary?: string;
+  source_starting_weight_grams?: DecimalValue | null;
+};
+
+export type DecimalValue = string | number;
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+  readonly detail: unknown;
+  readonly body: unknown;
+
+  constructor({
+    status,
+    code,
+    detail,
+    body,
+    message,
+  }: {
+    status: number;
+    code: string | null;
+    detail: unknown;
+    body: unknown;
+    message: string;
+  }) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+    this.body = body;
+  }
+}
 
 export type DevToolResult = {
   action: string;
@@ -190,20 +425,14 @@ export async function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path);
 }
 
-export async function apiPost<T>(
-  path: string,
-  body?: Record<string, unknown>,
-): Promise<T> {
+export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, {
     method: "POST",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
-export async function apiPatch<T>(
-  path: string,
-  body: Record<string, unknown>,
-): Promise<T> {
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return apiRequest<T>(path, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -225,16 +454,14 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    const message =
-      errorBody?.detail?.message ?? errorBody?.detail ?? "API request failed";
-    throw new Error(message);
+    throw toApiError(response.status, errorBody, "API request failed");
   }
 
   const payload = (await response.json()) as ApiResponse<T>;
   return payload.data;
 }
 
-async function devRequest<T>(path: string, body?: Record<string, unknown>) {
+async function devRequest<T>(path: string, body?: unknown) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -243,15 +470,29 @@ async function devRequest<T>(path: string, body?: Record<string, unknown>) {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    const message =
-      errorBody?.detail?.message ??
-      errorBody?.detail ??
-      "Developer action failed";
-    throw new Error(message);
+    throw toApiError(response.status, errorBody, "Developer action failed");
   }
 
   const payload = (await response.json()) as ApiResponse<T>;
   return payload.data;
+}
+
+function toApiError(status: number, body: unknown, fallback: string) {
+  const detail =
+    body && typeof body === "object" && "detail" in body
+      ? (body as { detail: unknown }).detail
+      : body;
+  const message =
+    detail && typeof detail === "object" && "message" in detail
+      ? String((detail as { message: unknown }).message)
+      : typeof detail === "string"
+        ? detail
+        : fallback;
+  const code =
+    detail && typeof detail === "object" && "code" in detail
+      ? String((detail as { code: unknown }).code)
+      : null;
+  return new ApiError({ status, code, detail, body, message });
 }
 
 export const productionApi = {
@@ -406,22 +647,234 @@ export const packagingApi = {
     },
   ) => apiPatch<PackageType>(`/package-types/${id}`, body),
   listStorageLocations: () => apiGet<StorageLocation[]>("/storage-locations"),
-  packageTrays: (body: {
-    tray_ids: string[];
-    packages: {
-      package_type_id: string;
-      finished_product_weight_grams: string;
-      package_weight_grams: string;
-      oxygen_absorber?: string | null;
-      storage_location_id?: string | null;
-      notes?: string | null;
-    }[];
-    packaged_at?: string | null;
-    notes?: string | null;
-  }) => apiPost<PackagingResult>("/packages", body),
-  labelsForPackages: (body: { package_ids: string[] }) =>
-    apiPost<PackageLabel[]>("/packages/labels", body),
+  startOrResumePackagingOperation: ({
+    batchId,
+    body,
+  }: {
+    batchId: string;
+    body?: PackagingOperationStart;
+  }) =>
+    apiPost<PackagingOperation>(
+      `/production-batches/${batchId}/packaging-operation`,
+      body,
+    ),
+  getBatchPackagingOperation: (batchId: string) =>
+    apiGet<PackagingOperation>(
+      `/production-batches/${batchId}/packaging-operation`,
+    ),
+  getPackagingOperation: (operationId: string) =>
+    apiGet<PackagingOperation>(`/packaging-operations/${operationId}`),
+  createPackagingAllocation: ({
+    operationId,
+    body,
+  }: {
+    operationId: string;
+    body: PackagingAllocationCreateRequest;
+  }) =>
+    apiPost<PackagingAllocation>(
+      `/packaging-operations/${operationId}/allocate-trays`,
+      body,
+    ),
+  updatePackagingAllocation: ({
+    operationId,
+    allocationId,
+    body,
+  }: {
+    operationId: string;
+    allocationId: string;
+    body: PackagingAllocationUpdateRequest;
+  }) =>
+    apiPatch<PackagingAllocation>(
+      `/packaging-operations/${operationId}/allocations/${allocationId}`,
+      body,
+    ),
+  recordAllocationPackages: ({
+    operationId,
+    allocationId,
+    body,
+  }: {
+    operationId: string;
+    allocationId: string;
+    body: RecordAllocationPackagesRequest;
+  }) =>
+    apiPost<RecordAllocationPackagesResponse>(
+      `/packaging-operations/${operationId}/allocations/${allocationId}/packages`,
+      body,
+    ),
+  completePackagingOperation: ({
+    operationId,
+    body,
+  }: {
+    operationId: string;
+    body?: PackagingOperationComplete;
+  }) =>
+    apiPost<PackagingOperation>(
+      `/packaging-operations/${operationId}/complete`,
+      body,
+    ),
+  getPackage: (packageId: string) => apiGet<Package>(`/packages/${packageId}`),
+  getPackageLabel: (packageId: string) =>
+    apiGet<PackageLabel>(`/packages/${packageId}/label`),
+  updatePackageLabel: ({
+    packageId,
+    body,
+  }: {
+    packageId: string;
+    body: PackageLabelUpdate;
+  }) => apiPatch<PackageLabel>(`/packages/${packageId}/label`, body),
+  previewPackageLabels: (body: PackageLabelSelection) =>
+    apiPost<PackageLabel[]>("/package-labels/preview", body),
+  printPackageLabels: (body: PackageLabelSelection) =>
+    apiPost<PackageLabelPrintResult>("/package-labels/print", body),
+
+  /** Phase 3A compatibility for the current Packaging page. */
+  packageTrays: (body: LegacyPackageTraysRequest) =>
+    packageTraysThroughWorkflow(body),
+  labelsForPackages: (body: {
+    package_ids: string[];
+    batch_number?: string;
+    freeze_dryer?: string;
+    product_summary?: string;
+    preparation_summary?: string;
+    source_starting_weight_grams?: DecimalValue | null;
+  }) => labelsForRecordedPackages(body),
 };
+
+async function packageTraysThroughWorkflow(
+  body: LegacyPackageTraysRequest,
+): Promise<PackagingResult> {
+  const operation = await packagingApi.startOrResumePackagingOperation({
+    batchId: body.production_batch_id,
+    body: { notes: body.notes },
+  });
+  const allocation = await packagingApi.createPackagingAllocation({
+    operationId: operation.id,
+    body: { tray_ids: body.tray_ids, notes: body.notes },
+  });
+  const sourceWeight = Number(allocation.selected_weight_grams);
+  const startingWeight = Number(body.source_starting_weight_grams ?? 0);
+  const recorded = await packagingApi.recordAllocationPackages({
+    operationId: operation.id,
+    allocationId: allocation.id,
+    body: {
+      packages: body.packages.map((line) => {
+        const finishedWeight = Number(line.finished_product_weight_grams);
+        const freshEquivalent =
+          sourceWeight > 0 && startingWeight > 0
+            ? (finishedWeight / sourceWeight) * startingWeight
+            : null;
+        return {
+          package_type_id: line.package_type_id,
+          finished_product_weight_grams: line.finished_product_weight_grams,
+          sealed_package_weight_grams: line.package_weight_grams,
+          oxygen_absorber: line.oxygen_absorber,
+          storage_location_id: line.storage_location_id,
+          packaged_at: body.packaged_at,
+          notes: line.notes,
+          label: {
+            display_name: body.product_summary,
+            preparation_summary: body.preparation_summary,
+            net_weight_display: `${line.finished_product_weight_grams} g`,
+            fresh_equivalent_display:
+              freshEquivalent === null ? null : `${freshEquivalent} g`,
+          },
+        };
+      }),
+    },
+  });
+  await Promise.all(
+    recorded.packages.map((recordedPackage) =>
+      packagingApi.updatePackageLabel({
+        packageId: recordedPackage.id,
+        body: { display_name: recordedPackage.label.display_name },
+      }),
+    ),
+  );
+  const completed = await packagingApi.completePackagingOperation({
+    operationId: operation.id,
+    body: {},
+  });
+  const labels = recorded.packages.map((item) =>
+    toPrintablePackageLabel(item, body, sourceWeight, startingWeight),
+  );
+  const packageWeight = recorded.packages.reduce(
+    (total, item) => total + Number(item.package_weight_grams),
+    0,
+  );
+  return {
+    packaging_operation: completed,
+    packages: recorded.packages,
+    warnings: [],
+    source_weight_grams: String(sourceWeight),
+    package_weight_grams: String(packageWeight),
+    labels,
+  };
+}
+
+async function labelsForRecordedPackages(body: {
+  package_ids: string[];
+  batch_number?: string;
+  freeze_dryer?: string;
+  product_summary?: string;
+  preparation_summary?: string;
+  source_starting_weight_grams?: DecimalValue | null;
+}) {
+  const packages = await Promise.all(
+    body.package_ids.map((packageId) => packagingApi.getPackage(packageId)),
+  );
+  const sourceWeight = packages.reduce(
+    (total, item) => total + Number(item.finished_product_weight_grams ?? 0),
+    0,
+  );
+  return packages.map((item) =>
+    toPrintablePackageLabel(
+      item,
+      body,
+      sourceWeight,
+      Number(body.source_starting_weight_grams ?? 0),
+    ),
+  );
+}
+
+function toPrintablePackageLabel(
+  item: Package,
+  context: {
+    batch_number?: string;
+    freeze_dryer?: string;
+    product_summary?: string;
+    preparation_summary?: string;
+  },
+  sourceWeight: number,
+  startingWeight: number,
+): PrintablePackageLabel {
+  const finishedWeight = Number(item.finished_product_weight_grams ?? 0);
+  const freshEquivalent =
+    sourceWeight > 0 && startingWeight > 0
+      ? (finishedWeight / sourceWeight) * startingWeight
+      : null;
+  return {
+    package_id: item.id,
+    package_identifier: item.package_identifier,
+    batch_number: context.batch_number ?? "",
+    freeze_dryer: context.freeze_dryer ?? "",
+    product_summary: item.label.display_name || context.product_summary || "",
+    preparation_summary:
+      item.label.preparation_summary ?? context.preparation_summary ?? "",
+    fresh_equivalent_grams:
+      freshEquivalent === null ? null : String(freshEquivalent),
+    finished_product_weight_grams:
+      item.finished_product_weight_grams === null
+        ? null
+        : String(item.finished_product_weight_grams),
+    package_type: item.package_type.name,
+    package_weight_grams: String(item.package_weight_grams),
+    oxygen_absorber: item.oxygen_absorber,
+    packaged_at: item.packaged_at,
+    label_template: item.package_type.default_label_template,
+    storage_location: item.storage_location.name,
+    notes: item.notes,
+  };
+}
 
 export const developerToolsApi = {
   reset: () => devRequest<DevToolResult>("/dev/reset"),

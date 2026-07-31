@@ -1,5 +1,7 @@
 export type WeightUnit = "g" | "oz" | "lb";
 
+export const ALLOCATION_TOLERANCE_GRAMS = 0.001;
+
 export const WEIGHT_UNIT_OPTIONS: { label: string; value: WeightUnit }[] = [
   { label: "g", value: "g" },
   { label: "oz", value: "oz" },

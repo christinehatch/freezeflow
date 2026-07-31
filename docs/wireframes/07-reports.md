@@ -125,7 +125,7 @@ Version 1 should include:
 
 * Freeze Dryer Performance
 * Product History
-* Recipe History
+* Preparation History
 * Drying Time
 * Production History
 * Inventory Summary
@@ -141,7 +141,7 @@ Reports should support:
 * Date Range
 * Freeze Dryer
 * Product
-* Recipe
+* Preparation Preset
 * Production Batch
 
 Only filters relevant to the selected report should be displayed.
@@ -195,7 +195,7 @@ This report provides a high-level overview rather than detailed inventory manage
 
 Reports should always use historical snapshot data.
 
-Editing a Recipe must not change historical reports.
+Editing a Preparation Preset must not change historical reports because reports use each Tray's immutable Preparation Metadata snapshot.
 
 Reports should respect corrections while preserving audit history.
 

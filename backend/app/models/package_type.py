@@ -10,6 +10,7 @@ from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
     from app.models.package import Package
+    from app.models.planned_package_row import PlannedPackageRow
 
 
 class PackageType(IdMixin, Base):
@@ -22,3 +23,6 @@ class PackageType(IdMixin, Base):
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     packages: Mapped[list[Package]] = relationship(back_populates="package_type")
+    planned_package_rows: Mapped[list[PlannedPackageRow]] = relationship(
+        back_populates="package_type"
+    )

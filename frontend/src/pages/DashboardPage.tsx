@@ -106,11 +106,21 @@ export function DashboardPage() {
                       </h4>
                       <p className="mt-1 text-sm text-slate-600">
                         Status:{" "}
-                        {activeBatch ? "Running" : queuedBatch ? "Queued" : "Idle"}
+                        {activeBatch
+                          ? "Running"
+                          : queuedBatch
+                            ? "Queued"
+                            : "Idle"}
                       </p>
                     </div>
                     <StatusPill
-                      status={activeBatch ? "Running" : queuedBatch ? "Queued" : "Idle"}
+                      status={
+                        activeBatch
+                          ? "Running"
+                          : queuedBatch
+                            ? "Queued"
+                            : "Idle"
+                      }
                     />
                   </div>
                   <p className="mt-4 text-sm text-slate-700">

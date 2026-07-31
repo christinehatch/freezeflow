@@ -69,7 +69,7 @@ Do not implement:
 - Inventory
 - Storage Locations
 - Reports
-- Recipe CRUD
+- Preparation Preset CRUD
 - Corrections UI
 - Audit History UI
 - Physical Tray tare-weight calculations

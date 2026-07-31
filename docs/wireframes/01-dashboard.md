@@ -110,7 +110,7 @@ A user should be able to:
 * Package Completed Trays
 * Search Inventory
 * View Reports
-* Manage Recipes
+* Manage Preparation Presets
 
 These actions should always be easy to find.
 

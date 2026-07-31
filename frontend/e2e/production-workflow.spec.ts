@@ -26,7 +26,9 @@ test("creates a draft batch, assigns trays into slots, and starts production", a
   await page.getByLabel("Batch Notes").fill("browser setup smoke test");
   await page.getByRole("button", { name: "Create Draft" }).click();
 
-  await expect(page.getByRole("heading", { name: "Batch E2E 001" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Batch E2E 001" }),
+  ).toBeVisible();
 
   await fillSlotRow(page, "Slot 1", {
     physicalTrayId: "physical-tray-1",
@@ -38,9 +40,10 @@ test("creates a draft batch, assigns trays into slots, and starts production", a
   });
 
   await expect(
-    slotRow(page, "Slot 2").locator('select').first().locator(
-      'option[value="physical-tray-1"]',
-    ),
+    slotRow(page, "Slot 2")
+      .locator("select")
+      .first()
+      .locator('option[value="physical-tray-1"]'),
   ).toHaveCount(0);
 
   await fillSlotRow(page, "Slot 2", {
@@ -57,9 +60,15 @@ test("creates a draft batch, assigns trays into slots, and starts production", a
   ).toBeEnabled();
   await page.getByRole("button", { name: "Start Production Batch" }).click();
 
-  await expect(page.getByText("Production Batch setup is locked")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Current Drying Run" })).toBeVisible();
-  await expect(page.locator(".workspace-header").getByText("Running")).toBeVisible();
+  await expect(
+    page.getByText("Production Batch setup is locked"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Current Drying Run" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".workspace-header").getByText("Running"),
+  ).toBeVisible();
 
   expect(fakeBackend.createProductionBatchBodies).toEqual([
     {
@@ -109,8 +118,12 @@ test("records drying progress, completes trays, and explicitly completes the bat
   await page.goto("/production/batch-1");
 
   await page.getByRole("button", { name: "Current Run Complete" }).click();
-  await expect(page.getByRole("heading", { name: "Record Weight Checks" })).toBeVisible();
-  await expect(page.getByText("Every Running Tray needs a Weight Check")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Record Weight Checks" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Every Running Tray needs a Weight Check"),
+  ).toBeVisible();
 
   await saveWeightCheck(page, "Taco Chicken", "8.4", "oz");
   await saveWeightCheck(page, "Apples", "8.8", "oz");
@@ -122,9 +135,7 @@ test("records drying progress, completes trays, and explicitly completes the bat
   await tacoWeightRow
     .getByRole("textbox", { name: "Correction reason" })
     .fill("Wrong unit selected");
-  await tacoWeightRow
-    .getByRole("button", { name: "Save Correction" })
-    .click();
+  await tacoWeightRow.getByRole("button", { name: "Save Correction" }).click();
 
   await expect(slotRow(page, "Slot 1").getByText("929.9 g")).toBeVisible();
   await expect(slotRow(page, "Slot 1").getByText("240 g")).toBeVisible();
@@ -133,7 +144,9 @@ test("records drying progress, completes trays, and explicitly completes the bat
   ).toBeEnabled();
 
   await page.getByRole("button", { name: "Start Another Drying Run" }).click();
-  await expect(page.getByRole("heading", { name: "Current Drying Run" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Current Drying Run" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Current Run Complete" }).click();
   await saveWeightCheck(page, "Taco Chicken", "8.2", "oz");
@@ -153,10 +166,14 @@ test("records drying progress, completes trays, and explicitly completes the bat
   await saveWeightCheck(page, "Apples", "8.6", "oz");
   await markTrayComplete(page, "Apples");
 
-  await expect(page.getByRole("heading", { name: "All Trays Complete" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "All Trays Complete" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Complete Batch" }).click();
 
-  await expect(page.getByRole("heading", { name: "Drying Complete" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Drying Complete" }),
+  ).toBeVisible();
   await expect(
     page.locator(".workspace-header").getByText("Completed"),
   ).toBeVisible();
@@ -204,13 +221,27 @@ test("completed production batches hand off eligible trays to Packaging", async 
   await markTrayComplete(page, "Taco Chicken");
   await markTrayComplete(page, "Apples");
   await page.getByRole("button", { name: "Complete Batch" }).click();
-  await expect(page.getByRole("heading", { name: "Drying Complete" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Drying Complete" }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Start Packaging" }).click();
 
-  await expect(page.getByRole("heading", { name: "Packaging Worksheet" })).toBeVisible();
-  await expect(rowFor(page, "Taco Chicken").getByRole("checkbox")).toBeEnabled();
-  await expect(rowFor(page, "Apples").getByRole("checkbox")).toBeEnabled();
+  await expect(
+    page.getByRole("heading", { name: "Packaging Worksheet" }),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/packaging\?batch=batch-1$/);
+  await expect(page.getByLabel("Production Batch")).toHaveValue("batch-1");
+  await expect(
+    page.getByLabel("Production Batch").getByRole("option", {
+      name: /Batch E2E .* 2 completed Trays/,
+    }),
+  ).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Start Packaging" }),
+  ).toBeVisible();
+  await expect(page.getByText("Taco Chicken")).toHaveCount(0);
+  await expect(page.getByText("Apples")).toHaveCount(0);
 });
 
 function physicalTraySet() {
@@ -343,11 +374,9 @@ function slotRow(page: Page, slot: string) {
 function weightRow(page: Page, product: string) {
   return page
     .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Record Weight Checks" }) })
+    .filter({
+      has: page.getByRole("heading", { name: "Record Weight Checks" }),
+    })
     .locator("tr")
     .filter({ hasText: product });
-}
-
-function rowFor(page: Page, text: string) {
-  return page.locator("tr").filter({ hasText: text });
 }

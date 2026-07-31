@@ -13,6 +13,7 @@ from app.models.mixins import IdMixin
 
 if TYPE_CHECKING:
     from app.models.package import Package
+    from app.models.planned_package_row import PlannedPackageRow
 
 
 class StorageLocation(IdMixin, Base):
@@ -23,6 +24,9 @@ class StorageLocation(IdMixin, Base):
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     packages: Mapped[list[Package]] = relationship(back_populates="storage_location")
+    planned_package_rows: Mapped[list[PlannedPackageRow]] = relationship(
+        back_populates="storage_location"
+    )
     previous_location_histories: Mapped[list[StorageLocationHistory]] = relationship(
         back_populates="previous_storage_location",
         foreign_keys="StorageLocationHistory.previous_storage_location_id",

@@ -57,6 +57,4 @@ class DryingRun(IdMixin, Base):
     production_batch: Mapped[ProductionBatch] = relationship(
         back_populates="drying_runs"
     )
-    weight_checks: Mapped[list[WeightCheck]] = relationship(
-        back_populates="drying_run"
-    )
+    weight_checks: Mapped[list[WeightCheck]] = relationship(back_populates="drying_run")

@@ -3,32 +3,52 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.enums import PackagingOperationStatus
 from app.schemas.base import ReadSchema
 
 
 class PackagingOperationCreate(BaseModel):
-    packaged_at: datetime
+    production_batch_id: UUID
+    status: PackagingOperationStatus = PackagingOperationStatus.OPEN
+    started_at: datetime
+    completed_at: datetime | None = None
     notes: str | None = None
 
 
 class PackagingOperationUpdate(BaseModel):
-    packaged_at: datetime | None = None
+    status: PackagingOperationStatus | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     notes: str | None = None
 
 
 class PackagingOperationRead(PackagingOperationCreate, ReadSchema):
     id: UUID
+    created_at: datetime
+    updated_at: datetime
 
 
-class PackagingOperationTrayCreate(BaseModel):
+class PackagingAllocationCreate(BaseModel):
     packaging_operation_id: UUID
+    notes: str | None = None
+
+
+class PackagingAllocationUpdate(BaseModel):
+    notes: str | None = None
+
+
+class PackagingAllocationRead(PackagingAllocationCreate, ReadSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class PackagingAllocationSourceTrayCreate(BaseModel):
+    packaging_allocation_id: UUID
     tray_id: UUID
 
 
-class PackagingOperationTrayUpdate(BaseModel):
-    packaging_operation_id: UUID | None = None
-    tray_id: UUID | None = None
-
-
-class PackagingOperationTrayRead(PackagingOperationTrayCreate, ReadSchema):
+class PackagingAllocationSourceTrayRead(
+    PackagingAllocationSourceTrayCreate, ReadSchema
+):
     id: UUID

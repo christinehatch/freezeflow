@@ -47,9 +47,9 @@ Future milestones should extend previous work rather than replacing it.
 | 01 | Complete | Persistence Layer |
 | 02 | Complete | Production Workflow |
 | 03 | Complete | Weight Tracking |
-| 04 | Complete | Packaging |
+| 04 | Complete | Packaging and Package Labels |
 | 05 | Planned | Inventory |
-| 06 | Planned | Recipes |
+| 06 | Planned | Preparation Presets |
 | 07 | Planned | Reporting |
 | 08 | Planned | Corrections & Audit History |
 | 09 | Planned | Polish & Production Readiness |
@@ -60,7 +60,7 @@ Future milestones should extend previous work rather than replacing it.
 
 ## Milestone 0 - Project Foundation
 
-Status: Complete
+Status: Reopened
 
 Goal: Establish the project foundation without implementing user functionality.
 
@@ -165,6 +165,12 @@ Includes:
 - Oxygen absorber tracking
 - Package notes
 - Printable human-readable labels
+- Resumable open Packaging Operations
+- Packaging Allocations with stable identity inside their Packaging Operation
+- Durable Planned Package Rows without a Draft Package state
+- One editable Package Label per created Package
+- Package Label editing, Ready and Needs Reprint states, and append-only Print Events
+- Selection-based label printing across Package, Allocation, Operation, Production Batch, today, or custom scopes
 - Auto-generated Package identifiers
 - Packaging Worksheet
 - Package weights
@@ -191,20 +197,20 @@ Includes:
 
 ---
 
-## Milestone 6 - Recipes
+## Milestone 6 - Preparation Presets
 
 Status: Planned
 
-Goal: Build reusable recipe management.
+Goal: Build optional reusable Preparation Metadata presets.
 
 Includes:
 
-- Recipe CRUD
-- Recipe archive and restore
-- Recipe snapshots
-- Default preparation
-- Default notes
-- Recipe selection during tray setup
+- Preparation Preset CRUD
+- Preparation Preset archive and restore
+- Reusable Products, Ingredients, and Preparation Methods
+- Autocomplete and inline one-off metadata
+- Immutable Tray Preparation Metadata snapshots
+- Optional Preparation Preset selection during Tray setup
 
 ---
 

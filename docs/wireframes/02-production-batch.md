@@ -55,11 +55,11 @@ ______________________________________________________________
 
 Freeze Dryer Slots
 
-Slot | Physical Tray | Product         | Recipe              | Preparation Summary
+Slot | Physical Tray | Product         | Preparation Preset  | Preparation Metadata
 
 ----------------------------------------------------------------------------
 
-1    | Tray 7        | Taco Chicken    | Taco Chicken        | 2 lbs grilled, seasoned
+1    | Tray 7        | Taco Chicken    | Chicken Tacos       | Chicken, cubed, seasoned
 
 2    | Tray 3        | Strawberries    | —                   | Washed, hulled, sliced
 
@@ -83,11 +83,11 @@ The number of selected Trays cannot exceed the Freeze Dryer's configured Tray Sl
 Example:
 
 ```text
-Slot | Physical Tray | Product         | Recipe              | Preparation Summary
+Slot | Physical Tray | Product         | Preparation Preset  | Preparation Metadata
 
 ----------------------------------------------------------------------------
 
-1    | Tray 7        | Taco Chicken    | Taco Chicken        | 2 lbs grilled, seasoned
+1    | Tray 7        | Taco Chicken    | Chicken Tacos       | Chicken, cubed, seasoned
 
 2    | Tray 3        | Strawberries    | —                   | Washed, hulled, sliced
 
@@ -156,7 +156,7 @@ A user should be able to:
 * Determine when a Tray is ready to complete.
 * Review the latest drying progress.
 * Open detailed Tray history when needed.
-* Finish the Production Batch and transition to Packaging.
+* Finish the Production Batch and start or resume Packaging.
 
 ---
 
@@ -171,9 +171,9 @@ A user should be able to:
 * Edit Batch Notes
 * Cancel Production Batch
 
-Packaging is intentionally not performed on this screen.
+Packaging entry is intentionally not performed on this screen.
 
-Once trays are complete, the user moves to the Packaging workflow.
+Once the Production Batch is complete, the primary handoff opens its Packaging workspace.
 
 ---
 
@@ -498,14 +498,14 @@ All Trays have been completed.
 
 Primary Action:
 
-Go to Packaging.
+Start Packaging, or Resume Packaging when an open Packaging Operation already exists.
 
 Example:
 
 ```text
 All Trays are complete.
 
-[ Package Completed Trays ]
+[ Start Packaging ]
 ```
 
 ---
@@ -573,7 +573,7 @@ A user should be able to:
 * Record all Tray weights without leaving the screen.
 * Enter consecutive Weight Checks with almost no mouse interaction.
 * Recognize completed Trays immediately.
-* Transition naturally into Packaging when drying is finished.
+* Start or resume the correct Packaging workspace when drying is finished.
 
 ---
 

@@ -3,11 +3,14 @@ import { FormEvent, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import {
+  ApiError,
   DryingRun,
+  PackagingOperation,
   PhysicalTray,
   ProductionBatch,
   Tray,
   TraySlot,
+  packagingApi,
   productionApi,
 } from "../api/client";
 import {
@@ -31,6 +34,12 @@ export function ProductionBatchPage() {
     queryKey: ["production-batch", batchId],
     queryFn: () => productionApi.getProductionBatch(batchId ?? ""),
     enabled: Boolean(batchId),
+  });
+  const packagingOperationQuery = useQuery({
+    queryKey: ["packaging-operation-by-batch", batchId],
+    queryFn: () => getBatchPackagingOperationOrNull(batchId ?? ""),
+    enabled: Boolean(batchId && batchQuery.data?.status === "Completed"),
+    retry: false,
   });
   const freezeDryersQuery = useQuery({
     queryKey: ["freeze-dryers"],
@@ -381,6 +390,9 @@ export function ProductionBatchPage() {
             completeDryingRun.mutate({ id: dryingRun.id })
           }
           latestCompletedDryingRun={latestCompletedDryingRun}
+          packagingOperation={packagingOperationQuery.data}
+          packagingOperationError={packagingOperationQuery.error}
+          packagingOperationLoading={packagingOperationQuery.isLoading}
           startDryingRun={() =>
             startDryingRun.mutate({ batchId: batch.id, body: {} })
           }
@@ -765,6 +777,9 @@ function DryingWorkflowPanel({
   completeBatch,
   completeDryingRun,
   latestCompletedDryingRun,
+  packagingOperation,
+  packagingOperationError,
+  packagingOperationLoading,
   startDryingRun,
 }: {
   activeDryingRun?: DryingRun;
@@ -774,6 +789,9 @@ function DryingWorkflowPanel({
   completeBatch: () => void;
   completeDryingRun: (dryingRun: DryingRun) => void;
   latestCompletedDryingRun?: DryingRun;
+  packagingOperation: PackagingOperation | null | undefined;
+  packagingOperationError: Error | null;
+  packagingOperationLoading: boolean;
   startDryingRun: () => void;
 }) {
   const runningTrays = batch.trays.filter((tray) => tray.status === "Running");
@@ -782,6 +800,13 @@ function DryingWorkflowPanel({
   );
 
   if (batch.status === "Completed") {
+    const packagingAction =
+      packagingOperation?.status === "Open"
+        ? "Continue Packaging"
+        : packagingOperation?.status === "Completed"
+          ? "View Packaging"
+          : "Start Packaging";
+
     return (
       <section className="panel">
         <h3 className="section-title">Drying Complete</h3>
@@ -791,12 +816,27 @@ function DryingWorkflowPanel({
         <p className="mt-3 text-sm text-slate-600">
           Total drying time: {formatDuration(batch.total_drying_seconds)}
         </p>
-        <Link
-          className="primary-action mt-4"
-          to={`/packaging?batch=${batch.id}`}
-        >
-          Start Packaging
-        </Link>
+        {packagingOperationError ? (
+          <p className="mt-4 text-sm text-red-700" role="alert">
+            Packaging status could not be loaded. Open Packaging to try again.
+          </p>
+        ) : null}
+        {packagingOperationLoading ? (
+          <p className="mt-4 text-sm text-slate-600">
+            Loading Packaging status...
+          </p>
+        ) : (
+          <Link
+            className="primary-action mt-4"
+            to={
+              packagingOperation
+                ? `/packaging?batch=${batch.id}&workspace=1`
+                : `/packaging?batch=${batch.id}`
+            }
+          >
+            {packagingAction}
+          </Link>
+        )}
       </section>
     );
   }
@@ -928,6 +968,17 @@ function DryingWorkflowPanel({
       </div>
     </section>
   );
+}
+
+async function getBatchPackagingOperationOrNull(batchId: string) {
+  try {
+    return await packagingApi.getBatchPackagingOperation(batchId);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function WeightEntryRow({
@@ -1129,7 +1180,8 @@ function WeightEntryRow({
             ) : null}
             {recordWeightCheck.isError ? (
               <p className="text-sm font-medium text-red-700" role="alert">
-                Weight Check could not be saved. {recordWeightCheck.error.message}
+                Weight Check could not be saved.{" "}
+                {recordWeightCheck.error.message}
               </p>
             ) : null}
           </div>
@@ -1166,8 +1218,7 @@ function CompleteTrayButton({
   const [finalDryWeight, setFinalDryWeight] = useState(
     tray.latest_weight_grams ?? "",
   );
-  const [finalDryWeightUnit, setFinalDryWeightUnit] =
-    useState<WeightUnit>("g");
+  const [finalDryWeightUnit, setFinalDryWeightUnit] = useState<WeightUnit>("g");
   const completeTray = useMutation({
     mutationFn: productionApi.completeTray,
     onSuccess: () => refreshBatch(queryClient, batchId),

@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  cleanup,
-  render,
-  screen,
-  within,
-} from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { FreezeDryer, PhysicalTray, ProductionBatch, Tray } from "../api/client";
+import type {
+  FreezeDryer,
+  PackagingOperation,
+  PhysicalTray,
+  ProductionBatch,
+  Tray,
+} from "../api/client";
 import { ProductionBatchPage } from "../pages/ProductionBatchPage";
 
 const freezeDryer: FreezeDryer = {
@@ -85,8 +86,11 @@ describe("ProductionBatchPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Batch 001" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Select the Physical Trays used in this Production Batch."))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Select the Physical Trays used in this Production Batch.",
+      ),
+    ).toBeInTheDocument();
 
     const slotOneRow = await findRow("Slot 1");
     await user.selectOptions(
@@ -103,8 +107,9 @@ describe("ProductionBatchPage", () => {
     );
     await user.click(within(slotOneRow).getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByRole("link", { name: "Apples" }))
-      .toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Apples" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Imported Tray 1")).toBeInTheDocument();
     expect(screen.getByText("929.9 g")).toBeInTheDocument();
 
@@ -136,16 +141,21 @@ describe("ProductionBatchPage", () => {
 
     renderProductionBatchPage();
 
-    expect(await screen.findByRole("link", { name: "Apples" }))
-      .toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Start Production Batch" }));
+    expect(
+      await screen.findByRole("link", { name: "Apples" }),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Start Production Batch" }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: "Current Drying Run" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Running").length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "Current Run Complete" }));
+    await user.click(
+      screen.getByRole("button", { name: "Current Run Complete" }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: "Record Weight Checks" }),
@@ -157,9 +167,9 @@ describe("ProductionBatchPage", () => {
     expect(weightUnit).toHaveValue("g");
     await user.clear(weightInput);
     await user.type(weightInput, "1100");
-    expect(
-      within(weightRow).getByRole("alert"),
-    ).toHaveTextContent("Check the value and unit");
+    expect(within(weightRow).getByRole("alert")).toHaveTextContent(
+      "Check the value and unit",
+    );
     await user.clear(weightInput);
     await user.type(weightInput, "8.4");
     await user.selectOptions(weightUnit, "oz");
@@ -171,7 +181,8 @@ describe("ProductionBatchPage", () => {
     await user.click(
       within(savedWeightRow).getByRole("button", { name: "Correct" }),
     );
-    const correctionInput = within(savedWeightRow).getAllByRole("spinbutton")[0];
+    const correctionInput =
+      within(savedWeightRow).getAllByRole("spinbutton")[0];
     await user.clear(correctionInput);
     await user.type(correctionInput, "240");
     await user.type(
@@ -245,6 +256,40 @@ describe("ProductionBatchPage", () => {
       ]),
     );
   });
+
+  it("links a completed Batch to its existing Open Packaging Operation", async () => {
+    const testState = createProductionTestState(
+      {
+        status: "Completed",
+        completed_at: "2026-07-08T01:00:00.000Z",
+      },
+      createPackagingOperation("Open"),
+    );
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderProductionBatchPage();
+
+    expect(
+      await screen.findByRole("link", { name: "Continue Packaging" }),
+    ).toHaveAttribute("href", "/packaging?batch=batch-1&workspace=1");
+  });
+
+  it("links a completed Batch to its Completed Packaging Operation", async () => {
+    const testState = createProductionTestState(
+      {
+        status: "Completed",
+        completed_at: "2026-07-08T01:00:00.000Z",
+      },
+      createPackagingOperation("Completed"),
+    );
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderProductionBatchPage();
+
+    expect(
+      await screen.findByRole("link", { name: "View Packaging" }),
+    ).toHaveAttribute("href", "/packaging?batch=batch-1&workspace=1");
+  });
 });
 
 function renderProductionBatchPage() {
@@ -291,6 +336,7 @@ async function findLastRow(text: string) {
 
 function createProductionTestState(
   overrides: Partial<ProductionBatch> = {},
+  packagingOperation: PackagingOperation | null = null,
 ) {
   const state: { batch: ProductionBatch } = {
     batch: {
@@ -303,7 +349,10 @@ function createProductionTestState(
     const url = String(input);
     const method = init?.method ?? "GET";
 
-    if (url.endsWith("/api/v1/production-batches/batch-1") && method === "GET") {
+    if (
+      url.endsWith("/api/v1/production-batches/batch-1") &&
+      method === "GET"
+    ) {
       return jsonResponse(state.batch);
     }
 
@@ -317,6 +366,20 @@ function createProductionTestState(
 
     if (url.endsWith("/api/v1/production-batches") && method === "GET") {
       return jsonResponse([state.batch]);
+    }
+
+    if (
+      url.endsWith("/api/v1/production-batches/batch-1/packaging-operation") &&
+      method === "GET"
+    ) {
+      return packagingOperation
+        ? jsonResponse(packagingOperation)
+        : errorResponse(404, {
+            detail: {
+              code: "PACKAGING_OPERATION_NOT_FOUND",
+              message: "Packaging Operation does not exist.",
+            },
+          });
     }
 
     if (
@@ -516,10 +579,35 @@ function parseBody(init?: RequestInit) {
   return init?.body ? JSON.parse(String(init.body)) : {};
 }
 
+function createPackagingOperation(
+  status: PackagingOperation["status"],
+): PackagingOperation {
+  return {
+    id: "packaging-operation-1",
+    production_batch_id: "batch-1",
+    status,
+    started_at: "2026-07-08T01:05:00.000Z",
+    completed_at: status === "Completed" ? "2026-07-08T02:00:00.000Z" : null,
+    notes: null,
+    created_at: "2026-07-08T01:05:00.000Z",
+    updated_at: "2026-07-08T01:05:00.000Z",
+    allocations: [],
+    packages: [],
+  };
+}
+
 function jsonResponse(data: unknown) {
   return Promise.resolve({
     ok: true,
     json: () => Promise.resolve({ success: true, data, meta: {} }),
+  } as Response);
+}
+
+function errorResponse(status: number, data: unknown) {
+  return Promise.resolve({
+    ok: false,
+    status,
+    json: () => Promise.resolve(data),
   } as Response);
 }
 

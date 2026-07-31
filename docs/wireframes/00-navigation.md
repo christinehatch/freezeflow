@@ -53,7 +53,7 @@ Dashboard
 |
 +-- Reports
 |
-+-- Recipes
++-- Preparation Presets
 |
 +-- Freeze Dryers
 |
@@ -76,7 +76,7 @@ Administrative setup screens should be available but visually secondary.
 
 Examples:
 
-* Recipes
+* Preparation Presets
 * Freeze Dryers
 * Storage Locations
 

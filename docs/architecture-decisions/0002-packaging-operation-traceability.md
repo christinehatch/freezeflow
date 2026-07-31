@@ -8,90 +8,68 @@ Accepted
 
 # Context
 
-Completed Trays are often packaged after drying.
-
-Sometimes one Tray is packaged by itself.
-
-Sometimes multiple compatible Trays are mixed together before packaging.
-
-That mixed product may then be divided into multiple finished Packages.
-
-Every Package must remain traceable back to the Tray or Trays that produced it.
-
-At the same time, users should think in terms of the workflow:
-
-* select completed Trays
-* package selected Trays
-* create Packages
-
-Users should not need to manage an additional object just to preserve traceability.
+Operators may combine several completed Trays, divide the result among several
+Packages, pause the work, and resume later. One Production Batch may also contain
+different products that are packaged separately. Every Package must remain
+traceable to the exact completed Trays that supplied it without forcing the
+operator to perform physical tasks in a prescribed order.
 
 ---
 
 # Decision
 
-Freezeflow uses an internal Packaging Operation entity.
+`PackagingOperation` is the aggregate root for one resumable packaging workspace.
+It has an `Open` or `Completed` status. At most one Open Packaging Operation may
+exist for a Production Batch. The operator explicitly completes it after all
+required product has been allocated and recorded.
 
-A Packaging Operation represents one packaging action.
+`PackagingAllocation` is an identified child entity inside the Packaging
+Operation. It has stable identity independent of its Packages but cannot exist
+outside its parent Packaging Operation. An Allocation references one or more
+completed Trays as its product source and connects that source to zero or more
+Packages. Separate combinations of Trays use separate Allocations.
 
-It contains one or more completed Trays.
+An Allocation may exist before any Package is recorded. This allows open work,
+planned package rows, and Package Label drafts to survive closing and reopening
+the application. A Package is created when the operator intentionally records
+it in Freezeflow. There is no Draft Package inventory state.
 
-For Version 1, selected Trays must belong to the same Production Batch, as defined in ADR-0011.
+Selected source weight and allocated Package Finished Product Weight are
+persisted facts. Remaining product weight is derived from them and is never
+stored independently. Sealed Package Weight does not reduce remaining product.
 
-It produces one or more Packages.
+Completed product may be allocated to only one active Packaging Allocation at a
+time. Version 1 Allocations reference Trays from one Production Batch.
 
-A Tray may participate in only one Packaging Operation.
-
-Each Package belongs to exactly one Packaging Operation.
-
-The public workflow remains Package selected Trays.
-
-The API exposes this as a package creation action, such as `POST /api/v1/packages`.
-
-The server creates the internal Packaging Operation automatically.
-
-Packaging Operations appear as part of package history rather than as user-managed records.
-
----
-
-# Alternatives Considered
-
-## Direct Package-to-Tray Relationship
-
-Rejected.
-
-A direct relationship works when one Package comes from one or more Trays.
-
-It becomes ambiguous when multiple Trays are mixed and then divided into multiple Packages.
-
-It also loses the real-world packaging action that connected the selected Trays to the resulting Packages.
-
-## Consolidated Lot
-
-Rejected as user-facing terminology.
-
-The concept is useful internally, but the term does not match how users describe the workflow.
-
-Users package selected Trays; they do not create Consolidated Lots.
-
-## Public Packaging Operation API
-
-Rejected.
-
-Packaging Operation is an internal traceability concept.
-
-The public API should describe the user's action rather than expose internal implementation details.
+Users work with a Packaging workspace and selected Trays. They do not manage
+Allocations as standalone records.
 
 ---
 
 # Consequences
 
-Traceability from Package back to source Trays is preserved.
+* Packaging may be paused and resumed without losing work.
+* Different Tray combinations in one Production Batch remain distinct.
+* Packages retain exact source-Tray traceability through their Allocation.
+* An Allocation may contain zero Packages while work is being prepared.
+* No selected product may silently disappear when Packaging is completed.
+* Corrections after completion follow ADR-0005.
 
-Packages can be created from mixed completed Trays without duplicating or reusing Trays across packaging actions.
+---
 
-The user experience remains simple.
+# Alternatives Considered
 
-The UI can show Packaging Operations as history events without requiring users to manage them directly.
+## Direct Packaging Operation to Tray Association
 
-Reporting can trace Packages through Packaging Operations to Trays, Production Batches, Freeze Dryers, Weight Checks, and historical preparation information.
+Rejected because it cannot distinguish separate combinations of Trays within
+one resumable Packaging Operation.
+
+## Packaging Allocation as Aggregate Root
+
+Rejected. Allocations have stable identity but belong to the lifecycle and
+transaction boundary of their Packaging Operation.
+
+## Packaging Allocation
+
+Rejected as terminology. `Packaging Allocation` answers the business question
+of where completed product went and matches the traceability purpose.

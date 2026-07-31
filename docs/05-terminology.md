@@ -173,11 +173,9 @@ A Product describes *what* is being dried.
 
 ---
 
-## Recipe
+## Preparation Metadata
 
-A Recipe is a reusable preparation template.
-
-It describes *how* a product is commonly prepared before freeze drying.
+Preparation Metadata describes what was freeze dried and how it was prepared.
 
 Examples:
 
@@ -185,24 +183,37 @@ Examples:
 * Garlic Chicken
 * Sliced Strawberries
 
-A Recipe may include:
+Preparation Metadata may include:
 
-* preparation instructions
-* seasonings
-* notes
-* default settings
+* primary Product
+* Ingredients and seasonings
+* Preparation Methods
+* processing Notes
 
-A Recipe may be reused across many Trays.
+It is production history, not a cooking Recipe.
 
-Recipes provide defaults.
+## Preparation Preset
 
-They are not a replacement for the actual preparation notes recorded on a Tray.
+A Preparation Preset is an optional saved combination of Product, Ingredients,
+Preparation Methods, and default Notes.
 
-When a Tray is created from a Recipe, the relevant Recipe information is copied onto the Tray.
+Preparation Presets reduce repeated entry but are never required.
 
-The copied preparation information becomes the historical record for that Tray.
+When applied, preset values are copied into the Tray's Preparation Metadata snapshot.
 
-Editing a Recipe affects future Trays only.
+Editing a Preparation Preset affects future use only.
+
+## Ingredient
+
+An Ingredient is a reusable suggestion for a food component or seasoning, such
+as Salt, Pepper, Salsa, or Onion Powder. Users may enter a new Ingredient inline
+without visiting a setup screen.
+
+## Preparation Method
+
+A Preparation Method is a reusable suggestion describing processing, such as
+Cubed, Shredded, Raw, Pan Fried, Store Bought, or Home Canned. Users may enter a
+new value inline.
 
 ---
 
@@ -212,7 +223,8 @@ Tray Preparation is the historical preparation information stored on a Tray.
 
 It records what was actually prepared for that specific Tray.
 
-Tray Preparation may be copied from a Recipe or entered directly by the user.
+Tray Preparation is the Tray's immutable Preparation Metadata snapshot. It may
+be copied from a Preparation Preset or entered directly by the user.
 
 Tray Preparation should support freeform notebook-style entry.
 
@@ -239,9 +251,9 @@ Packaging occurs only after drying has completed.
 
 ## Packaging Session
 
-A Packaging Session is the user-facing workflow for planning and completing Packaging.
-
-It includes selecting eligible completed Trays, reviewing the Packaging Worksheet, choosing Package Types, printing human-readable labels, recording sealed Package Weights, and completing Packaging.
+A Packaging Session is the user-facing experience provided by an Open Packaging
+Operation. It may be paused and resumed while the operator allocates completed
+product, records Packages, prepares labels, prints, and finishes Packaging.
 
 ---
 
@@ -249,17 +261,39 @@ It includes selecting eligible completed Trays, reviewing the Packaging Workshee
 
 A Packaging Worksheet is the planning view used during a Packaging Session.
 
-It summarizes selected Trays, Finished Product Weights, package count, Package Types, oxygen absorber suggestions, Package identifiers, labels, and Storage Location or Unassigned.
+It summarizes the selected Production Batch, Packaging Allocations, source
+Trays, Finished Product Weights, planned package rows, recorded Packages, Package
+Labels, and remaining product.
+
+## Planned Package Row
+
+A Planned Package Row is durable planning information inside an Open Packaging
+Operation. It may hold expected Package Type and draft label information before
+the operator records a Package.
+
+A Planned Package Row is not a Package, has no Package Identifier, and is not
+inventory. It survives navigation and application restart.
 
 ---
 
 ## Packaging Operation
 
-A Packaging Operation is the internal record created when completed trays are packaged.
+A Packaging Operation is the resumable aggregate root for converting completed
+product from one Production Batch into labeled inventory.
 
-It connects the selected source trays to the Packages produced from them.
+It has an `Open` or `Completed` lifecycle and contains Packaging Allocations,
+planned package rows, Packages, Package Labels, Print Events, notes, and progress.
+Users start, resume, and complete the workspace without managing its internal
+entities directly.
 
-Users do not need to manage Packaging Operations directly.
+## Packaging Allocation
+
+A Packaging Allocation is an identified child entity within one Packaging
+Operation. It references the exact completed Tray or Trays supplying product for
+one or more Packages.
+
+An Allocation may exist before Packages are recorded. It has stable identity but
+never exists independently of its Packaging Operation and is not an aggregate root.
 
 ---
 
@@ -269,7 +303,8 @@ A Package is one sealed storage bag.
 
 A Package becomes the primary inventory unit.
 
-Each Package contains product from one Packaging Operation.
+Each Package contains product from one Packaging Allocation and therefore belongs
+to one Packaging Operation.
 
 Examples:
 
@@ -300,17 +335,30 @@ It should be suitable for printed labels.
 
 ---
 
-## Printable Label
+## Package Label
 
-A Printable Label is a human-readable label generated from planned or created Package information.
+A Package Label is the persistent, editable human-readable presentation owned by
+exactly one Package.
 
-Printable labels are included in Milestone 4.
+It includes a Display Name, optional Description, Ingredients Summary,
+Preparation Summary, Rehydration Instructions, Serving Notes, and weight or
+fresh-equivalent display content.
+
+Package Identifier and Packaging Date are rendered from source records and are
+not rewritten by Package Label edits.
+
+Package Label state is `Draft`, `Ready`, or `Needs Reprint`. Users may edit and
+reprint a Package Label after Package creation. Editing a printed label changes
+its state to `Needs Reprint`. Before Milestone 8, edits replace the current label
+content; Milestone 8 adds Audit history.
 
 QR codes and barcodes are future enhancements.
 
-A permanent Printable Label includes Packaging Date, historical preparation or
-contents, and the derived Package Fresh Equivalent when available. It does not
-include mutable Storage Location.
+## Print Event
+
+A Print Event is an append-only record that a selected Package Label was printed
+or reprinted at a recorded time using a label template. `Printed` and `Reprinted`
+are events, not Package Label states.
 
 ---
 
@@ -402,6 +450,18 @@ Inventory Status never removes historical production information.
 Given Away means the Package left the user's inventory as a gift or transfer.
 
 Given Away is not the same as deleted, depleted, or Storage Location.
+
+---
+
+## Package Status History
+
+An append-only record of one Package Inventory Status lifecycle event.
+
+Each record preserves the previous status, current status, Effective Time, Recorded Time, and optional Notes.
+
+Creating a Package automatically creates its initial In Storage Package Status History record.
+
+Package Status History is distinct from Audit History. Package Status History records lifecycle events; Audit History records corrections.
 
 ---
 
@@ -514,7 +574,7 @@ Every Package should always be traceable to:
 * the Tray or Trays used
 * the recorded Weight Checks
 * the historical preparation information
-* the Recipe, if one was used
+* the Preparation Preset, if one was used
 
 ---
 

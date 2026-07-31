@@ -1,136 +1,126 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+from uuid import uuid4
 
 from app.models import (
-    DryingRun,
-    DryingRunStatus,
     FreezeDryer,
     InventoryStatus,
-    Package,
+    PackageLabelStatus,
     PackageType,
+    PackagingAllocation,
+    PackagingAllocationSourceTray,
     PackagingOperation,
-    PackagingOperationTray,
+    PackagingOperationStatus,
     PhysicalTray,
+    PlannedPackageRow,
     ProductionBatch,
     ProductionBatchStatus,
-    Recipe,
     StorageLocation,
-    StorageLocationHistory,
     Tray,
     TraySlot,
     TrayStatus,
-    WeightCheck,
 )
+from app.repositories.packages import package_repository
+from app.schemas import PackageCreate, PackageLabelCreate
 
 
-def test_model_creation_and_relationships(db_session) -> None:
+def test_refined_packaging_model_relationships(db_session) -> None:
     now = datetime.now(UTC)
-    freeze_dryer = FreezeDryer(
-        name="Freeze Dryer #1",
-        notes="Primary freeze dryer",
-    )
-    recipe = Recipe(
-        name="Taco Chicken",
-        product_name="Chicken",
-        preparation="Cubed and seasoned.",
-    )
-    storage_location = StorageLocation(name="Bin A")
+    freeze_dryer = FreezeDryer(name="Freeze Dryer #1")
     package_type = PackageType(
         name="Quart Mylar",
         default_oxygen_absorber="300cc",
         default_label_template="standard",
     )
-    db_session.add_all([freeze_dryer, recipe, storage_location, package_type])
+    storage_location = StorageLocation(name="Bin A")
+    physical_tray = PhysicalTray(label="Tray 1")
+    db_session.add_all([freeze_dryer, package_type, storage_location, physical_tray])
     db_session.flush()
+
     tray_slot = TraySlot(
         freeze_dryer_id=freeze_dryer.id,
         slot_number=1,
         label="Slot 1",
     )
-    physical_tray = PhysicalTray(label="Tray 1", tare_weight_grams=Decimal("68.000"))
-    db_session.add_all([tray_slot, physical_tray])
-    db_session.flush()
-
-    production_batch = ProductionBatch(
+    batch = ProductionBatch(
         freeze_dryer_id=freeze_dryer.id,
         batch_number="Chicken Batch",
         started_at=now,
-        status=ProductionBatchStatus.RUNNING,
+        completed_at=now,
+        status=ProductionBatchStatus.COMPLETED,
     )
-    db_session.add(production_batch)
-    db_session.flush()
-
-    drying_run = DryingRun(
-        production_batch_id=production_batch.id,
-        status=DryingRunStatus.COMPLETE,
-        started_at=now,
-        ended_at=now,
-    )
-    db_session.add(drying_run)
+    db_session.add_all([tray_slot, batch])
     db_session.flush()
 
     tray = Tray(
-        production_batch_id=production_batch.id,
+        production_batch_id=batch.id,
         tray_slot_id=tray_slot.id,
         physical_tray_id=physical_tray.id,
-        recipe_id=recipe.id,
-        tray_number=tray_slot.slot_number,
+        tray_number=1,
         product_name="Chicken",
         preparation="Cubed and seasoned.",
         starting_weight_grams=Decimal("964.000"),
         final_dry_weight_grams=Decimal("231.000"),
         status=TrayStatus.COMPLETED,
+        completed_at=now,
     )
-    db_session.add(tray)
+    operation = PackagingOperation(
+        production_batch_id=batch.id,
+        status=PackagingOperationStatus.OPEN,
+        started_at=now,
+    )
+    db_session.add_all([tray, operation])
     db_session.flush()
 
-    weight_check = WeightCheck(
-        tray_id=tray.id,
-        drying_run_id=drying_run.id,
-        observed_at=now,
-        weight_grams=Decimal("250.000"),
-    )
-    packaging_operation = PackagingOperation(packaged_at=now)
-    db_session.add_all([weight_check, packaging_operation])
+    allocation = PackagingAllocation(packaging_operation_id=operation.id)
+    db_session.add(allocation)
     db_session.flush()
-
-    packaging_link = PackagingOperationTray(
-        packaging_operation_id=packaging_operation.id,
+    source = PackagingAllocationSourceTray(
+        packaging_allocation_id=allocation.id,
         tray_id=tray.id,
     )
-    package = Package(
-        packaging_operation_id=packaging_operation.id,
+    planned_row = PlannedPackageRow(
+        packaging_allocation_id=allocation.id,
         package_type_id=package_type.id,
-        package_identifier="PKG-2026-000001",
-        package_weight_grams=Decimal("240.000"),
-        oxygen_absorber="300cc",
-        storage_location_id=storage_location.id,
-        status=InventoryStatus.IN_STORAGE,
+        finished_product_weight_grams=Decimal("100.000"),
+        sealed_package_weight_grams=Decimal("110.000"),
+        label_status=PackageLabelStatus.DRAFT,
+        label_display_name="Taco Chicken",
     )
-    db_session.add_all([packaging_link, package])
+    db_session.add_all([source, planned_row])
     db_session.flush()
 
-    storage_history = StorageLocationHistory(
-        package_id=package.id,
-        previous_storage_location_id=None,
-        current_storage_location_id=storage_location.id,
-        moved_at=now,
+    package = package_repository.create(
+        db_session,
+        PackageCreate(
+            packaging_allocation_id=allocation.id,
+            package_type_id=package_type.id,
+            package_identifier=f"PKG-{uuid4()}",
+            packaged_at=now,
+            storage_location_id=storage_location.id,
+            package_weight_grams=Decimal("141.000"),
+            finished_product_weight_grams=Decimal("131.000"),
+            oxygen_absorber="300cc",
+            label=PackageLabelCreate(
+                status=PackageLabelStatus.READY,
+                display_name="Taco Chicken",
+            ),
+        ),
     )
-    db_session.add(storage_history)
+    planned_row.recorded_package_id = package.id
     db_session.commit()
 
-    assert freeze_dryer.production_batches == [production_batch]
-    assert freeze_dryer.tray_slots == [tray_slot]
-    assert production_batch.trays == [tray]
-    assert production_batch.drying_runs == [drying_run]
-    assert tray.tray_slot == tray_slot
-    assert tray.physical_tray == physical_tray
-    assert tray.recipe == recipe
-    assert tray.weight_checks == [weight_check]
-    assert drying_run.weight_checks == [weight_check]
-    assert tray.packaging_operation_link == packaging_link
-    assert packaging_operation.tray_links == [packaging_link]
-    assert packaging_operation.packages == [package]
-    assert package.package_type == package_type
-    assert package.storage_location == storage_location
-    assert package.storage_location_history == [storage_history]
+    assert batch.packaging_operations == [operation]
+    assert operation.production_batch == batch
+    assert operation.allocations == [allocation]
+    assert allocation.source_tray_links == [source]
+    assert source.tray == tray
+    assert allocation.planned_package_rows == [planned_row]
+    assert allocation.packages == [package]
+    assert allocation.selected_weight_grams == Decimal("231.000")
+    assert allocation.allocated_weight_grams == Decimal("131.000")
+    assert allocation.remaining_weight_grams == Decimal("100.000")
+    assert package.status == InventoryStatus.IN_STORAGE
+    assert package.label.display_name == "Taco Chicken"
+    assert len(package.status_history) == 1
+    assert len(package.storage_location_history) == 1

@@ -83,13 +83,16 @@ The user records:
 * Tray Slot
 * Physical Tray
 * Product
-* Recipe (optional)
-* Preparation details
+* Preparation Preset (optional)
+* Ingredients
+* Preparation Methods
 * Notes
 
-Preparation details should be fast, freeform, and tolerant of real-world shorthand.
+Preparation Metadata should be fast, structured where useful, and tolerant of
+real-world shorthand.
 
-Recipes may provide reusable defaults, but the user should be able to directly record what actually happened on the Tray.
+Preparation Presets may provide reusable defaults, but the user may enter or
+create one-off Product, Ingredient, and Preparation Method values inline.
 
 Starting Weight is recorded when drying begins, not during Milestone 2 production setup.
 
@@ -99,9 +102,10 @@ Starting Weight belongs to Milestone 3, when the user begins tracking drying pro
 
 Each tray becomes independently trackable throughout the drying process.
 
-If the user chooses a Recipe, Freezeflow copies the Recipe information onto the Tray.
+If the user chooses a Preparation Preset, Freezeflow copies its values onto the Tray.
 
-The copied preparation information becomes part of the Tray's permanent production history.
+The resulting Preparation Metadata snapshot becomes part of the Tray's permanent
+production history and is never rewritten by later preset or catalog changes.
 
 ---
 
@@ -234,121 +238,73 @@ Total drying time is derived from the sum of non-voided Drying Run durations, no
 
 ---
 
-# Workflow 8 — Prepare and Execute a Packaging Session
+# Workflow 8 — Convert Completed Product into Labeled Inventory
 
-Each Package records Package Finished Product Weight separately from Sealed
-Package Weight. Permanent labels show Packaging Date, historical preparation or
-contents, and a derived fresh-to-dry equivalence. The equivalent uses every
-source Tray in the Packaging Operation and is calculated separately for each
-Package. Storage Location is not printed because it may change.
+Packaging is a flexible, resumable workspace. Freezeflow records the final
+traceable result without requiring the operator to fill, weigh, label, print,
+and store bags in one prescribed physical order.
 
-Packaging converts completed Trays into sealed Packages while helping the user plan the packaging table work before physically packaging food.
+## Start or Resume Packaging
 
-The user works through a Packaging Session.
+The user selects a completed Production Batch and starts or resumes its Open
+Packaging Operation. A Production Batch may have at most one Open Packaging
+Operation. The operation remains Open until the user explicitly completes it.
 
-The system automatically records a Packaging Operation for this packaging action.
+## Allocate Completed Product
 
-The user does not manage the Packaging Operation directly.
+Within the operation, the user selects one or more eligible completed Trays for
+a Packaging Allocation. Every Allocation references the exact Trays supplying
+one or more Packages. Separate combinations, such as chicken and strawberries,
+use separate Allocations within the same operation.
 
----
+Trays must come from the operation's Production Batch. Completed product may
+only be allocated once at a time. The UI derives and displays selected source
+weight, allocated Package Finished Product Weight, and remaining weight.
 
-## Select Eligible Trays
+## Plan or Record Packages
 
-The user selects one or more completed Trays.
+An Allocation may contain durable planned package rows before Packages are
+recorded. Planned rows and draft label information survive navigation and closing
+the application, but they are not inventory and do not receive Package identifiers.
 
-Eligible Trays must come from the same Production Batch.
+The operator may plan first or record Packages as physical work proceeds. A
+Package is created when the operator intentionally records it. Each Package records:
 
-Because a Production Batch belongs to one Freeze Dryer, this also prevents cross-freeze-dryer packaging.
-
-The application should not combine Trays from different Production Batches in Version 1.
-
-Different products within the same Production Batch may be packaged together when intentionally selected by the user.
-
-Important:
-
-A completed Tray may only be packaged once.
-
-Once assigned to a Packaging Operation, it is no longer available for future packaging actions.
-
----
-
-## Packaging Worksheet
-
-After the user selects Trays, the system shows a Packaging Worksheet.
-
-The worksheet shows:
-
-* Production Batch
-* Freeze Dryer
-* selected Trays
-* product names
-* preparation summaries
-* Finished Product Weight per Tray
-* total source Finished Product Weight
-* package count
-* Package Type per Package
-* suggested oxygen absorber
-* Package identifiers
-* printable human-readable labels
-* selected Storage Location or Unassigned
-* notes
-
-The worksheet helps the user decide package count, Package Types, oxygen absorbers, and labels before moving to the packaging table.
-
----
-
-## Create Packages
-
-The selected Tray contents are divided into one or more storage Packages.
-
-For every Package the user records or confirms:
-
-* Package identifier, generated by the system
+* system-generated Package Identifier
 * Package Type
 * Package Finished Product Weight
 * Sealed Package Weight
-* Oxygen absorber, suggested from Package Type when available
-* Packaging date, stored on the Packaging Operation
-* selected Storage Location or Unassigned
-* Notes
-
-Package Type may be created or edited inline during Packaging.
-
-Package Type may provide defaults for oxygen absorber and printable label template.
-
----
-
-## Print Labels
-
-Milestone 4 includes printable human-readable labels.
-
-Labels should include:
-
-* Package identifier
-* product name or summary
-* Package Type
-* packaging date
-* Package Weight if available
+* oxygen absorber
+* Packaging Date
 * Storage Location or Unassigned
+* notes
+* one editable Package Label
 
-QR codes, barcode labels, and automated label integrations are future enhancements.
+Package Finished Product Weight reduces the Allocation's remaining product.
+Sealed Package Weight does not. Packaging cannot be completed while selected
+product remains unallocated or is overallocated.
 
----
+Package creation also records the initial `In Storage` Package Status History
+and initial Storage Location History using the selected location or Unassigned.
+
+## Prepare and Print Labels
+
+Every Package owns one persistent Package Label with editable human-readable
+presentation. Label state is `Draft`, `Ready`, or `Needs Reprint`. Editing a
+previously printed label changes it to `Needs Reprint`.
+
+Printing is selection-based and independent of package creation order. The user
+may print one Package, one Allocation, one Packaging Operation, one Production
+Batch, today's Ready labels, or a custom Package selection through the same print
+engine. Each print records an append-only Print Event. Avery 5163 output lays out
+up to ten labels per sheet.
 
 ## Complete Packaging
 
-When the user completes Packaging:
-
-* the system creates the internal Packaging Operation
-* the Packaging Operation records `packagedAt`
-* the system creates one or more Packages
-* the system marks selected Trays as Packaged
-* the system records selected Storage Location or Unassigned
-* the system creates initial Storage Location History
-* the system shows the Packages that were just created
-* the user may choose Print Labels or Done
-
-The Packaging Operation appears as part of package history rather than as a separate user-managed page.
+The user explicitly completes the Packaging Operation after all Allocations are
+fully allocated and required Package information is present. Completion records
+`completedAt` and locks ordinary workflow edits. Later corrections follow the
+project correction and audit rules.
 
 ---
 
@@ -379,7 +335,10 @@ The user may search for inventory at any time.
 Common searches include:
 
 * Product name
-* Recipe
+* Package Label Display Name
+* Product
+* Ingredients
+* Preparation Preset, when one was used
 * Storage location
 
 Search results should immediately show:
@@ -402,6 +361,10 @@ within seconds.
 When a Package has been consumed, the user marks it as Depleted.
 
 When a Package leaves inventory as a gift or transfer, the user marks it as Given Away.
+
+The user confirms the Effective Time of the event, which defaults to the current time, and may add optional Notes.
+
+Every transition appends a Package Status History record with both the Effective Time and the system-assigned Recorded Time.
 
 The Package remains in the system.
 
@@ -514,7 +477,7 @@ Future versions may add additional workflows without changing the existing produ
 
 Examples include:
 
-* Recipe management
+* Preparation Preset management
 * QR code labels
 * Barcode scanning
 * Mobile weight entry
