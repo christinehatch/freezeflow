@@ -103,6 +103,10 @@ layout principles, and user experience philosophy of Freezeflow.
 The Design System is the authoritative source for frontend
 presentation and interaction decisions.
 
+Business Rules, Workflow, Domain Model, persistence documentation, and ADRs
+continue to govern product behavior. Visual redesigns must not silently alter
+documented workflows.
+
 ---
 
 ## 7. Implementation Plan

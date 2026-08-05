@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router";
 
 import { developerToolsApi, type DevToolResult } from "../api/client";
 
@@ -163,6 +164,20 @@ export function DeveloperToolsPage() {
           production.
         </p>
       </div>
+
+      <section className="rounded-md border border-slate-200 bg-white p-5">
+        <h3 className="text-xl font-semibold">Interface foundations</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Review semantic design tokens and reusable visual primitives without
+          changing a product workflow.
+        </p>
+        <Link
+          className="secondary-action mt-4"
+          to="/developer-tools/design-system"
+        >
+          Open Design System Gallery
+        </Link>
+      </section>
 
       {actionGroups.map((group) => (
         <section

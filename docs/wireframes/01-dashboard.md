@@ -61,6 +61,43 @@ Adds:
 - Weight Check reminders
 - Drying progress indicators
 
+### Production Batch hero prioritization
+
+When more than one Production Batch is active, the Dashboard selects one hero
+using workflow state rather than API response order.
+
+Priority is:
+
+1. **Immediate action required**
+   - the latest completed Drying Run is missing required Weight Checks
+   - every Tray is Complete and the Production Batch is ready for explicit
+     completion
+2. **Review required**
+   - required Weight Checks for the latest completed Drying Run have been
+     recorded and the Production Batch needs user review
+3. **Active but not actionable**
+   - a Drying Run is currently active
+   - this state remains visible on its Freeze Dryer card
+   - when no higher-priority Batch exists, it may receive calm hero emphasis to
+     preserve active Production context, but it must not imply that a required
+     action is overdue
+4. **Draft**
+   - available to continue from its Freeze Dryer card
+   - never urgent and never selected as the hero
+
+When Batches share a priority, select the one that has waited longest. Use the
+timestamp at which its current state became actionable:
+
+- completed Drying Run `endedAt` for missing Weight Checks
+- the latest source Tray `completedAt` for ready-to-complete
+- the latest required Weight Check `recordedAt` for review
+- active Drying Run `startedAt` for active Production
+
+If that state timestamp is absent in legacy data, use Production Batch
+`startedAt`. A Batch without either timestamp sorts after timestamped Batches at
+the same priority. Use the stable Production Batch identifier as the final
+tie-breaker. Never infer priority from array order.
+
 ---
 
 ## Milestone 4

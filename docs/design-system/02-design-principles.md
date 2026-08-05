@@ -1,84 +1,51 @@
 # Design Principles
 
-## Principle 0
+## 1. Reduce cognitive load
 
-Reduce Cognitive Load
+Remove competing emphasis and unnecessary decisions. Prefer clear language,
+predictable placement, and progressive disclosure.
 
-Every decision should reduce the amount of thinking required.
+## 2. One question per page
 
----
+Every page should have one primary purpose that can be stated in a sentence.
+Supporting information should reinforce that purpose.
 
-## Principle 1
+## 3. One primary action
 
-One Question Per Page
+Use one visually dominant action for the page's current task. Secondary actions
+should remain available without competing for attention.
 
-Every page should answer one primary question.
+## 4. Reveal information when relevant
 
----
+Show essential state first. Reveal detail, history, and administration only when
+they help the current decision.
 
-## Principle 2
+## 5. Use clear visual hierarchy
 
-One Primary Action
+Titles, supporting copy, status, actions, and history should have deliberately
+different visual weight. Color should communicate meaning, not decoration.
 
-Every screen should have one obvious thing to do.
+## 6. Tell a simple story
 
----
+Workflows should read as a sequence: where the user is, what deserves attention,
+what they can do, and what happened.
 
-## Principle 3
+## 7. Keep repeated actions consistent
 
-Progressive Disclosure
+The same kind of action, status, field, or message should look and behave the
+same wherever it appears.
 
-Only reveal information when it becomes relevant.
+## 8. Make mistakes recoverable
 
----
+Preserve user input when possible, explain failures in plain language, and make
+retry or correction paths obvious.
 
-## Principle 4
+## 9. Never surprise the user
 
-Visual Hierarchy
+Explain state changes and consequences before destructive or historical
+actions. Do not hide completed work or silently discard context.
 
-Important information should be immediately recognizable.
+## 10. The user is the scientist
 
----
-
-## Principle 5
-
-Tell a Story
-
-Every workflow should read like a sequence of steps.
-
----
-
-## Principle 6
-
-Consistency
-
-The same action should always look and behave the same.
-
----
-
-## Principle 7
-
-Forgiveness
-
-Mistakes should be easy to recover from.
-
----
-
-## Principle 8
-
-Trust
-
-Never surprise the user.
-
-The application should always explain
-what happened and why.
-
----
-
-## Principle 9
-
-The User is the Scientist
-
-The software presents information.
-
-The user makes decisions.
+Freezeflow presents measurements, history, and relevant comparisons. The user
+makes the production decision.

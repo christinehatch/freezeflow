@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { Layout } from "../components/Layout";
 import { DashboardPage } from "../pages/DashboardPage";
+import { DesignSystemPage } from "../pages/DesignSystemPage";
 import { DeveloperToolsPage } from "../pages/DeveloperToolsPage";
 import { FreezeDryersPage } from "../pages/FreezeDryersPage";
 import { InventoryPage } from "../pages/InventoryPage";
@@ -24,7 +25,13 @@ export const router = createBrowserRouter([
       { path: "/inventory", element: <InventoryPage /> },
       { path: "/reports", element: <ReportsPage /> },
       ...(import.meta.env.DEV
-        ? [{ path: "/developer-tools", element: <DeveloperToolsPage /> }]
+        ? [
+            { path: "/developer-tools", element: <DeveloperToolsPage /> },
+            {
+              path: "/developer-tools/design-system",
+              element: <DesignSystemPage />,
+            },
+          ]
         : []),
     ],
   },

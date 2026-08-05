@@ -2,6 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 
 import { ProductionBatch, productionApi } from "../api/client";
+import {
+  Button,
+  ButtonLink,
+  FreezeDryerCard,
+  PageHeader,
+  RecentProductionRow,
+  SectionHeader,
+  StatusBadge,
+  StatusBanner,
+  Surface,
+} from "../components/design-system";
+import {
+  type DashboardHeroSelection,
+  getLatestDashboardDryingRun,
+  selectDashboardHeroBatch,
+} from "./dashboardPrioritization";
 
 export function DashboardPage() {
   const freezeDryersQuery = useQuery({
@@ -21,65 +37,100 @@ export function DashboardPage() {
   const activeDryerIds = new Set(
     runningBatches.map((batch) => batch.freeze_dryer_id),
   );
+  const heroSelection = selectDashboardHeroBatch(batches);
+  const heroBatch = heroSelection?.batch ?? null;
+  const hero = heroSelection ? getHeroContext(heroSelection) : null;
+  const hasHero = Boolean(heroSelection);
+  const hasAttention =
+    heroSelection !== null && heroSelection.state !== "active-drying";
 
   return (
-    <div className="space-y-8">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-3xl font-semibold">Dashboard</h2>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            What needs attention right now.
-          </p>
-        </div>
-        <Link className="primary-action" to="/production">
-          + New Production Batch
-        </Link>
-      </section>
+    <div className="dashboard">
+      <PageHeader
+        action={
+          <ButtonLink
+            to="/production"
+            variant={hasHero ? "secondary" : "primary"}
+          >
+            + New Production Batch
+          </ButtonLink>
+        }
+        description={getDashboardDescription({
+          batchError: batchesQuery.isError,
+          hasAttention,
+          runningCount: runningBatches.length,
+        })}
+        title="Dashboard"
+      />
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Link className="quick-action" to="/production">
-          + New Production Batch
-        </Link>
-        <Link className="quick-action" to="/freeze-dryers">
-          Manage Freeze Dryers
-        </Link>
-      </section>
+      {batchesQuery.isLoading ? (
+        <StatusBanner
+          body="Freezeflow is checking current Production Batch and Freeze Dryer status."
+          title="Loading Dashboard"
+          tone="calm"
+        />
+      ) : batchesQuery.isError ? (
+        <StatusBanner
+          body={`Production Batches could not be loaded. ${batchesQuery.error.message}`}
+          title="Dashboard attention is temporarily unavailable"
+          tone="danger"
+        />
+      ) : heroBatch && hero && heroSelection ? (
+        <StatusBanner
+          action={
+            <ButtonLink to={`/production/${heroBatch.id}`}>
+              {hero.actionLabel}
+            </ButtonLink>
+          }
+          badge={
+            heroSelection.state === "active-drying" ? (
+              <StatusBadge tone="active">In progress</StatusBadge>
+            ) : (
+              <StatusBadge tone="attention">Needs attention</StatusBadge>
+            )
+          }
+          body={hero.body}
+          title={hero.title}
+          tone={heroSelection.state === "active-drying" ? "calm" : "attention"}
+        />
+      ) : (
+        <StatusBanner
+          badge={<StatusBadge tone="success">All clear</StatusBadge>}
+          body={
+            draftBatches.length > 0
+              ? `${formatCount(draftBatches.length, "Draft Production Batch")} ready to continue.`
+              : getCalmBody({
+                  freezeDryerCount: freezeDryers.length,
+                  freezeDryersError: freezeDryersQuery.isError,
+                  freezeDryersLoading: freezeDryersQuery.isLoading,
+                })
+          }
+          title="No production is running"
+          tone="calm"
+        />
+      )}
 
-      <section className="panel">
-        <h3 className="section-title">Needs Attention</h3>
-        {batchesQuery.isError ? (
-          <p className="text-red-700" role="alert">
-            Production Batches could not be loaded. {batchesQuery.error.message}
-          </p>
-        ) : runningBatches.length === 0 ? (
-          <p className="text-slate-600">
-            No Production Batches are currently running.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {runningBatches.map((batch) => (
-              <li key={batch.id}>
-                <Link className="text-link" to={`/production/${batch.id}`}>
-                  {batch.freeze_dryer.name} has active Production Batch{" "}
-                  {batch.batch_number}.
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="section-title">Freeze Dryers</h3>
-          <Link className="text-link" to="/freeze-dryers">
-            View all
-          </Link>
-        </div>
-        {freezeDryersQuery.isError ? (
-          <div className="panel text-red-700" role="alert">
+      <section
+        aria-labelledby="dashboard-freeze-dryers"
+        className="dashboard__section"
+      >
+        <SectionHeader
+          action={
+            <Link className="dashboard__section-link" to="/freeze-dryers">
+              View all
+            </Link>
+          }
+          id="dashboard-freeze-dryers"
+          title="Freeze Dryers"
+        />
+        {freezeDryersQuery.isLoading ? (
+          <Surface>
+            <p className="dashboard__state-copy">Loading Freeze Dryers…</p>
+          </Surface>
+        ) : freezeDryersQuery.isError ? (
+          <Surface className="dashboard__error" role="alert">
             Freeze Dryers could not be loaded. {freezeDryersQuery.error.message}
-          </div>
+          </Surface>
         ) : freezeDryers.length === 0 ? (
           <EmptyState
             actionLabel="Create Your First Freeze Dryer"
@@ -87,7 +138,7 @@ export function DashboardPage() {
             title="No Freeze Dryers have been created."
           />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="dashboard__dryer-grid">
             {freezeDryers.map((freezeDryer) => {
               const activeBatch = runningBatches.find(
                 (batch) => batch.freeze_dryer_id === freezeDryer.id,
@@ -97,117 +148,207 @@ export function DashboardPage() {
               );
               const canCreate =
                 !freezeDryer.archived && !activeDryerIds.has(freezeDryer.id);
+              const cardSelection = activeBatch
+                ? selectDashboardHeroBatch([activeBatch])
+                : null;
+              const cardContext = cardSelection
+                ? getHeroContext(cardSelection)
+                : null;
+
               return (
-                <article className="object-card" key={freezeDryer.id}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-lg font-semibold">
-                        {freezeDryer.name}
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Status:{" "}
-                        {activeBatch
-                          ? "Running"
-                          : queuedBatch
-                            ? "Queued"
-                            : "Idle"}
-                      </p>
-                    </div>
-                    <StatusPill
-                      status={
-                        activeBatch
-                          ? "Running"
-                          : queuedBatch
-                            ? "Queued"
-                            : "Idle"
-                      }
-                    />
-                  </div>
-                  <p className="mt-4 text-sm text-slate-700">
-                    {activeBatch
-                      ? `Active Batch: ${activeBatch.batch_number}`
-                      : queuedBatch
-                        ? `Queued Batch: ${queuedBatch.batch_number}`
-                        : "No active Production Batch"}
-                  </p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {activeBatch ? (
-                      <Link
-                        className="secondary-action"
+                <FreezeDryerCard
+                  action={
+                    activeBatch ? (
+                      <ButtonLink
                         to={`/production/${activeBatch.id}`}
+                        variant="secondary"
                       >
                         Open Current Batch
-                      </Link>
+                      </ButtonLink>
                     ) : queuedBatch ? (
-                      <Link
-                        className="secondary-action"
+                      <ButtonLink
                         to={`/production/${queuedBatch.id}`}
+                        variant="secondary"
                       >
                         Continue / Start Batch
-                      </Link>
-                    ) : (
-                      <Link
-                        className="secondary-action"
-                        aria-disabled={!canCreate}
-                        to={
-                          canCreate
-                            ? `/production?freezeDryerId=${freezeDryer.id}`
-                            : "/production"
-                        }
+                      </ButtonLink>
+                    ) : canCreate ? (
+                      <ButtonLink
+                        to={`/production?freezeDryerId=${freezeDryer.id}`}
+                        variant="secondary"
                       >
                         Create Production Batch
-                      </Link>
-                    )}
-                  </div>
-                </article>
+                      </ButtonLink>
+                    ) : (
+                      <Button disabled variant="secondary">
+                        Unavailable
+                      </Button>
+                    )
+                  }
+                  detail={
+                    activeBatch
+                      ? cardContext?.nextStep
+                      : queuedBatch
+                        ? "Ready to continue setup"
+                        : undefined
+                  }
+                  key={freezeDryer.id}
+                  name={freezeDryer.name}
+                  status={
+                    <StatusBadge
+                      tone={
+                        activeBatch
+                          ? "active"
+                          : queuedBatch
+                            ? "neutral"
+                            : freezeDryer.archived
+                              ? "neutral"
+                              : "success"
+                      }
+                    >
+                      {activeBatch
+                        ? "Running"
+                        : queuedBatch
+                          ? "Draft"
+                          : freezeDryer.archived
+                            ? "Archived"
+                            : "Idle"}
+                    </StatusBadge>
+                  }
+                  summary={
+                    activeBatch
+                      ? `${activeBatch.batch_number} · ${formatCount(activeBatch.trays.length, "Tray")}`
+                      : queuedBatch
+                        ? `${queuedBatch.batch_number} · Draft`
+                        : freezeDryer.archived
+                          ? "Unavailable for new Production Batches"
+                          : "Available for a new Production Batch"
+                  }
+                />
               );
             })}
           </div>
         )}
       </section>
 
-      <section className="panel">
-        <h3 className="section-title">Recent Production Batches</h3>
-        {batchesQuery.isError ? (
-          <p className="mt-3 text-red-700" role="alert">
+      <section
+        aria-labelledby="dashboard-recent-production"
+        className="dashboard__section"
+      >
+        <SectionHeader
+          action={
+            <Link className="dashboard__section-link" to="/production">
+              View all
+            </Link>
+          }
+          id="dashboard-recent-production"
+          title="Recent Production"
+        />
+        {batchesQuery.isLoading ? (
+          <Surface>
+            <p className="dashboard__state-copy">
+              Loading recent Production Batches…
+            </p>
+          </Surface>
+        ) : batchesQuery.isError ? (
+          <Surface className="dashboard__error" role="alert">
             Production history could not be loaded. {batchesQuery.error.message}
-          </p>
+          </Surface>
         ) : recentBatches.length === 0 ? (
-          <p className="mt-3 text-slate-600">No Production Batches yet.</p>
+          <Surface>
+            <p className="dashboard__state-copy">
+              No recent Production Batches yet.
+            </p>
+          </Surface>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Batch</th>
-                  <th>Freeze Dryer</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentBatches.map((batch) => (
-                  <tr key={batch.id}>
-                    <td>
-                      <Link
-                        className="text-link"
-                        to={`/production/${batch.id}`}
-                      >
-                        {batch.batch_number}
-                      </Link>
-                    </td>
-                    <td>{batch.freeze_dryer.name}</td>
-                    <td>{batch.status}</td>
-                    <td>{formatStarted(batch.started_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Surface className="dashboard__recent-surface">
+            <ul className="dashboard__recent-list">
+              {recentBatches.map((batch) => (
+                <RecentProductionRow
+                  batchNumber={batch.batch_number}
+                  freezeDryerName={batch.freeze_dryer.name}
+                  key={batch.id}
+                  started={formatStarted(batch.started_at)}
+                  status={
+                    <StatusBadge tone={getBatchStatusTone(batch.status)}>
+                      {batch.status}
+                    </StatusBadge>
+                  }
+                  to={`/production/${batch.id}`}
+                />
+              ))}
+            </ul>
+          </Surface>
         )}
       </section>
     </div>
   );
+}
+
+function getDashboardDescription({
+  batchError,
+  hasAttention,
+  runningCount,
+}: {
+  batchError: boolean;
+  hasAttention: boolean;
+  runningCount: number;
+}) {
+  if (batchError) return "Some production information could not be loaded.";
+  if (hasAttention && runningCount === 1) {
+    return "One Production Batch needs your attention.";
+  }
+  if (hasAttention && runningCount > 1) {
+    return `${runningCount} Production Batches need your attention.`;
+  }
+  if (runningCount === 1) return "One Production Batch is running.";
+  if (runningCount > 1)
+    return `${runningCount} Production Batches are running.`;
+  return "Everything is on track.";
+}
+
+function getHeroContext(selection: DashboardHeroSelection) {
+  const { batch, state } = selection;
+  const runningTrays = batch.trays.filter((tray) => tray.status === "Running");
+  const identity = `${batch.batch_number} · ${batch.freeze_dryer.name} Freeze Dryer`;
+
+  if (state === "ready-to-complete") {
+    return {
+      actionLabel: "Review Batch",
+      body: `${identity} · every Tray is complete`,
+      nextStep: "Next: review and complete the Batch",
+      title: `${batch.batch_number} is ready to complete`,
+    };
+  }
+  if (state === "missing-weight-checks") {
+    const latestRun = getLatestDashboardDryingRun(batch.drying_runs);
+    const traysMissingWeightChecks = runningTrays.filter(
+      (tray) =>
+        !tray.weight_checks.some(
+          (weightCheck) => weightCheck.drying_run_id === latestRun?.id,
+        ),
+    );
+    return {
+      actionLabel: "Record Weight Checks",
+      body: `${identity} · ${formatCount(traysMissingWeightChecks.length, "Tray")} to check`,
+      nextStep: "Next: record Weight Checks",
+      title: `${batch.batch_number} is ready for Weight Checks`,
+    };
+  }
+  if (state === "review-required") {
+    return {
+      actionLabel: "Review Batch",
+      body: `${identity} · Weight Checks recorded`,
+      nextStep: "Next: review Weight Checks and continue Production",
+      title: `${batch.batch_number} is ready for review`,
+    };
+  }
+  return {
+    actionLabel: "Open Current Batch",
+    body: `${identity} · ${formatCount(batch.trays.length, "Tray")}`,
+    nextStep: "Production is currently drying",
+    title: `${batch.batch_number} is currently drying`,
+  };
 }
 
 function getRecentBatches(
@@ -235,12 +376,36 @@ function formatStarted(startedAt: string | null) {
   }).format(new Date(startedAt));
 }
 
-function StatusPill({ status }: { status: "Running" | "Queued" | "Idle" }) {
-  return (
-    <span className={status === "Running" ? "pill-running" : "pill-idle"}>
-      {status}
-    </span>
-  );
+function formatCount(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function getCalmBody({
+  freezeDryerCount,
+  freezeDryersError,
+  freezeDryersLoading,
+}: {
+  freezeDryerCount: number;
+  freezeDryersError: boolean;
+  freezeDryersLoading: boolean;
+}) {
+  if (freezeDryersLoading) {
+    return "No Production Batch is running. Freeze Dryer availability is still loading.";
+  }
+  if (freezeDryersError) {
+    return "No Production Batch is running. Freeze Dryer availability is temporarily unavailable.";
+  }
+  if (freezeDryerCount === 0) {
+    return "Create a Freeze Dryer when you are ready to begin.";
+  }
+  return `${formatCount(freezeDryerCount, "Freeze Dryer")} ready whenever you are.`;
+}
+
+function getBatchStatusTone(status: ProductionBatch["status"]) {
+  if (status === "Completed") return "success" as const;
+  if (status === "Cancelled") return "danger" as const;
+  if (status === "Draft") return "neutral" as const;
+  return "attention" as const;
 }
 
 function EmptyState({
@@ -253,11 +418,13 @@ function EmptyState({
   title: string;
 }) {
   return (
-    <div className="empty-state">
-      <p className="font-medium">{title}</p>
-      <Link className="secondary-action mt-4 inline-flex" to={actionTo}>
-        {actionLabel}
-      </Link>
-    </div>
+    <Surface className="dashboard__empty">
+      <p className="dashboard__empty-title">{title}</p>
+      <div>
+        <ButtonLink to={actionTo} variant="secondary">
+          {actionLabel}
+        </ButtonLink>
+      </div>
+    </Surface>
   );
 }

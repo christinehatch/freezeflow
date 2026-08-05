@@ -29,6 +29,14 @@ test("seeds the Basic Demo from the developer-only page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Developer Tools" }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "Open Design System Gallery" }).click();
+  await expect(page).toHaveURL(/\/developer-tools\/design-system$/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Freezeflow interface foundations",
+    }),
+  ).toBeVisible();
+  await page.goBack();
   await page.getByRole("button", { name: "Seed Basic Demo" }).click();
 
   const result = page.locator("section").filter({

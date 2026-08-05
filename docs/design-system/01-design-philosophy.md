@@ -2,99 +2,58 @@
 
 ## Purpose
 
-Freezeflow exists to help small food manufacturers confidently manage
-production, packaging, and inventory.
+Freezeflow helps people manage freeze-drying production with confidence while
+preserving complete production history. The interface should reduce stress,
+make the next meaningful action clear, and stay out of the way of the physical
+work.
 
-The software should reduce stress, not create it.
+The work is the hero. Freezeflow is the durable tool that presents information,
+preserves context, and helps the user make informed decisions.
 
-Every design decision should make the user feel more organized,
-more informed, and more confident.
+## Design direction
 
-The interface should never compete with the work being performed.
+Freezeflow should feel:
 
-The work is the hero.
-The software is simply the tool.
+- calm
+- confident
+- durable
+- trustworthy
+- minimal
+- purposeful
+- scientific
+- human
+- practical
 
----
+It should not feel decorative, trendy, playful, noisy, or corporate.
 
-# Mission Statement
+## Mission
 
 Help people feel calm while managing freeze drying.
 
----
-
-# Design Goal
+## Design goal
 
 Reduce cognitive load.
 
-Not every piece of information deserves equal attention.
+Not every fact deserves equal attention. Each page should guide the user toward
+the question and action that matter now, then reveal supporting information with
+quieter visual weight.
 
-The interface should guide the user's eyes toward what matters today,
-while hiding everything else until it becomes relevant.
+## Inspiration
 
-Every screen should answer one simple question.
+- Apple Watch demonstrates clear hierarchy and attention to what matters now.
+- Linear demonstrates restraint, consistency, and low visual noise.
+- Square demonstrates understandable workflows for practical small-business
+  work.
+- Patagonia demonstrates durable, honest, purpose-first character.
 
-"What do I need to do next?"
+These references guide tone and hierarchy. They do not override Freezeflow's
+documented workflows, terminology, or business rules.
 
----
+## Product authority
 
-# Personality
+The Design System governs frontend presentation and interaction. Business Rules,
+Workflow, Domain Model, persistence documentation, and ADRs continue to govern
+product behavior.
 
-Freezeflow is...
-
-- Calm
-- Confident
-- Trustworthy
-- Purposeful
-- Scientific
-- Modern
-- Durable
-- Honest
-- Friendly
-- Practical
-
-Freezeflow is NOT...
-
-- Flashy
-- Trendy
-- Cute
-- Playful
-- Busy
-- Corporate
-- Decorative
-- Noisy
-- Overwhelming
-
----
-
-# Brand Inspiration
-
-Tesla
-
-Software-first.
-Minimal.
-Focused.
-
-Apple Watch
-
-Simple.
-Thoughtful.
-Only what matters right now.
-
-Patagonia
-
-Reliable.
-Durable.
-Built for real work.
-Purpose over appearance.
-
----
-
-# Product Philosophy
-
-The software should disappear.
-
-Users should think about their production,
-not about how to use the application.
-
-Good design is invisible.
+A visual redesign must never silently change a workflow, business rule,
+navigation destination, or historical relationship.
