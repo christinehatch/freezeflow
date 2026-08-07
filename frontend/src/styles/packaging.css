@@ -652,6 +652,59 @@
   max-width: 32rem;
 }
 
+.packaging-weight-input {
+  background: var(--ff-color-surface);
+  border: 1px solid var(--ff-color-border-strong);
+  border-radius: 0.75rem;
+  display: flex;
+  min-width: 0;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.packaging-weight-input:focus-within {
+  border-color: var(--ff-color-action-primary);
+  box-shadow: 0 0 0 3px rgb(24 60 52 / 14%);
+}
+
+.packaging-weight-input .ds-number-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.packaging-weight-input .ds-number-field__input {
+  padding-right: var(--ff-space-4);
+}
+
+.packaging-weight-input .ds-input,
+.packaging-weight-input .ds-input:hover,
+.packaging-weight-input .ds-input:focus {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.packaging-weight-input__unit {
+  border-left: 1px solid var(--ff-color-border);
+  flex: 0 0 5rem;
+}
+
+.packaging-weight-input__unit .ds-select__trigger,
+.packaging-weight-input__unit .ds-select__trigger:hover,
+.packaging-weight-input__unit .ds-select__trigger:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding: var(--ff-space-1) var(--ff-space-3);
+}
+
+.packaging-weight-input__unit .ds-select__menu {
+  left: auto;
+  min-width: 7.5rem;
+  right: 0;
+}
+
 .saved-bag-summary {
   display: grid;
   gap: var(--ff-space-3);

@@ -300,8 +300,8 @@ describe("PackagingPage", () => {
         {
           planned_package_row_id: null,
           package_type_id: packageType.id,
-          finished_product_weight_grams: "100",
-          sealed_package_weight_grams: "106",
+          finished_product_weight_grams: "100.000",
+          sealed_package_weight_grams: "106.000",
           oxygen_absorber: "500cc",
           storage_location_id: null,
           notes: null,

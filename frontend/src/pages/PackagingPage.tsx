@@ -50,6 +50,7 @@ import {
   WEIGHT_UNIT_OPTIONS,
   WeightUnit,
   formatGrams,
+  fromGramsForInput,
   toGrams,
 } from "../utils/weights";
 import {
@@ -2323,7 +2324,9 @@ type BagEntryPhase = "enteringBag" | "choosingNextAction";
 type BagDraft = {
   packageTypeId: string;
   finishedWeight: string;
+  finishedWeightUnit: WeightUnit;
   sealedWeight: string;
+  sealedWeightUnit: WeightUnit;
   oxygenAbsorber: string;
   storageLocationId: string;
   notes: string;
@@ -2502,8 +2505,14 @@ function SingleBagEntryLoop({
       const updated = await onRecordBag(activeAllocation.id, {
         planned_package_row_id: draft.plannedPackageRowId,
         package_type_id: draft.packageTypeId,
-        finished_product_weight_grams: draft.finishedWeight,
-        sealed_package_weight_grams: draft.sealedWeight,
+        finished_product_weight_grams: toGrams(
+          draft.finishedWeight,
+          draft.finishedWeightUnit,
+        ),
+        sealed_package_weight_grams: toGrams(
+          draft.sealedWeight,
+          draft.sealedWeightUnit,
+        ),
         oxygen_absorber: draft.oxygenAbsorber.trim() || null,
         storage_location_id: draft.storageLocationId || null,
         notes: draft.notes.trim() || null,
@@ -2712,15 +2721,23 @@ function SingleBagEntryLoop({
               error={errors.finishedWeight}
               id="bag-finished-weight"
               label="Finished Product Weight"
+              unit={draft.finishedWeightUnit}
               value={draft.finishedWeight}
               onChange={(finishedWeight) => updateDraft({ finishedWeight })}
+              onUnitChange={(finishedWeightUnit) =>
+                updateDraft({ finishedWeightUnit })
+              }
             />
             <BagWeightField
               error={errors.sealedWeight}
               id="bag-sealed-weight"
               label="Sealed Package Weight"
+              unit={draft.sealedWeightUnit}
               value={draft.sealedWeight}
               onChange={(sealedWeight) => updateDraft({ sealedWeight })}
+              onUnitChange={(sealedWeightUnit) =>
+                updateDraft({ sealedWeightUnit })
+              }
             />
             <Field htmlFor="bag-oxygen-absorber" label="Oxygen Absorber">
               <TextField
@@ -2871,11 +2888,18 @@ function createBagDraft(
   plannedPackage?: PlannedPackageRow,
   defaultPackageTypeId = "",
 ): BagDraft {
+  const finishedWeight = fromGramsForInput(
+    plannedPackage?.finished_product_weight_grams?.toString() ?? null,
+  );
+  const sealedWeight = fromGramsForInput(
+    plannedPackage?.sealed_package_weight_grams?.toString() ?? null,
+  );
   return {
     packageTypeId: plannedPackage?.package_type_id ?? defaultPackageTypeId,
-    finishedWeight:
-      plannedPackage?.finished_product_weight_grams?.toString() ?? "",
-    sealedWeight: plannedPackage?.sealed_package_weight_grams?.toString() ?? "",
+    finishedWeight: finishedWeight.value,
+    finishedWeightUnit: finishedWeight.unit,
+    sealedWeight: sealedWeight.value,
+    sealedWeightUnit: sealedWeight.unit,
     oxygenAbsorber: plannedPackage?.oxygen_absorber ?? "",
     storageLocationId: plannedPackage?.storage_location_id ?? "",
     notes: plannedPackage?.notes ?? "",
@@ -2889,8 +2913,12 @@ function validateBagDraft(
   packageTypes: PackageType[],
 ) {
   const errors: Record<string, string> = {};
-  const finishedWeight = Number(draft.finishedWeight);
-  const sealedWeight = Number(draft.sealedWeight);
+  const finishedWeight = Number(
+    toGrams(draft.finishedWeight, draft.finishedWeightUnit),
+  );
+  const sealedWeight = Number(
+    toGrams(draft.sealedWeight, draft.sealedWeightUnit),
+  );
   if (!packageTypes.some((type) => type.id === draft.packageTypeId)) {
     errors.packageType = "Select a Package Type.";
   }
@@ -2935,28 +2963,44 @@ function BagWeightField({
   id,
   label,
   onChange,
+  onUnitChange,
+  unit,
   value,
 }: {
   error?: string;
   id: string;
   label: string;
   onChange: (value: string) => void;
+  onUnitChange: (unit: WeightUnit) => void;
+  unit: WeightUnit;
   value: string;
 }) {
   const errorId = `${id}-error`;
   return (
     <Field error={error} errorId={errorId} htmlFor={id} label={label}>
-      <NumberField
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={Boolean(error)}
-        id={id}
-        min="0"
-        placeholder="Enter weight"
-        step="any"
-        suffix="g"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+      <div className="packaging-weight-input">
+        <NumberField
+          aria-describedby={error ? errorId : undefined}
+          aria-invalid={Boolean(error)}
+          id={id}
+          min="0"
+          placeholder="Enter weight"
+          step="any"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <Select
+          aria-label={`${label} unit`}
+          className="packaging-weight-input__unit"
+          id={`${id}-unit`}
+          options={WEIGHT_UNIT_OPTIONS.map((weightUnit) => ({
+            label: weightUnit.label,
+            value: weightUnit.value,
+          }))}
+          value={unit}
+          onChange={(nextUnit) => onUnitChange(nextUnit as WeightUnit)}
+        />
+      </div>
     </Field>
   );
 }
