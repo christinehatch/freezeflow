@@ -335,7 +335,7 @@ Separate product combinations within one Production Batch use separate Packaging
 
 Completed product must not disappear when Packaging is interrupted or partially recorded.
 
-Selected Source Weight, Allocated Weight, and Remaining Weight are derived for each Packaging Allocation. A Packaging Operation cannot complete while any Allocation has Remaining Weight greater than zero.
+Selected Source Weight, Allocated Weight, and Remaining Weight are derived for each Packaging Allocation. A Packaging Operation cannot complete while any Allocation has Remaining Weight greater than zero. Product that will never become a Package, for example a small amount lost to sampling or spillage, is explicitly recorded as Packaging Loss (PK-024) rather than left unaccounted for or corrected away on a Tray's historical weight.
 
 ---
 
@@ -444,6 +444,9 @@ not eligible again.
 Selected source weight, allocated weight, and remaining weight are derived from
 source Tray Final Dry Weights and Package Finished Product Weights. Remaining
 weight is not stored as an independently editable field.
+
+Remaining weight also nets out any recorded Packaging Loss weight for the
+Allocation (PK-024).
 
 ---
 
@@ -578,6 +581,20 @@ Location or the implicit Unassigned Storage Location.
 The application must not require the operator to perform filling, weighing,
 label preparation, printing, and storage assignment in one fixed physical order.
 All required information must be present before the Packaging Operation completes.
+
+---
+
+## PK-024
+
+A Packaging Allocation may record zero or more Packaging Loss entries for
+Selected Source Weight that will never become a Package, for example product
+lost to sampling, spillage, or crumbs. Each Packaging Loss records a weight
+greater than zero and a required reason, cannot exceed the Allocation's
+Remaining Weight, and is append-only once saved. See ADR-0016.
+
+Recording a Packaging Loss reduces Remaining Weight the same way allocating
+that weight to a Package would, but it never modifies a source Tray's Final
+Dry Weight or any other historical production record.
 
 ---
 
