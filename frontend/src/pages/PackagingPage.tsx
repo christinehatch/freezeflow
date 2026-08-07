@@ -923,6 +923,9 @@ export function PackagingPage() {
                           key={tray.id}
                         >
                           <span>
+                            <span className="text-slate-500">
+                              {tray.physical_tray.label}
+                            </span>{" "}
                             <span className="font-semibold">
                               {tray.product_name}
                             </span>
