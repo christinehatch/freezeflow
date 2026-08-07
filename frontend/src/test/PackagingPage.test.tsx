@@ -2053,17 +2053,11 @@ describe("PackagingPage", () => {
         "1 completed Tray has unavailable Finished Product Weight and cannot be selected.",
       ),
     ).toBeInTheDocument();
-    expect(
-      allocationSelection.getByText("Available Completed Trays").parentElement,
-    ).toHaveTextContent("2");
-    expect(
-      allocationSelection.getByText("Available Source Weight").parentElement,
-    ).toHaveTextContent("185 g");
     expect(allocationSelection.queryByText("NaN g")).not.toBeInTheDocument();
 
     await user.click(
       allocationSelection.getByRole("button", {
-        name: "Select All Available Trays",
+        name: "Select all",
       }),
     );
     expect(unavailableTray).not.toBeChecked();
@@ -2120,9 +2114,6 @@ describe("PackagingPage", () => {
         allocationSelection.getByText("Selected Source Weight").parentElement,
       ).toHaveTextContent("0 g");
     });
-    expect(
-      allocationSelection.getByText("Available Completed Trays").parentElement,
-    ).toHaveTextContent("1");
   });
 
   it.skip("saves selected Trays as a durable Packaging Allocation and restores it from nested operation state", async () => {
@@ -2142,7 +2133,7 @@ describe("PackagingPage", () => {
     expect(saveButton).toBeDisabled();
     await user.click(
       allocationSelection.getByRole("button", {
-        name: "Select All Available Trays",
+        name: "Select all",
       }),
     );
     await user.type(
@@ -3278,11 +3269,11 @@ describe("PackagingPage", () => {
     ).toBeDisabled();
     expect(
       allocationSelection.getByRole("button", {
-        name: "Select All Available Trays",
+        name: "Select all",
       }),
     ).toBeDisabled();
     expect(
-      allocationSelection.getByRole("button", { name: "Clear Selection" }),
+      allocationSelection.getByRole("button", { name: "Clear" }),
     ).toBeDisabled();
     for (const checkbox of allocationSelection.getAllByRole("checkbox")) {
       expect(checkbox).toBeDisabled();
@@ -3461,12 +3452,6 @@ describe("PackagingPage", () => {
     const allocationSelection = within(
       screen.getByLabelText("Prepare Packaging Allocation"),
     );
-    expect(
-      allocationSelection.getByText("Available Completed Trays").parentElement,
-    ).toHaveTextContent("2");
-    expect(
-      allocationSelection.getByText("Available Source Weight").parentElement,
-    ).toHaveTextContent("423.1 g");
     expect(allocationSelection.getByText("238.1 g")).toBeInTheDocument();
     expect(allocationSelection.getByText("185 g")).toBeInTheDocument();
     expect(allocationSelection.queryByText("929.9 g")).not.toBeInTheDocument();
@@ -3493,14 +3478,9 @@ describe("PackagingPage", () => {
     expect(
       allocationSelection.getByText("Selected Source Weight").parentElement,
     ).toHaveTextContent("238.1 g");
-    expect(
-      allocationSelection.getByText(
-        "1 completed Tray selected · 238.1 g selected source weight",
-      ),
-    ).toBeInTheDocument();
 
     await user.click(
-      allocationSelection.getByRole("button", { name: "Clear Selection" }),
+      allocationSelection.getByRole("button", { name: "Clear" }),
     );
     expect(
       allocationSelection.getByText("Selected Completed Trays").parentElement,
@@ -3508,7 +3488,7 @@ describe("PackagingPage", () => {
 
     await user.click(
       allocationSelection.getByRole("button", {
-        name: "Select All Available Trays",
+        name: "Select all",
       }),
     );
     expect(

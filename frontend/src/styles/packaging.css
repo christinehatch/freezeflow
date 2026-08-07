@@ -401,10 +401,6 @@
   margin-top: var(--ff-space-4);
 }
 
-.packaging-product-stage__intro > div:first-child {
-  max-width: 46rem;
-}
-
 .packaging-allocation-save {
   background: var(--ff-color-surface) !important;
   padding: var(--ff-space-3) !important;

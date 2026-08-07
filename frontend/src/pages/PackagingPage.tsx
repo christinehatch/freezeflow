@@ -927,69 +927,39 @@ export function PackagingPage() {
                     visibleStage === "product" ? (
                       <WorkflowStage
                         className="packaging-product-stage"
-                        description="Select the completed Trays that are being physically combined into one source pool."
+                        description="Select the completed Trays to combine for this Packaging Allocation."
                         stage={2}
                         status="current"
                         title="Choose trays"
                       >
                         <div aria-label="Prepare Packaging Allocation">
-                          <div className="packaging-product-stage__intro flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <h5 className="font-semibold">
-                                Prepare Packaging Allocation
-                              </h5>
-                              <p className="mt-1 text-sm text-slate-600">
-                                Select completed Trays from this Production
-                                Batch for the next Packaging Allocation. Save
-                                the source selection to resume later, or
-                                continue below when you are ready to record
-                                Packages.
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectableTrays.length > 0 ? (
-                                <button
-                                  className="quiet-action"
-                                  disabled={savePackagingAllocation.isPending}
-                                  type="button"
-                                  onClick={selectAllActiveTrays}
-                                >
-                                  Select All Available Trays
-                                </button>
-                              ) : null}
-                              {selectedTrays.length > 0 ? (
-                                <button
-                                  className="quiet-action"
-                                  disabled={savePackagingAllocation.isPending}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedTrayIds([]);
-                                    setAllocationSaveMessage(null);
-                                  }}
-                                >
-                                  Clear Selection
-                                </button>
-                              ) : null}
-                            </div>
+                          <div className="packaging-product-stage__intro flex flex-wrap items-center justify-end gap-2">
+                            {selectableTrays.length > 0 ? (
+                              <button
+                                className="quiet-action"
+                                disabled={savePackagingAllocation.isPending}
+                                type="button"
+                                onClick={selectAllActiveTrays}
+                              >
+                                Select all
+                              </button>
+                            ) : null}
+                            {selectedTrays.length > 0 ? (
+                              <button
+                                className="quiet-action"
+                                disabled={savePackagingAllocation.isPending}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTrayIds([]);
+                                  setAllocationSaveMessage(null);
+                                }}
+                              >
+                                Clear
+                              </button>
+                            ) : null}
                           </div>
 
-                          <div className="packaging-source-metrics mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <div className="object-card">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Available Completed Trays
-                              </p>
-                              <p className="mt-1 text-xl font-semibold">
-                                {availableTrays.length}
-                              </p>
-                            </div>
-                            <div className="object-card">
-                              <p className="text-xs font-semibold uppercase text-slate-500">
-                                Available Source Weight
-                              </p>
-                              <p className="mt-1 text-xl font-semibold">
-                                {formatGrams(String(availableSourceWeight))}
-                              </p>
-                            </div>
+                          <div className="packaging-source-metrics mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="object-card">
                               <p className="text-xs font-semibold uppercase text-slate-500">
                                 Selected Completed Trays
@@ -1013,14 +983,7 @@ export function PackagingPage() {
                               No completed Trays are selected for the pending
                               Packaging Allocation.
                             </p>
-                          ) : (
-                            <p className="mt-3 text-sm font-semibold text-slate-700">
-                              {selectedTrays.length} completed Tray
-                              {selectedTrays.length === 1 ? "" : "s"} selected ·{" "}
-                              {formatGrams(String(selectedSourceWeight))}{" "}
-                              selected source weight
-                            </p>
-                          )}
+                          ) : null}
 
                           {availableTrays.length > selectableTrays.length ? (
                             <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

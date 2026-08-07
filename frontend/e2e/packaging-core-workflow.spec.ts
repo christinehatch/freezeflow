@@ -104,10 +104,11 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
     );
 
     await expect(
-      page.getByText(
-        "2 completed Trays selected · 420 g selected source weight",
-      ),
-    ).toBeVisible();
+      page.getByText("Selected Completed Trays").locator(".."),
+    ).toContainText("2");
+    await expect(
+      page.getByText("Selected Source Weight").locator(".."),
+    ).toContainText("420 g");
     await page
       .getByLabel("Allocation Notes")
       .fill("Chicken and apple source trays");
