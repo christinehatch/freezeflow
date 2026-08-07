@@ -38,7 +38,10 @@ A Packaging Loss:
 * belongs to exactly one Packaging Allocation
 * records a weight greater than zero, entered in any supported display unit
   and stored in canonical grams (ADR-0003)
-* records a required reason describing what happened to the product
+* records a required reason chosen from a fixed list: Sampled, Spilled,
+  Crumbs, or Other
+* when the reason is Other, may also record an optional free-text detail;
+  the detail is not shown or collected for the other three reasons
 * records a system-assigned recordedAt timestamp
 * is never edited or deleted once saved
 
@@ -109,10 +112,6 @@ became Packages, and how much was explicitly recorded as loss.
 
 # Open Decisions
 
-* Should the reason be free text, or a short list of common reasons
-  (sampled, spilled, crumbs, other) with an optional note? Free text is
-  simplest and matches how Package notes and Allocation notes already work
-  elsewhere.
 * Should Packaging Loss appear in Reports (Milestone 7) as its own figure,
   for example alongside yield, so users can see how much product is lost
   across batches over time?

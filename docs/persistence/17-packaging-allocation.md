@@ -36,7 +36,8 @@ become a Package, for example product lost to sampling, spillage, or crumbs.
 | id | Yes | No | Stable UUID |
 | packagingAllocationId | Yes | No | Owning Allocation |
 | weightGrams | Yes | No | Canonical grams (ADR-0003); greater than zero |
-| reason | Yes | No | Required explanation |
+| reason | Yes | No | One of: Sampled, Spilled, Crumbs, Other |
+| reasonDetail | No | No | Free text; only collected when reason is Other |
 | recordedAt | Yes | System | Record timestamp |
 
 Packaging Loss is append-only. Entries are never edited or deleted once

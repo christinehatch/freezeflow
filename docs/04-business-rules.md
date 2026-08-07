@@ -589,8 +589,10 @@ All required information must be present before the Packaging Operation complete
 A Packaging Allocation may record zero or more Packaging Loss entries for
 Selected Source Weight that will never become a Package, for example product
 lost to sampling, spillage, or crumbs. Each Packaging Loss records a weight
-greater than zero and a required reason, cannot exceed the Allocation's
-Remaining Weight, and is append-only once saved. See ADR-0016.
+greater than zero and a required reason chosen from Sampled, Spilled,
+Crumbs, or Other, with an optional free-text detail available only when the
+reason is Other. Packaging Loss cannot exceed the Allocation's Remaining
+Weight and is append-only once saved. See ADR-0016.
 
 Recording a Packaging Loss reduces Remaining Weight the same way allocating
 that weight to a Package would, but it never modifies a source Tray's Final
