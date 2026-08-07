@@ -620,10 +620,15 @@
 }
 
 .single-bag-hero {
-  background: var(--ff-color-attention-background);
-  border: 1px solid var(--ff-color-attention-emphasis);
+  background: var(--ff-color-calm-background);
+  border: 1px solid var(--ff-color-border);
   border-radius: var(--ff-radius-large);
   padding: var(--ff-space-3) var(--ff-space-4);
+}
+
+.single-bag-hero--attention {
+  background: var(--ff-color-attention-background);
+  border-color: var(--ff-color-attention-emphasis);
 }
 
 .single-bag-hero p {

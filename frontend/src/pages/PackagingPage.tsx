@@ -2548,11 +2548,16 @@ function SingleBagEntryLoop({
 
   if (!activeAllocation) return null;
 
+  const isOverallocated = activeRemaining < -ALLOCATION_TOLERANCE_GRAMS;
+
   return (
     <div className="single-bag-loop">
-      <section className="single-bag-hero" aria-label="Packaging weight status">
+      <section
+        aria-label="Packaging weight status"
+        className={`single-bag-hero${isOverallocated ? " single-bag-hero--attention" : ""}`}
+      >
         <p className="single-bag-hero__remaining">
-          {activeRemaining < -ALLOCATION_TOLERANCE_GRAMS
+          {isOverallocated
             ? `${formatGrams(String(Math.abs(activeRemaining)), 3)} overallocated`
             : `${formatGrams(String(activeRemaining), 3)} remaining to package`}
         </p>
@@ -2583,10 +2588,7 @@ function SingleBagEntryLoop({
             value: activeAllocation.packages.length,
           },
           {
-            label:
-              activeRemaining < -ALLOCATION_TOLERANCE_GRAMS
-                ? "Overallocated"
-                : "Remaining",
+            label: isOverallocated ? "Overallocated" : "Remaining",
             value: formatOptionalWorkspaceWeight(
               finiteWeightOrNull(activeAllocation.remaining_weight_grams) ===
                 null
