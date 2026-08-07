@@ -363,6 +363,8 @@ export function recordedPackagingScenario(
 ): PackagingScenario {
   const batch = createScenarioProductionBatch();
   const recordedPackage = createRecordedPackage({
+    finished_product_weight_grams: "240",
+    package_weight_grams: "248",
     label: createPackageLabel({ status: labelStatus }),
   });
   const allocation = createPackagingAllocation({
@@ -374,6 +376,7 @@ export function recordedPackagingScenario(
     ],
     planned_packages: [
       createPlannedPackageRow({
+        finished_product_weight_grams: "240",
         recorded_package_id: recordedPackage.id,
         label_status: labelStatus,
       }),

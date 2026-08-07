@@ -6,6 +6,7 @@ import type {
   PlannedPackageRow,
   StorageLocation,
 } from "../api/client";
+import { Select } from "./design-system";
 import {
   ALLOCATION_TOLERANCE_GRAMS,
   WEIGHT_UNIT_OPTIONS,
@@ -328,7 +329,7 @@ export function PlannedPackageEditor({
   return (
     <section
       aria-label={`Allocation ${allocationNumber} Planned Packages editor`}
-      className="mt-4 border-t border-slate-200 pt-4"
+      className="planned-package-editor mt-4 border-t border-slate-200 pt-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -515,7 +516,7 @@ function PlannedPackageDraftRow({
   return (
     <article
       aria-label={`${fieldPrefix} pending editor`}
-      className="rounded-md border border-slate-200 bg-white p-4"
+      className="planned-package-row rounded-md border border-slate-200 bg-white p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -546,27 +547,30 @@ function PlannedPackageDraftRow({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="planned-package-row__fields mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="field">
           <span>Package Type</span>
-          <select
+          <Select
             aria-label={`${fieldPrefix} Package Type`}
             disabled={readOnly}
+            options={[
+              ...(missingPackageTypeReference
+                ? [
+                    {
+                      value: row.package_type_id,
+                      label: "Package Type unavailable",
+                    },
+                  ]
+                : []),
+              ...packageTypes.map((packageType) => ({
+                value: packageType.id,
+                label: packageType.name,
+              })),
+            ]}
+            placeholder="Select Package Type"
             value={row.package_type_id}
-            onChange={(event) => onPackageTypeChange(event.target.value)}
-          >
-            <option value="">Select Package Type</option>
-            {missingPackageTypeReference ? (
-              <option value={row.package_type_id}>
-                Package Type unavailable
-              </option>
-            ) : null}
-            {packageTypes.map((packageType) => (
-              <option key={packageType.id} value={packageType.id}>
-                {packageType.name}
-              </option>
-            ))}
-          </select>
+            onChange={onPackageTypeChange}
+          />
           {packageTypes.length === 0 ? (
             <span className="text-sm text-amber-800">
               No active Package Types are available.
@@ -616,26 +620,29 @@ function PlannedPackageDraftRow({
 
         <label className="field">
           <span>Storage Location</span>
-          <select
+          <Select
             aria-label={`${fieldPrefix} Storage Location`}
             disabled={readOnly}
+            options={[
+              ...(missingStorageLocationReference
+                ? [
+                    {
+                      value: row.storage_location_id,
+                      label: "Storage Location unavailable",
+                    },
+                  ]
+                : []),
+              ...storageLocations.map((storageLocation) => ({
+                value: storageLocation.id,
+                label: storageLocation.name,
+              })),
+            ]}
+            placeholder="No Storage Location"
             value={row.storage_location_id}
-            onChange={(event) =>
-              onUpdate({ storage_location_id: event.target.value })
+            onChange={(storageLocationId) =>
+              onUpdate({ storage_location_id: storageLocationId })
             }
-          >
-            <option value="">No Storage Location</option>
-            {missingStorageLocationReference ? (
-              <option value={row.storage_location_id}>
-                Storage Location unavailable
-              </option>
-            ) : null}
-            {storageLocations.map((storageLocation) => (
-              <option key={storageLocation.id} value={storageLocation.id}>
-                {storageLocation.name}
-              </option>
-            ))}
-          </select>
+          />
           {storageLocations.length === 0 ? (
             <span className="text-sm text-amber-800">
               No active Storage Locations are available.
@@ -665,7 +672,7 @@ function PlannedPackageDraftRow({
         </ul>
       ) : null}
 
-      <details className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+      <details className="planned-package-row__label mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
         <summary className="cursor-pointer text-sm font-semibold">
           Package Label Details
         </summary>
@@ -732,20 +739,20 @@ function WeightField({
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
         />
-        <select
+        <Select
           aria-label={`${fieldPrefix} ${label} Unit`}
           className="w-20"
           disabled={readOnly}
+          options={[
+            ...(unsupportedUnit ? [{ value: unit, label: unit }] : []),
+            ...WEIGHT_UNIT_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            })),
+          ]}
           value={unit}
-          onChange={(event) => onUnitChange(event.target.value)}
-        >
-          {unsupportedUnit ? <option value={unit}>{unit}</option> : null}
-          {WEIGHT_UNIT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={onUnitChange}
+        />
       </div>
     </div>
   );

@@ -63,4 +63,6 @@
   --ff-layout-page-padding-mobile: 1rem;
 
   --ff-elevation-raised: 0 1px 2px rgb(21 33 29 / 6%);
+  --ff-elevation-floating:
+    0 12px 32px rgb(21 33 29 / 10%), 0 2px 8px rgb(21 33 29 / 7%);
 }

@@ -20,6 +20,14 @@ import {
   fromGramsForInput,
   toGrams,
 } from "../utils/weights";
+import {
+  Button,
+  Field,
+  NumberField,
+  Select,
+  StatusBadge,
+  TextField,
+} from "../components/design-system";
 
 export function ProductionBatchPage() {
   const { batchId } = useParams();
@@ -170,6 +178,15 @@ export function ProductionBatchPage() {
     batch.trays.length > 0 &&
     batch.trays.every((tray) => tray.status === "Completed"),
   );
+  const completedTrayCount =
+    batch?.trays.filter((tray) => tray.status === "Completed").length ?? 0;
+  const runningTrayCount = runningTrays.length;
+  const weightCheckCardsAvailable = Boolean(
+    batch?.status === "Running" &&
+    !activeDryingRun &&
+    !allTraysComplete &&
+    latestCompletedDryingRun,
+  );
 
   function handleBatchUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -196,8 +213,8 @@ export function ProductionBatchPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <nav className="text-sm text-slate-600">
+    <div className="production-batch-page">
+      <nav className="production-breadcrumbs">
         <Link className="text-link" to="/">
           Dashboard
         </Link>{" "}
@@ -208,117 +225,145 @@ export function ProductionBatchPage() {
         / {batch.batch_number}
       </nav>
 
-      <section className="workspace-header">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            {batch.freeze_dryer.name}
-          </p>
-          <h2 className="text-3xl font-semibold">{batch.batch_number}</h2>
+      <header className="workspace-header production-batch-header">
+        <div className="production-batch-header__copy">
+          <h2>{batch.batch_number}</h2>
+          <div className="production-batch-header__metadata">
+            <StatusBadge tone={batchStatusTone(batch.status)}>
+              {batch.status}
+            </StatusBadge>
+            <span className="production-batch-header__meta-item">
+              <CalendarIcon />
+              {batch.started_at
+                ? `Started ${formatDate(batch.started_at)}`
+                : "Not started"}
+            </span>
+            <span aria-hidden="true" className="production-batch-header__dot">
+              •
+            </span>
+            <span>Freeze Dryer: {batch.freeze_dryer.name}</span>
+            <span aria-hidden="true" className="production-batch-header__dot">
+              •
+            </span>
+            <span>{batch.freeze_dryer.tray_slot_count} Tray Slots</span>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-semibold">{batch.status}</p>
-          <p className="text-sm text-slate-600">
-            {batch.started_at ? formatDate(batch.started_at) : "Not started"}
-          </p>
-        </div>
-      </section>
+        {isDraft && !isEditingBatch ? (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setBatchFreezeDryerId(batch.freeze_dryer_id);
+              setBatchNotes(batch.notes ?? "");
+              setIsEditingBatch(true);
+              setError(null);
+            }}
+            type="button"
+          >
+            Edit Batch
+          </Button>
+        ) : null}
+      </header>
 
-      <section className="panel">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+      <div className="production-overview-grid">
+        <section className="panel production-section-card production-setup-card">
+          <div className="production-section-card__header">
             <h3 className="section-title">Batch Setup</h3>
-            <p className="mt-2 text-sm text-slate-600">
+            <p>
+              <LockIcon />
               {isDraft
-                ? "Draft Production Batch details may be edited before production starts."
-                : "Production Batch setup is locked after production starts."}
+                ? "Setup can be edited until Production starts."
+                : "Setup is locked for this Production Batch."}
             </p>
           </div>
-          {isDraft && !isEditingBatch ? (
-            <button
-              className="secondary-action"
-              onClick={() => {
-                setBatchFreezeDryerId(batch.freeze_dryer_id);
-                setBatchNotes(batch.notes ?? "");
-                setIsEditingBatch(true);
-                setError(null);
-              }}
-              type="button"
+
+          {isEditingBatch ? (
+            <form
+              className="production-setup-form"
+              onSubmit={handleBatchUpdate}
             >
-              Edit Batch
-            </button>
-          ) : null}
-        </div>
+              <Field htmlFor="batch-freeze-dryer" label="Freeze Dryer">
+                <Select
+                  id="batch-freeze-dryer"
+                  onChange={setBatchFreezeDryerId}
+                  options={selectableFreezeDryers.map((freezeDryer) => ({
+                    label: freezeDryer.name,
+                    value: freezeDryer.id,
+                  }))}
+                  value={batchFreezeDryerId}
+                />
+              </Field>
+              <Field htmlFor="batch-notes" label="Batch Notes">
+                <TextField
+                  id="batch-notes"
+                  value={batchNotes}
+                  onChange={(event) => setBatchNotes(event.target.value)}
+                />
+              </Field>
+              <div className="production-setup-form__actions">
+                <Button disabled={updateBatch.isPending} type="submit">
+                  Save
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsEditingBatch(false);
+                    setError(null);
+                  }}
+                  type="button"
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <dl className="production-setup-facts">
+              <div>
+                <dt>Freeze Dryer</dt>
+                <dd>{batch.freeze_dryer.name}</dd>
+              </div>
+              <div>
+                <dt>Tray Slots</dt>
+                <dd>{batch.freeze_dryer.tray_slot_count}</dd>
+              </div>
+              <div>
+                <dt>Batch Notes</dt>
+                <dd>{batch.notes || "No batch notes."}</dd>
+              </div>
+            </dl>
+          )}
+        </section>
 
-        {isEditingBatch ? (
-          <form
-            className="mt-4 grid gap-4 md:grid-cols-[1fr_2fr_auto]"
-            onSubmit={handleBatchUpdate}
-          >
-            <label className="field">
-              <span>Freeze Dryer</span>
-              <select
-                required
-                value={batchFreezeDryerId}
-                onChange={(event) => setBatchFreezeDryerId(event.target.value)}
-              >
-                {selectableFreezeDryers.map((freezeDryer) => (
-                  <option key={freezeDryer.id} value={freezeDryer.id}>
-                    {freezeDryer.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Batch Notes</span>
-              <input
-                value={batchNotes}
-                onChange={(event) => setBatchNotes(event.target.value)}
-              />
-            </label>
-            <div className="flex items-end gap-2">
-              <button
-                className="secondary-action"
-                disabled={updateBatch.isPending}
-                type="submit"
-              >
-                Save
-              </button>
-              <button
-                className="quiet-action"
-                onClick={() => {
-                  setIsEditingBatch(false);
-                  setError(null);
-                }}
-                type="button"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <dl className="mt-4 grid gap-4 md:grid-cols-3">
-            <div>
-              <dt className="label-text">Freeze Dryer</dt>
-              <dd>{batch.freeze_dryer.name}</dd>
-            </div>
-            <div>
-              <dt className="label-text">Tray Slots</dt>
-              <dd>{batch.freeze_dryer.tray_slot_count}</dd>
-            </div>
-            <div>
-              <dt className="label-text">Batch Notes</dt>
-              <dd className="whitespace-pre-wrap">
-                {batch.notes || "No batch notes."}
-              </dd>
-            </div>
+        <section className="panel production-section-card production-progress-card">
+          <div className="production-section-card__header">
+            <h3 className="section-title">Batch Progress</h3>
+          </div>
+          <dl className="production-progress-facts">
+            <ProgressFact label="Total Trays" value={batch.trays.length} />
+            <ProgressFact label="Trays Complete" value={completedTrayCount} />
+            <ProgressFact label="Trays Running" value={runningTrayCount} />
+            <ProgressFact
+              label="Total Drying Time"
+              value={formatDuration(batch.total_drying_seconds)}
+            />
           </dl>
-        )}
-      </section>
+          <div
+            aria-label={`${completedTrayCount} of ${batch.trays.length} Trays complete`}
+            className="production-tray-progress"
+          >
+            {batch.trays.map((tray) => (
+              <span
+                className={`production-tray-progress__segment production-tray-progress__segment--${tray.status.toLowerCase()}`}
+                key={tray.id}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
 
-      <section className="panel">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section className="panel production-section-card production-slots-card">
+        <div className="production-section-card__header">
           <h3 className="section-title">Freeze Dryer Slots</h3>
-          <p className="text-sm text-slate-600">
+          <p>
             {isDraft
               ? "Select the Physical Trays used in this Production Batch."
               : "Setup is locked for this Production Batch."}
@@ -330,8 +375,8 @@ export function ProductionBatchPage() {
             This Freeze Dryer has no active Tray Slots configured.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="data-table">
+          <div className="production-slot-table-wrap">
+            <table className="data-table production-slot-table">
               <thead>
                 <tr>
                   <th>Slot</th>
@@ -368,6 +413,7 @@ export function ProductionBatchPage() {
                       }
                       tray={tray}
                       traySlot={traySlot}
+                      weightCheckTargetAvailable={weightCheckCardsAvailable}
                     />
                   );
                 })}
@@ -450,6 +496,7 @@ function SlotSetupRow({
   onPhysicalTraySelectionChange,
   tray,
   traySlot,
+  weightCheckTargetAvailable,
 }: {
   batchId: string;
   editable: boolean;
@@ -461,6 +508,7 @@ function SlotSetupRow({
   ) => void;
   tray?: Tray;
   traySlot: TraySlot;
+  weightCheckTargetAvailable: boolean;
 }) {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(!tray);
@@ -536,7 +584,9 @@ function SlotSetupRow({
         <td>-</td>
         <td>-</td>
         <td>-</td>
-        <td>Empty</td>
+        <td>
+          <TrayStatus status="Empty" />
+        </td>
         <td></td>
       </tr>
     );
@@ -597,7 +647,9 @@ function SlotSetupRow({
             onChange={(event) => setNotes(event.target.value)}
           />
         </td>
-        <td>{tray?.status ?? "Draft"}</td>
+        <td>
+          <TrayStatus status={tray?.status ?? "Draft"} />
+        </td>
         <td className="flex gap-2">
           <button
             className="secondary-action"
@@ -653,7 +705,9 @@ function SlotSetupRow({
         <td>-</td>
         <td>-</td>
         <td>-</td>
-        <td>Empty</td>
+        <td>
+          <TrayStatus status="Empty" />
+        </td>
         <td>
           <button
             className="quiet-action"
@@ -689,12 +743,27 @@ function SlotSetupRow({
       </td>
       <td>{formatGrams(tray.latest_weight_grams)}</td>
       <td>{tray.notes || "No notes"}</td>
-      <td>{tray.status}</td>
+      <td>
+        <TrayStatus status={tray.status} />
+      </td>
       <td>
         <div className="flex flex-wrap gap-2">
-          <Link className="quiet-action" to={`/trays/${tray.id}`}>
-            View
-          </Link>
+          {weightCheckTargetAvailable ? (
+            <a
+              aria-label={`View Weight Check for ${tray.product_name}`}
+              className="secondary-action production-slot-view"
+              href={`#${weightCheckTargetId(tray.id)}`}
+            >
+              View
+            </a>
+          ) : (
+            <Link
+              className="secondary-action production-slot-view"
+              to={`/trays/${tray.id}`}
+            >
+              View
+            </Link>
+          )}
           {editable && tray.status === "Draft" ? (
             <>
               <button
@@ -923,30 +992,15 @@ function DryingWorkflowPanel({
         </p>
       </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Slot</th>
-              <th>Product</th>
-              <th>Last Weight</th>
-              <th>New Weight</th>
-              <th>Change</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {batch.trays.map((tray) => (
-              <WeightEntryRow
-                batchId={batch.id}
-                dryingRun={latestCompletedDryingRun}
-                key={tray.id}
-                tray={tray}
-              />
-            ))}
-          </tbody>
-        </table>
+      <div className="production-weight-list" role="list">
+        {batch.trays.map((tray) => (
+          <WeightEntryCard
+            batchId={batch.id}
+            dryingRun={latestCompletedDryingRun}
+            key={tray.id}
+            tray={tray}
+          />
+        ))}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
@@ -981,7 +1035,7 @@ async function getBatchPackagingOperationOrNull(batchId: string) {
   }
 }
 
-function WeightEntryRow({
+function WeightEntryCard({
   batchId,
   dryingRun,
   tray,
@@ -1027,90 +1081,142 @@ function WeightEntryRow({
 
   if (tray.status === "Completed") {
     return (
-      <tr>
-        <td>{tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}</td>
-        <td>{tray.product_name}</td>
-        <td>{formatGrams(tray.final_dry_weight_grams)}</td>
-        <td>Done</td>
-        <td>
-          {formatDifference(
-            tray.previous_weight_grams,
-            tray.latest_weight_grams,
-          )}
-        </td>
-        <td>Completed</td>
-        <td>
-          <Link className="quiet-action" to={`/trays/${tray.id}`}>
-            View
-          </Link>
-        </td>
-      </tr>
+      <article
+        aria-label={`${tray.product_name}, completed`}
+        className="production-weight-card production-weight-card--completed"
+        id={weightCheckTargetId(tray.id)}
+        role="listitem"
+        tabIndex={-1}
+      >
+        <div className="production-weight-card__identity">
+          <p className="production-weight-card__eyebrow">
+            {traySlotLabel(tray)}
+          </p>
+          <p className="production-weight-card__product">{tray.product_name}</p>
+        </div>
+        <div className="production-weight-card__completed-summary">
+          <span>{formatGrams(tray.final_dry_weight_grams)}</span>
+          <span>
+            {formatDifference(
+              tray.previous_weight_grams,
+              tray.latest_weight_grams,
+            )}{" "}
+            change
+          </span>
+        </div>
+        <StatusBadge tone="success">Completed</StatusBadge>
+        <Link className="quiet-action" to={`/trays/${tray.id}`}>
+          View history
+        </Link>
+      </article>
     );
   }
 
   return (
-    <tr>
-      <td>{tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}</td>
-      <td>
-        <Link className="text-link" to={`/trays/${tray.id}`}>
-          {tray.product_name}
-        </Link>
-      </td>
-      <td>{formatGrams(baselineWeight)}</td>
-      <td>
-        {existingCheck ? (
-          isCorrecting ? (
-            <div className="min-w-72 space-y-2">
-              <WeightInput
+    <article
+      aria-label={`${tray.product_name}, ${traySlotLabel(tray)}`}
+      className="production-weight-card"
+      id={weightCheckTargetId(tray.id)}
+      role="listitem"
+      tabIndex={-1}
+    >
+      <header className="production-weight-card__header">
+        <div className="production-weight-card__identity">
+          <p className="production-weight-card__eyebrow">
+            {traySlotLabel(tray)}
+          </p>
+          <Link className="text-link" to={`/trays/${tray.id}`}>
+            {tray.product_name}
+          </Link>
+        </div>
+        <StatusBadge tone="active">{tray.status}</StatusBadge>
+      </header>
+
+      <dl className="production-weight-card__metrics">
+        <WeightMetric label="Last Weight" value={formatGrams(baselineWeight)} />
+        <WeightMetric
+          label="New Weight"
+          value={
+            existingCheck
+              ? formatGrams(existingCheck.weight_grams)
+              : "Not recorded"
+          }
+        />
+        <WeightMetric
+          label="Change"
+          value={formatDifference(baselineWeight, newWeight)}
+        />
+      </dl>
+
+      {existingCheck ? (
+        isCorrecting ? (
+          <div className="production-weight-card__correction">
+            <Field
+              htmlFor={`correction-weight-${tray.id}`}
+              label="Corrected Weight"
+            >
+              <DesignSystemWeightInput
+                ariaLabel={`Corrected Weight for ${tray.product_name} in ${traySlotLabel(tray)}`}
+                id={`correction-weight-${tray.id}`}
                 unit={correctedWeightUnit}
                 value={correctedWeight}
                 onUnitChange={setCorrectedWeightUnit}
                 onValueChange={setCorrectedWeight}
               />
-              <input
-                aria-label="Correction reason"
-                className="table-input"
+            </Field>
+            <Field
+              htmlFor={`correction-reason-${tray.id}`}
+              label="Correction reason"
+              optional
+            >
+              <TextField
+                id={`correction-reason-${tray.id}`}
                 placeholder="reason (optional)"
                 value={correctionReason}
                 onChange={(event) => setCorrectionReason(event.target.value)}
               />
-              <div className="flex gap-2">
-                <button
-                  className="quiet-action"
-                  disabled={
-                    correctedWeight === "" || correctWeightCheck.isPending
-                  }
-                  onClick={() =>
-                    correctWeightCheck.mutate({
-                      id: existingCheck.id,
-                      body: {
-                        weight_grams: toGrams(
-                          correctedWeight,
-                          correctedWeightUnit,
-                        ),
-                        reason:
-                          correctionReason.trim() === ""
-                            ? null
-                            : correctionReason.trim(),
-                      },
-                    })
-                  }
-                  type="button"
-                >
-                  Save Correction
-                </button>
-                <button
-                  className="quiet-action"
-                  onClick={() => setIsCorrecting(false)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-              </div>
+            </Field>
+            <div className="production-weight-card__form-actions">
+              <Button
+                disabled={
+                  correctedWeight === "" || correctWeightCheck.isPending
+                }
+                onClick={() =>
+                  correctWeightCheck.mutate({
+                    id: existingCheck.id,
+                    body: {
+                      weight_grams: toGrams(
+                        correctedWeight,
+                        correctedWeightUnit,
+                      ),
+                      reason:
+                        correctionReason.trim() === ""
+                          ? null
+                          : correctionReason.trim(),
+                    },
+                  })
+                }
+                type="button"
+              >
+                Save Correction
+              </Button>
+              <Button
+                onClick={() => setIsCorrecting(false)}
+                type="button"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span>{formatGrams(existingCheck.weight_grams)}</span>
+          </div>
+        ) : (
+          <div className="production-weight-card__completion">
+            <CompleteTrayButton
+              batchId={batchId}
+              key={tray.latest_weight_grams}
+              tray={tray}
+            />
+            <div className="production-weight-card__secondary-actions">
               <button
                 className="quiet-action"
                 onClick={() => {
@@ -1123,88 +1229,156 @@ function WeightEntryRow({
               >
                 Correct
               </button>
+              <Link className="quiet-action" to={`/trays/${tray.id}`}>
+                View history
+              </Link>
             </div>
-          )
-        ) : (
-          <div className="min-w-[30rem] space-y-2">
-            <div className="grid grid-cols-[minmax(10rem,1fr)_minmax(12rem,1.5fr)_auto] items-end gap-2">
-              <div className="field">
-                <span>Weight</span>
-                <WeightInput
-                  ariaLabel={`New weight for ${tray.product_name} in ${tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`}`}
-                  placeholder="Enter weight"
-                  unit={weightUnit}
-                  value={weight}
-                  onUnitChange={setWeightUnit}
-                  onValueChange={setWeight}
-                />
-              </div>
-              <label className="field">
-                <span>Notes (optional)</span>
-                <input
-                  className="table-input"
-                  placeholder="Production notes"
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                />
-              </label>
-              <button
-                className="quiet-action"
-                disabled={weight === "" || recordWeightCheck.isPending}
-                onClick={() =>
-                  recordWeightCheck.mutate({
-                    id: tray.id,
-                    body: {
-                      drying_run_id: dryingRun.id,
-                      weight_grams: toGrams(weight, weightUnit),
-                      observed_at: new Date().toISOString(),
-                      notes: notes.trim() === "" ? null : notes,
-                    },
-                  })
-                }
-                type="button"
-              >
-                {recordWeightCheck.isPending ? "Saving..." : "Save Weight"}
-              </button>
-            </div>
+          </div>
+        )
+      ) : (
+        <form
+          className="production-weight-card__entry"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (weight === "" || recordWeightCheck.isPending) return;
+            recordWeightCheck.mutate({
+              id: tray.id,
+              body: {
+                drying_run_id: dryingRun.id,
+                weight_grams: toGrams(weight, weightUnit),
+                observed_at: new Date().toISOString(),
+                notes: notes.trim() === "" ? null : notes,
+              },
+            });
+          }}
+        >
+          <Field htmlFor={`new-weight-${tray.id}`} label="New Weight">
+            <DesignSystemWeightInput
+              ariaLabel={`New weight for ${tray.product_name} in ${traySlotLabel(tray)}`}
+              id={`new-weight-${tray.id}`}
+              placeholder="Enter weight"
+              unit={weightUnit}
+              value={weight}
+              onUnitChange={setWeightUnit}
+              onValueChange={setWeight}
+            />
+          </Field>
+          <Field htmlFor={`weight-notes-${tray.id}`} label="Notes" optional>
+            <TextField
+              id={`weight-notes-${tray.id}`}
+              placeholder="Production notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+            />
+          </Field>
+          <Button
+            disabled={weight === "" || recordWeightCheck.isPending}
+            type="submit"
+          >
+            {recordWeightCheck.isPending ? "Saving..." : "Save Weight"}
+          </Button>
+          <div className="production-weight-card__messages">
             {weight === "" ? (
-              <p className="text-xs text-slate-600">
-                Enter a new weight to enable Save Weight.
-              </p>
+              <p>Enter a new weight to enable Save Weight.</p>
             ) : null}
             {hasLargeIncrease ? (
-              <p className="text-sm font-medium text-red-700" role="alert">
+              <p className="production-weight-card__error" role="alert">
                 Check the value and unit: this is more than 10% above the last
                 weight.
               </p>
             ) : null}
             {recordWeightCheck.isError ? (
-              <p className="text-sm font-medium text-red-700" role="alert">
+              <p className="production-weight-card__error" role="alert">
                 Weight Check could not be saved.{" "}
                 {recordWeightCheck.error.message}
               </p>
             ) : null}
           </div>
-        )}
-      </td>
-      <td>{formatDifference(baselineWeight, newWeight)}</td>
-      <td>{tray.status}</td>
-      <td>
-        <div className="flex flex-wrap gap-2">
-          {existingCheck ? (
-            <CompleteTrayButton
-              batchId={batchId}
-              key={tray.latest_weight_grams}
-              tray={tray}
-            />
-          ) : null}
-          <Link className="quiet-action" to={`/trays/${tray.id}`}>
-            View
-          </Link>
-        </div>
-      </td>
-    </tr>
+        </form>
+      )}
+    </article>
   );
+}
+
+function WeightMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="production-weight-metric">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function ProgressFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+function TrayStatus({ status }: { status: string }) {
+  return (
+    <span className="production-tray-status">
+      <span
+        aria-hidden="true"
+        className={`production-tray-status__dot production-tray-status__dot--${status.toLowerCase()}`}
+      />
+      {status}
+    </span>
+  );
+}
+
+function batchStatusTone(status: string) {
+  if (status === "Running") return "active" as const;
+  if (status === "Completed") return "success" as const;
+  if (status === "Cancelled") return "danger" as const;
+  return "neutral" as const;
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 16 16"
+      width="16"
+    >
+      <rect height="11" rx="2" stroke="currentColor" width="12" x="2" y="3" />
+      <path d="M5 1.75v2.5M11 1.75v2.5M2 6h12" stroke="currentColor" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="15"
+      viewBox="0 0 16 16"
+      width="15"
+    >
+      <rect height="7" rx="1.5" stroke="currentColor" width="10" x="3" y="7" />
+      <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" />
+    </svg>
+  );
+}
+
+function traySlotLabel(tray: Tray) {
+  return tray.tray_slot.label || `Slot ${tray.tray_slot.slot_number}`;
+}
+
+function weightCheckTargetId(trayId: string) {
+  return `weight-check-${trayId}`;
 }
 
 function CompleteTrayButton({
@@ -1225,15 +1399,21 @@ function CompleteTrayButton({
   });
 
   return (
-    <div className="flex min-w-40 gap-2">
-      <WeightInput
-        unit={finalDryWeightUnit}
-        value={finalDryWeight}
-        onUnitChange={setFinalDryWeightUnit}
-        onValueChange={setFinalDryWeight}
-      />
-      <button
-        className="quiet-action"
+    <div className="production-complete-tray">
+      <Field
+        htmlFor={`finished-weight-${tray.id}`}
+        label="Finished Product Weight"
+      >
+        <DesignSystemWeightInput
+          ariaLabel={`Finished Product Weight for ${tray.product_name} in ${traySlotLabel(tray)}`}
+          id={`finished-weight-${tray.id}`}
+          unit={finalDryWeightUnit}
+          value={finalDryWeight}
+          onUnitChange={setFinalDryWeightUnit}
+          onValueChange={setFinalDryWeight}
+        />
+      </Field>
+      <Button
         disabled={finalDryWeight === "" || completeTray.isPending}
         onClick={() =>
           completeTray.mutate({
@@ -1248,8 +1428,51 @@ function CompleteTrayButton({
         }
         type="button"
       >
-        Mark Complete
-      </button>
+        {completeTray.isPending ? "Completing..." : "Mark Complete"}
+      </Button>
+    </div>
+  );
+}
+
+function DesignSystemWeightInput({
+  ariaLabel,
+  id,
+  placeholder,
+  unit,
+  value,
+  onUnitChange,
+  onValueChange,
+}: {
+  ariaLabel?: string;
+  id: string;
+  placeholder?: string;
+  unit: WeightUnit;
+  value: string;
+  onUnitChange: (unit: WeightUnit) => void;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="production-weight-input">
+      <NumberField
+        aria-label={ariaLabel}
+        id={id}
+        min="0"
+        placeholder={placeholder}
+        step="0.001"
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+      />
+      <Select
+        aria-label={ariaLabel ? `${ariaLabel} unit` : "Weight unit"}
+        className="production-weight-input__unit"
+        id={`${id}-unit`}
+        onChange={(nextUnit) => onUnitChange(nextUnit as WeightUnit)}
+        options={WEIGHT_UNIT_OPTIONS.map((weightUnit) => ({
+          label: weightUnit.label,
+          value: weightUnit.value,
+        }))}
+        value={unit}
+      />
     </div>
   );
 }

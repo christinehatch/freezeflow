@@ -166,7 +166,10 @@ def get_batch_packaging_operation(db: Session, batch_id: UUID) -> PackagingOpera
         .order_by(PackagingOperation.started_at.desc())
     )
     if operation is None:
-        raise BusinessRuleError("Production Batch has no Packaging Operation.")
+        raise BusinessRuleError(
+            "Production Batch has no Packaging Operation.",
+            status_code=404,
+        )
     return get_packaging_operation(db, operation.id)
 
 

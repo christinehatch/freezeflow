@@ -577,6 +577,9 @@ GET /api/v1/packaging-operations/{operationId}
 The response includes operation status and notes, Allocations, source Trays,
 planned Package rows, recorded Packages and Labels, and derived Selected,
 Allocated, and Remaining Weight. Reloading this response restores all Open work.
+The Batch-scoped GET returns `404 Not Found` when the Production Batch has no
+Packaging Operation yet; callers may treat that response as the normal
+Start Packaging state.
 
 ## Allocate Completed Trays
 

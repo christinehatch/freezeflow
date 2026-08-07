@@ -28,9 +28,8 @@ export async function fillPlannedPackage(
 ) {
   const prefix = `Allocation ${allocationNumber} Planned Package ${rowNumber}`;
   const row = editor.getByLabel(`${prefix} pending editor`);
-  await row
-    .getByLabel(`${prefix} Package Type`)
-    .selectOption(values.packageTypeId ?? "package-type-1");
+  await row.getByLabel(`${prefix} Package Type`).click();
+  await pageOption(row, values.packageTypeId ?? "package-type-1").click();
   await plannedPackageFinishedWeight(editor, allocationNumber, rowNumber).fill(
     values.finishedWeight,
   );
@@ -40,14 +39,22 @@ export async function fillPlannedPackage(
       exact: true,
     })
     .fill(values.sealedWeight);
-  await row
-    .getByLabel(`${prefix} Storage Location`)
-    .selectOption(values.storageLocationId ?? "storage-pantry");
+  await row.getByLabel(`${prefix} Storage Location`).click();
+  await pageOption(row, values.storageLocationId ?? "storage-pantry").click();
   if (values.notes !== undefined) {
     await row.getByLabel(`${prefix} Package Notes`).fill(values.notes);
   }
   await row.getByText("Package Label Details").click();
   await row.getByLabel(`${prefix} Label Display Name`).fill(values.displayName);
+}
+
+function pageOption(row: Locator, value: string) {
+  const names: Record<string, string> = {
+    "package-type-1": "Quart Mylar",
+    "package-type-2": "Pint Jar",
+    "storage-pantry": "Pantry",
+  };
+  return row.getByRole("option", { name: names[value] ?? value });
 }
 
 export function plannedPackageSummary(page: Page, rowNumber: number) {
@@ -57,6 +64,35 @@ export function plannedPackageSummary(page: Page, rowNumber: number) {
       exact: true,
     })
     .locator("xpath=ancestor::article[1]");
+}
+
+export async function goToPackagingStage(page: Page, stageName: string) {
+  const heading = page.getByRole("heading", { name: stageName, exact: true });
+  if (await heading.isVisible().catch(() => false)) return;
+  try {
+    await page
+      .getByRole("button", { name: new RegExp(`^${stageName}`) })
+      .click({ timeout: 1_500 });
+  } catch (error) {
+    if (!(await heading.isVisible().catch(() => false))) throw error;
+  }
+  await expect(heading).toBeVisible();
+}
+
+export async function revealRecordedPackages(
+  page: Page,
+  allocationNumber: number,
+) {
+  const history = page.getByLabel(
+    `Allocation ${allocationNumber} recorded Packages`,
+  );
+  await expect(history).toBeAttached();
+  await page.locator("details").evaluateAll((elements) => {
+    elements.forEach((element) => {
+      (element as HTMLDetailsElement).open = true;
+    });
+  });
+  await expect(history).toBeVisible();
 }
 
 export type PrintWindowOptions = {

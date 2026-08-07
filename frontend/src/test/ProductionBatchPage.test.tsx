@@ -161,10 +161,20 @@ describe("ProductionBatchPage", () => {
       await screen.findByRole("heading", { name: "Record Weight Checks" }),
     ).toBeInTheDocument();
 
-    const weightRow = await findLastRow("Apples");
+    const setupRow = await findRow("Apples");
+    expect(
+      within(setupRow).getByRole("link", {
+        name: "View Weight Check for Apples",
+      }),
+    ).toHaveAttribute("href", "#weight-check-tray-1");
+    expect((await findLastWeightCard("Apples")).getAttribute("id")).toBe(
+      "weight-check-tray-1",
+    );
+
+    const weightRow = await findLastWeightCard("Apples");
     const weightInput = within(weightRow).getByRole("spinbutton");
     const weightUnit = within(weightRow).getByRole("combobox");
-    expect(weightUnit).toHaveValue("g");
+    expect(weightUnit).toHaveTextContent("g");
     await user.clear(weightInput);
     await user.type(weightInput, "1100");
     expect(within(weightRow).getByRole("alert")).toHaveTextContent(
@@ -172,12 +182,13 @@ describe("ProductionBatchPage", () => {
     );
     await user.clear(weightInput);
     await user.type(weightInput, "8.4");
-    await user.selectOptions(weightUnit, "oz");
+    await user.click(weightUnit);
+    await user.click(within(weightRow).getByRole("option", { name: "oz" }));
     await user.click(
       within(weightRow).getByRole("button", { name: "Save Weight" }),
     );
 
-    const savedWeightRow = await findLastRow("Apples");
+    const savedWeightRow = await findLastWeightCard("Apples");
     await user.click(
       within(savedWeightRow).getByRole("button", { name: "Correct" }),
     );
@@ -187,7 +198,7 @@ describe("ProductionBatchPage", () => {
     await user.type(correctionInput, "240");
     await user.type(
       within(savedWeightRow).getByRole("textbox", {
-        name: "Correction reason",
+        name: /^Correction reason/,
       }),
       "Wrong unit selected",
     );
@@ -202,6 +213,13 @@ describe("ProductionBatchPage", () => {
     expect(
       await screen.findByRole("heading", { name: "All Trays Complete" }),
     ).toBeInTheDocument();
+    const progressPanel = screen
+      .getByRole("heading", { name: "Batch Progress" })
+      .closest("section");
+    expect(progressPanel).toHaveTextContent(/Total Trays\s*1/);
+    expect(progressPanel).toHaveTextContent(/Trays Complete\s*1/);
+    expect(progressPanel).toHaveTextContent(/Trays Running\s*0/);
+    expect(progressPanel).not.toHaveTextContent("%");
 
     await user.click(screen.getByRole("button", { name: "Complete Batch" }));
 
@@ -212,6 +230,11 @@ describe("ProductionBatchPage", () => {
     expect(
       screen.getByRole("link", { name: "Start Packaging" }),
     ).toHaveAttribute("href", "/packaging?batch=batch-1");
+    expect(
+      screen.queryByText("Packaging status could not be loaded", {
+        exact: false,
+      }),
+    ).toBeNull();
 
     const calls = fetchMock().mock.calls.map(([input, init]) => ({
       path: String(input).replace(/^.*\/api\/v1/, ""),
@@ -317,21 +340,21 @@ function renderWithProviders(ui: ReactNode, queryClient: QueryClient) {
 }
 
 async function findRow(text: string) {
-  const cell = await screen.findByText(text);
-  const row = cell.closest("tr");
-  if (!row) {
-    throw new Error(`Could not find row for ${text}`);
+  const cells = await screen.findAllByText(text);
+  for (const cell of cells) {
+    const row = cell.closest("tr");
+    if (row) return row;
   }
-  return row;
+  throw new Error(`Could not find row for ${text}`);
 }
 
-async function findLastRow(text: string) {
-  const cells = await screen.findAllByText(text);
-  const row = cells[cells.length - 1].closest("tr");
-  if (!row) {
-    throw new Error(`Could not find row for ${text}`);
+async function findLastWeightCard(text: string) {
+  const links = await screen.findAllByRole("link", { name: text });
+  const card = links[links.length - 1].closest("article");
+  if (!card) {
+    throw new Error(`Could not find weight card for ${text}`);
   }
-  return row;
+  return card;
 }
 
 function createProductionTestState(

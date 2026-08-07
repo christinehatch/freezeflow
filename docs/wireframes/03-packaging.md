@@ -35,10 +35,79 @@ Launching from Production opens the relevant Production Batch directly.
 
 # Workspace Layout
 
+## Guided stages
+
+The workspace presents the existing flexible Packaging actions through five
+stable stages:
+
+1. **Choose a batch** — select or resume one completed Production Batch.
+2. **Choose product** — select completed Trays and save a Packaging Allocation.
+3. **Allocate packages** — plan and record Packages while balancing Finished
+   Product Weight.
+4. **Review and labels** — edit labels, review readiness, preview, and print.
+5. **Finish** — review blockers and explicitly complete Packaging.
+
+This is presentation guidance, not a new domain locking sequence. Only the
+current stage renders its full controls. Completed stages become compact
+summaries, and future stages remain unavailable until their documented
+prerequisites exist. Explicit Back and Next actions let operators return to
+earlier valid work without exposing every form at once. Reloading restores the
+stage derived from authoritative saved operation state rather than unsaved local
+navigation.
+
+Each stage occupies one compact operational workspace rather than joining an
+endlessly stacked worksheet. The weight summary is sticky only while creating
+Packages, when selected, allocated, and remaining Finished Product Weight inform
+the current task. Source Trays and Package rows use compact tables at desktop
+widths, with horizontal containment at narrower widths. Saved operation details,
+Allocation history, recorded Packages, Package Label history, and Print Events
+remain available through contextual disclosures instead of occupying the main
+flow.
+
+## Stage 3 single-bag loop
+
+Stage 3 is organized around recording one physical bag at a time. The initial
+desktop viewport shows compact progress, the active source pool's Remaining
+Weight, compact saved-bag summaries, and one current Bag form without requiring
+scrolling before entry begins.
+
+The current form contains Package Type, Finished Product Weight, Sealed Package
+Weight, Oxygen Absorber, Storage Location, and Notes. Saving the form
+intentionally records one Package through the existing Packaging Allocation.
+The interface calls the physical task a Bag while the durable domain record
+remains a Package.
+
+After a Bag is saved, the form is replaced by a decision:
+
+- **Add another bag** opens the next numbered Bag, retains the selected Package
+  Type as a repeated-entry convenience, reapplies its documented oxygen
+  absorber default, and clears measurements, Storage Location, and Notes.
+- **No more bags — Review** proceeds only when every independent source pool has
+  zero Remaining Weight and every saved planned row has been recorded.
+
+Previously recorded Packages appear as compact saved-bag rows. Allocation
+history, recorded Package history, timestamps, source Tray details, label
+details, and reconciliation information are collapsed by default. When more
+than one Packaging Allocation exists, Stage 3 shows a short product-source
+selector and works on one source pool at a time; weights are never netted across
+source pools.
+
+At wide desktop widths, an adjacent sticky Packaging summary keeps the active
+source pool's authoritative Total, Packaged, Remaining, and saved-Bag count in
+view. It may also repeat the currently selected Package Type and its configured
+default oxygen absorber. The summary is informational: it does not introduce
+recommendations or new actions. At narrower widths it returns to normal reading
+order between the dominant weight status and the Bag form so the form retains
+the full available width.
+
+Reloading derives saved Bags, the active source pool, and Remaining Weight from
+the authoritative Packaging Operation. A new Bag form opens only when the Open
+operation still has product or a durable unrecorded planned row to record.
+
 ```text
 Packaging
 
-[Production Batch selector]             [Open · Saved]
+[Batch identity]                        [Packaging in progress]
 
 Operation Progress
 2 Allocations · 8 Packages · 3 Labels Ready
@@ -58,6 +127,12 @@ Allocations
 
 The operator sees one Production Batch at a time. Switching batches must not
 erase saved Open work.
+
+When only one Production Batch is available, show it directly instead of
+making the operator choose it from a one-item selector. When several are
+available, selector options contain only the Batch identity and Freeze Dryer
+name. Tray readiness and saved-work state belong in supporting text after the
+selection, not in a long status string inside the control.
 
 # Start or Resume
 
@@ -97,8 +172,16 @@ Select Completed Product
 
 Selected source: 1,086 g from 3 Trays
 
-[Package Selected Product]
+Allocation Notes [Optional context for this product combination]
+
+[Back] [Save & Continue]
 ```
+
+Allocation Notes and the Stage action row follow the Tray selection so the
+operator's reading path moves from selection to confirmation. Save & Continue
+is disabled and visually quiet while no Tray is selected. Selecting at least
+one eligible Tray enables the action and gives it the filled primary green
+state, making the next step clear without changing Allocation validation.
 
 Selecting the Trays creates or resumes an identified Packaging Allocation behind
 the workspace. The UI does not ask the user to name or administer the Allocation.
@@ -146,6 +229,15 @@ Storage            [Unassigned]
 
 Planned rows are saved with the Open workspace. They are not Packages and do not
 appear in Inventory until the operator selects Record Package.
+
+# Package Type Administration
+
+Package Type setup is secondary to active Packaging work. The Packaging page
+links to a separate **Manage Package Types** screen at
+`/packaging/package-types`; it does not place the full administration form inside
+the guided workspace. The secondary screen preserves Package Type creation,
+defaults, notes, archiving, loading, empty, and structured-error behavior, and
+provides a direct return to Packaging.
 
 # Record Package
 

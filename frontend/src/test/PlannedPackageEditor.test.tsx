@@ -107,20 +107,21 @@ describe("PlannedPackageEditor", () => {
     const absorber = row.getByLabelText(
       "Allocation 1 Planned Package 1 Oxygen Absorber",
     );
-    await user.selectOptions(packageType, quartMylar.id);
+    await chooseOption(user, packageType, "Quart Mylar");
     expect(absorber).toHaveValue("500cc");
     expect(row.getByText("Incomplete")).toBeInTheDocument();
 
     await user.clear(absorber);
     await user.type(absorber, "900cc custom");
-    await user.selectOptions(packageType, pintJar.id);
+    await chooseOption(user, packageType, "Pint Jar");
     expect(absorber).toHaveValue("900cc custom");
 
     const finishedWeight = row.getByLabelText(
       "Allocation 1 Planned Package 1 Finished Product Weight",
     );
     await user.type(finishedWeight, "8.4");
-    await user.selectOptions(
+    await chooseOption(
+      user,
       row.getByLabelText(
         "Allocation 1 Planned Package 1 Finished Product Weight Unit",
       ),
@@ -135,15 +136,17 @@ describe("PlannedPackageEditor", () => {
     ).toBeInTheDocument();
     await user.clear(sealedWeight);
     await user.type(sealedWeight, "9.1");
-    await user.selectOptions(
+    await chooseOption(
+      user,
       row.getByLabelText(
         "Allocation 1 Planned Package 1 Sealed Package Weight Unit",
       ),
       "oz",
     );
-    await user.selectOptions(
+    await chooseOption(
+      user,
       row.getByLabelText("Allocation 1 Planned Package 1 Storage Location"),
-      pantry.id,
+      "Pantry",
     );
     await user.type(
       row.getByLabelText("Allocation 1 Planned Package 1 Package Notes"),
@@ -174,7 +177,7 @@ describe("PlannedPackageEditor", () => {
     expect(sealedWeight).toHaveValue(9.1);
     expect(
       row.getByLabelText("Allocation 1 Planned Package 1 Storage Location"),
-    ).toHaveValue(pantry.id);
+    ).toHaveTextContent("Pantry");
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -214,7 +217,8 @@ describe("PlannedPackageEditor", () => {
       projection.getByText("Projected Allocated Weight").parentElement,
     ).toHaveTextContent("101 g");
 
-    await user.selectOptions(
+    await chooseOption(
+      user,
       screen.getByLabelText(
         "Allocation 1 Planned Package 1 Finished Product Weight Unit",
       ),
@@ -224,7 +228,8 @@ describe("PlannedPackageEditor", () => {
       projection.getByText("Projected Allocated Weight").parentElement,
     ).toHaveTextContent("128.35 g");
 
-    await user.selectOptions(
+    await chooseOption(
+      user,
       screen.getByLabelText(
         "Allocation 1 Planned Package 1 Finished Product Weight Unit",
       ),
@@ -322,7 +327,7 @@ describe("PlannedPackageEditor", () => {
       savedRow.getByLabelText(
         "Allocation 1 Planned Package 1 Finished Product Weight Unit",
       ),
-    ).toHaveValue("oz");
+    ).toHaveTextContent("oz");
     expect(
       savedRow.getByLabelText(
         "Allocation 1 Planned Package 1 Sealed Package Weight",
@@ -332,7 +337,7 @@ describe("PlannedPackageEditor", () => {
       savedRow.getByLabelText(
         "Allocation 1 Planned Package 1 Sealed Package Weight Unit",
       ),
-    ).toHaveValue("lb");
+    ).toHaveTextContent("lb");
     expect(
       savedRow.getByLabelText("Allocation 1 Planned Package 1 Package Notes"),
     ).toHaveValue("Saved notes");
@@ -343,13 +348,15 @@ describe("PlannedPackageEditor", () => {
     );
     expect(missingRow.getByText("Reference unavailable")).toBeInTheDocument();
     expect(
-      missingRow.getByRole("option", { name: "Package Type unavailable" }),
-    ).toBeInTheDocument();
-    expect(
-      missingRow.getByRole("option", {
-        name: "Storage Location unavailable",
+      missingRow.getByRole("combobox", {
+        name: "Allocation 1 Planned Package 2 Package Type",
       }),
-    ).toBeInTheDocument();
+    ).toHaveTextContent("Package Type unavailable");
+    expect(
+      missingRow.getByRole("combobox", {
+        name: "Allocation 1 Planned Package 2 Storage Location",
+      }),
+    ).toHaveTextContent("Storage Location unavailable");
 
     const recordedRowElement = screen.getByLabelText(
       "Allocation 1 Planned Package 3 pending editor",
@@ -411,9 +418,10 @@ describe("PlannedPackageEditor", () => {
     const newRow = within(
       screen.getByLabelText("Allocation 1 Planned Package 2 pending editor"),
     );
-    await user.selectOptions(
+    await chooseOption(
+      user,
       newRow.getByLabelText("Allocation 1 Planned Package 2 Package Type"),
-      pintJar.id,
+      "Pint Jar",
     );
     await user.type(
       newRow.getByLabelText(
@@ -421,7 +429,8 @@ describe("PlannedPackageEditor", () => {
       ),
       "1",
     );
-    await user.selectOptions(
+    await chooseOption(
+      user,
       newRow.getByLabelText(
         "Allocation 1 Planned Package 2 Finished Product Weight Unit",
       ),
@@ -433,7 +442,8 @@ describe("PlannedPackageEditor", () => {
       ),
       "1",
     );
-    await user.selectOptions(
+    await chooseOption(
+      user,
       newRow.getByLabelText(
         "Allocation 1 Planned Package 2 Sealed Package Weight Unit",
       ),
@@ -446,9 +456,10 @@ describe("PlannedPackageEditor", () => {
       newRow.getByLabelText("Allocation 1 Planned Package 2 Oxygen Absorber"),
       "  900cc custom  ",
     );
-    await user.selectOptions(
+    await chooseOption(
+      user,
       newRow.getByLabelText("Allocation 1 Planned Package 2 Storage Location"),
-      pantry.id,
+      "Pantry",
     );
     await user.type(
       newRow.getByLabelText("Allocation 1 Planned Package 2 Package Notes"),
@@ -910,11 +921,12 @@ async function completeRequiredFields(
   rowNumber: number,
   finishedWeight = "100",
 ) {
-  await user.selectOptions(
+  await chooseOption(
+    user,
     screen.getByLabelText(
       `Allocation 1 Planned Package ${rowNumber} Package Type`,
     ),
-    quartMylar.id,
+    "Quart Mylar",
   );
   await user.type(
     screen.getByLabelText(
@@ -922,6 +934,15 @@ async function completeRequiredFields(
     ),
     finishedWeight,
   );
+}
+
+async function chooseOption(
+  user: ReturnType<typeof userEvent.setup>,
+  control: HTMLElement,
+  optionName: string,
+) {
+  await user.click(control);
+  await user.click(screen.getByRole("option", { name: optionName }));
 }
 
 function deferred<T>() {

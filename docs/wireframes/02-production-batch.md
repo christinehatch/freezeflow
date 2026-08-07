@@ -206,6 +206,13 @@ The user does not normally weigh trays during an active freeze dryer cycle.
 
 ## Completed Drying Run Weight Entry
 
+The active Weight Check workspace presents each Tray as a self-contained task
+card. Slot and Product identity, recent Weight values, entry fields, and the
+current action stay together so routine work never requires horizontal
+scrolling. After a Weight Check is saved, Finished Product Weight and Mark Tray
+Complete remain visible in that same card. Completed Trays collapse to a compact
+summary so they preserve context without competing with Running Trays.
+
 ```text
 +======================================================================================+
 | Harvest Right #1                                                Running               |
@@ -442,6 +449,11 @@ Completing all Trays should make the Batch ready to complete, but the Batch stil
 
 Each Tray row or card should be selectable.
 
+While the completed Drying Run Weight Check workspace is active, the explicit
+View action in the Freeze Dryer Slots table keeps the user in context and moves
+to that Tray's Weight Check card. The Product link and the card's View history
+action remain the routes to Tray Details.
+
 Selecting a Tray opens the Tray Details screen, where the user can view:
 
 * Weight Check history
@@ -459,6 +471,12 @@ The detail screen is intended for review, not routine weight entry.
 # Batch Progress
 
 Batch progress should communicate operational status rather than elapsed time.
+
+On wide screens, a compact Batch Progress surface may sit beside Batch Setup.
+It should show authoritative counts for Total Trays, Trays Complete, Trays
+Running, and Total Drying Time. A segmented Tray-status indicator may reinforce
+those counts, but it must represent individual Tray states rather than an
+estimated completion percentage.
 
 Examples:
 

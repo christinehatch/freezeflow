@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
   createDryingRun,
@@ -125,15 +125,39 @@ test("records drying progress, completes trays, and explicitly completes the bat
     page.getByText("Every Running Tray needs a Weight Check"),
   ).toBeVisible();
 
+  await slotRow(page, "Slot 1")
+    .getByRole("link", { name: "View Weight Check for Taco Chicken" })
+    .click();
+  await expect(page).toHaveURL(/#weight-check-tray-1$/);
+  await expect(weightRow(page, "Taco Chicken")).toBeInViewport();
+
   await saveWeightCheck(page, "Taco Chicken", "8.4", "oz");
+  const firstCompletionAction = weightRow(page, "Taco Chicken").getByRole(
+    "button",
+    { name: "Mark Complete" },
+  );
+  const completionActionBox = await firstCompletionAction.boundingBox();
+  const viewport = page.viewportSize();
+  expect(completionActionBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(
+    completionActionBox!.x + completionActionBox!.width,
+  ).toBeLessThanOrEqual(viewport!.width);
+  await expect
+    .poll(() =>
+      page
+        .locator("section", { hasText: "Record Weight Checks" })
+        .evaluate((section) => section.scrollWidth <= section.clientWidth),
+    )
+    .toBe(true);
   await saveWeightCheck(page, "Apples", "8.8", "oz");
 
   const tacoWeightRow = weightRow(page, "Taco Chicken");
   await tacoWeightRow.getByRole("button", { name: "Correct" }).click();
   await tacoWeightRow.getByRole("spinbutton").first().fill("240");
-  await tacoWeightRow.locator("select").first().selectOption("g");
+  await selectWeightUnit(tacoWeightRow, "g");
   await tacoWeightRow
-    .getByRole("textbox", { name: "Correction reason" })
+    .getByRole("textbox", { name: /^Correction reason/ })
     .fill("Wrong unit selected");
   await tacoWeightRow.getByRole("button", { name: "Save Correction" }).click();
 
@@ -154,7 +178,7 @@ test("records drying progress, completes trays, and explicitly completes the bat
 
   await markTrayComplete(page, "Taco Chicken");
   await expect(
-    weightRow(page, "Taco Chicken").getByRole("cell", { name: "Completed" }),
+    weightRow(page, "Taco Chicken").getByText("Completed", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Start Another Drying Run" }),
@@ -162,7 +186,9 @@ test("records drying progress, completes trays, and explicitly completes the bat
 
   await page.getByRole("button", { name: "Start Another Drying Run" }).click();
   await page.getByRole("button", { name: "Current Run Complete" }).click();
-  await expect(weightRow(page, "Taco Chicken").getByText("Done")).toBeVisible();
+  await expect(
+    weightRow(page, "Taco Chicken").getByText("Completed", { exact: true }),
+  ).toBeVisible();
   await saveWeightCheck(page, "Apples", "8.6", "oz");
   await markTrayComplete(page, "Apples");
 
@@ -228,17 +254,15 @@ test("completed production batches hand off eligible trays to Packaging", async 
   await page.getByRole("link", { name: "Start Packaging" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Packaging Worksheet" }),
+    page.getByRole("heading", { name: "Choose a batch" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/packaging\?batch=batch-1$/);
-  await expect(page.getByLabel("Production Batch")).toHaveValue("batch-1");
   await expect(
-    page.getByLabel("Production Batch").getByRole("option", {
-      name: /Batch E2E .* 2 completed Trays/,
-    }),
-  ).toHaveCount(1);
+    page.getByRole("heading", { name: "Batch E2E 001" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Production Batch")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Start Packaging" }),
+    page.getByRole("button", { name: "Next — Choose trays" }),
   ).toBeVisible();
   await expect(page.getByText("Taco Chicken")).toHaveCount(0);
   await expect(page.getByText("Apples")).toHaveCount(0);
@@ -357,9 +381,14 @@ async function saveWeightCheck(
 ) {
   const row = weightRow(page, product);
   await row.locator("input").first().fill(weight);
-  await row.locator("select").first().selectOption(unit);
-  await row.getByRole("button", { name: "Save" }).click();
+  await selectWeightUnit(row, unit);
+  await row.getByRole("button", { name: "Save Weight" }).click();
   await expect(row.getByText("Mark Complete")).toBeVisible();
+}
+
+async function selectWeightUnit(row: Locator, unit: string) {
+  await row.getByRole("combobox").click();
+  await row.getByRole("option", { name: unit, exact: true }).click();
 }
 
 async function markTrayComplete(page: Page, product: string) {
@@ -377,6 +406,6 @@ function weightRow(page: Page, product: string) {
     .filter({
       has: page.getByRole("heading", { name: "Record Weight Checks" }),
     })
-    .locator("tr")
+    .locator("article")
     .filter({ hasText: product });
 }

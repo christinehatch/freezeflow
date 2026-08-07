@@ -184,6 +184,15 @@ def test_packaging_operation_starts_resumes_and_is_queryable(
 ) -> None:
     batch, trays = _create_completed_batch(client, batch_number="Batch operation")
 
+    missing_operation = client.get(
+        f"/api/v1/production-batches/{batch['id']}/packaging-operation"
+    )
+    assert missing_operation.status_code == 404
+    assert (
+        missing_operation.json()["detail"]["message"]
+        == "Production Batch has no Packaging Operation."
+    )
+
     worksheet_response = client.get("/api/v1/packaging/worksheet")
     assert worksheet_response.status_code == 200
     worksheet = _data(worksheet_response)

@@ -1,19 +1,29 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   Button,
   ButtonLink,
+  Field,
   FreezeDryerCard,
   PageHeader,
+  NumberField,
   RecentProductionRow,
   SectionHeader,
   StatusBadge,
   StatusBanner,
   Surface,
+  SummaryPanel,
+  Select,
+  Textarea,
+  TextField,
+  WorkflowStage,
+  WorkflowStepper,
 } from "../components/design-system";
+import { WeightSummary } from "../components/WeightSummary";
 
 describe("design-system primitives", () => {
   afterEach(cleanup);
@@ -109,6 +119,128 @@ describe("design-system primitives", () => {
     expect(screen.getByRole("link", { name: "Batch 005" })).toHaveAttribute(
       "href",
       "/production/batch-5",
+    );
+  });
+
+  it("renders guided workflow progress and a dominant weight balance", () => {
+    render(
+      <>
+        <WorkflowStepper
+          label="Packaging progress"
+          steps={[
+            { id: "source", label: "Choose source", status: "complete" },
+            { id: "product", label: "Choose product", status: "current" },
+            { id: "packages", label: "Allocate packages", status: "upcoming" },
+          ]}
+        />
+        <WorkflowStage
+          description="Select completed Trays."
+          stage={2}
+          status="current"
+          title="Choose product"
+        >
+          <WeightSummary
+            allocatedWeightGrams={75}
+            remainingWeightGrams={25}
+            selectedWeightGrams={100}
+          />
+        </WorkflowStage>
+      </>,
+    );
+
+    expect(
+      screen.getByRole("navigation", { name: "Packaging progress" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Choose product")[0].closest("li"),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      screen.getByRole("heading", { name: "Choose product" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Remaining to Package").parentElement).toHaveClass(
+      "packaging-weight-summary__item--dominant",
+      "packaging-weight-summary__item--remaining",
+    );
+    expect(screen.getByText("25 g")).toBeInTheDocument();
+  });
+
+  it("provides a keyboard-accessible form family with rich Select options", async () => {
+    const user = userEvent.setup();
+
+    function FormExample() {
+      const [source, setSource] = useState("source-1");
+      return (
+        <form>
+          <Field htmlFor="source" label="Product source">
+            <Select
+              id="source"
+              options={[
+                {
+                  value: "source-1",
+                  label: "Source 1",
+                  description: "39 g remaining",
+                },
+                {
+                  value: "source-2",
+                  label: "Source 2",
+                  description: "236 g remaining",
+                },
+              ]}
+              value={source}
+              onChange={setSource}
+            />
+          </Field>
+          <Field htmlFor="name" label="Name">
+            <TextField id="name" />
+          </Field>
+          <Field htmlFor="weight" label="Weight">
+            <NumberField id="weight" suffix="g" />
+          </Field>
+          <Field htmlFor="notes" label="Notes" optional>
+            <Textarea id="notes" />
+          </Field>
+        </form>
+      );
+    }
+
+    render(<FormExample />);
+    const select = screen.getByRole("combobox", { name: "Product source" });
+    select.focus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+
+    expect(select).toHaveTextContent("Source 2");
+    expect(select).toHaveTextContent("236 g remaining");
+    expect(select).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveClass(
+      "ds-input",
+    );
+    expect(screen.getByRole("spinbutton", { name: "Weight" })).toHaveClass(
+      "ds-number-field__input",
+    );
+    expect(screen.getByRole("textbox", { name: "Notes Optional" })).toHaveClass(
+      "ds-textarea",
+    );
+  });
+
+  it("renders an authoritative summary panel with an emphasized metric", () => {
+    render(
+      <SummaryPanel
+        items={[
+          { label: "Packaged", value: "600 g" },
+          { label: "Remaining", value: "39 g", emphasis: true },
+        ]}
+        title="Packaging summary"
+      >
+        <p>Quart Mylar</p>
+      </SummaryPanel>,
+    );
+
+    const panel = screen.getByLabelText("Packaging summary");
+    expect(panel).toHaveTextContent("Packaged600 g");
+    expect(panel).toHaveTextContent("Remaining39 g");
+    expect(panel).toHaveTextContent("Quart Mylar");
+    expect(screen.getByText("Remaining").parentElement).toHaveClass(
+      "ds-summary-panel__metric--emphasis",
     );
   });
 });

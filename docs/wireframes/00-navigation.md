@@ -79,6 +79,7 @@ Examples:
 * Preparation Presets
 * Freeze Dryers
 * Storage Locations
+* Package Types
 
 ---
 
@@ -169,6 +170,11 @@ Packaging is where completed Trays become Packages.
 It should show completed Trays that are available to package.
 
 It should not require users to manage Packaging Operations directly.
+
+Package Type administration is a secondary screen reached from Packaging, not a
+primary-navigation destination. Returning from Package Types restores the
+Packaging entry point without introducing Package Types into the primary
+workflow hierarchy.
 
 ### Inventory
 

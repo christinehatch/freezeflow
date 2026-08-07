@@ -357,6 +357,11 @@ The Packaging workspace should:
 - support label preview, editing, bulk selection, printing, and reprinting
 - explain why completion is unavailable
 - avoid exposing aggregate or persistence terminology as administrative UI
+- present Stage 3 as a focused one-Bag-at-a-time entry loop
+- keep the active source pool's Remaining Weight dominant while entering a Bag
+- collapse saved Bags to compact summaries and keep detailed history behind
+  disclosures
+- ask whether another Bag remains after each successful Package recording
 
 # API Expectations
 
