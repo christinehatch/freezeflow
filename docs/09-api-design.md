@@ -660,6 +660,38 @@ Validation:
 Package and label fields may be updated while the operation is Open. After
 completion, changes use the Milestone 8 Corrections workflow.
 
+## Record Packaging Loss
+
+```http
+POST /api/v1/packaging-operations/{operationId}/allocations/{allocationId}/losses
+```
+
+Records that a portion of an Allocation's Selected Source Weight will never
+become a Package (ADR-0016). Reduces Remaining Weight the same way recording
+a Package does, without modifying source Tray weights or existing Packages.
+
+```json
+{
+  "weightGrams": 6.0,
+  "reason": "Crumbs",
+  "reasonDetail": null
+}
+```
+
+`reason` is one of `Sampled`, `Spilled`, `Crumbs`, `Other`. `reasonDetail` is
+optional free text, accepted only when `reason` is `Other`.
+
+Validation:
+
+* The operation must be Open and the Allocation must belong to it.
+* Weight must be positive.
+* Weight may not exceed the Allocation's current Remaining Weight.
+* `reasonDetail` is rejected unless `reason` is `Other`.
+
+Packaging Loss entries are append-only: no update or delete endpoint exists.
+An incorrectly recorded entry is corrected under the Milestone 8 Corrections
+workflow, the same as other Milestone 8 fields.
+
 ## Complete Packaging
 
 ```http
@@ -669,7 +701,8 @@ POST /api/v1/packaging-operations/{operationId}/complete
 Explicitly completes the operation. Completion is rejected when any Allocation
 has Remaining Weight, invalid planned work, or incomplete required Package or
 Label information. On success, source Trays transition to Packaged and the
-operation records `completedAt`. No remaining product is discarded.
+operation records `completedAt`. No remaining product is discarded; product
+that will never become a Package must be recorded as Packaging Loss first.
 
 ## Get Package Label
 
