@@ -5,7 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import {
   ApiError,
@@ -908,14 +908,39 @@ export function PackagingPage() {
                           : "Next — Choose trays"}
                       </button>
                     )}
-                    <Link
-                      className="text-link text-sm"
-                      to={`/production/${activeBatch.id}`}
-                    >
-                      View batch
-                    </Link>
                   </div>
                 </div>
+                {activeWorksheetItem &&
+                activeWorksheetItem.eligible_trays.length > 0 ? (
+                  <details className="packaging-batch-trays mt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">
+                      What&rsquo;s in this batch?
+                    </summary>
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {activeWorksheetItem.eligible_trays.map((tray) => (
+                        <li
+                          className="flex items-baseline justify-between gap-3"
+                          key={tray.id}
+                        >
+                          <span>
+                            <span className="font-semibold">
+                              {tray.product_name}
+                            </span>
+                            {tray.preparation ? (
+                              <span className="text-slate-600">
+                                {" "}
+                                · {tray.preparation}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="whitespace-nowrap text-slate-700">
+                            {formatGrams(tray.final_dry_weight_grams)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
                 {activeOperationQuery?.isError ? (
                   <p className="mt-3 text-red-700" role="alert">
                     {formatApiError(activeOperationQuery.error)}
