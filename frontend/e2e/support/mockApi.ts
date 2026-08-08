@@ -20,6 +20,7 @@ import type {
   PrintablePackageLabel,
   ProductionBatch,
   RecordAllocationPackagesRequest,
+  RecordPackagingLossRequest,
   StorageLocation,
   Tray,
   TraySlot,
@@ -29,6 +30,7 @@ import {
   createAllocationSourceTray,
   createPackageLabel as createRefinedPackageLabel,
   createPackagingAllocation as createRefinedPackagingAllocation,
+  createPackagingLoss,
   createPackagingOperation as createRefinedPackagingOperation,
   createPlannedPackageRow as createRefinedPlannedPackageRow,
   createPrintEvent as createRefinedPrintEvent,
@@ -141,6 +143,11 @@ export type MockApiState = {
     allocationId: string;
     body: RecordAllocationPackagesRequest;
   }>;
+  packagingLossBodies: Array<{
+    operationId: string;
+    allocationId: string;
+    body: RecordPackagingLossRequest;
+  }>;
   packageLabelUpdateBodies: Array<{
     packageId: string;
     body: PackageLabelUpdate;
@@ -158,6 +165,7 @@ export type MockApiState = {
     packageIds: string[];
     packageLabelIds: string[];
     printEventIds: string[];
+    packagingLossIds: string[];
   };
   packagingSequences: {
     operation: number;
@@ -167,6 +175,7 @@ export type MockApiState = {
     packageLabel: number;
     printJob: number;
     printEvent: number;
+    packagingLoss: number;
     timestamp: number;
   };
   createFreezeDryerBodies: Array<Record<string, unknown>>;
@@ -256,6 +265,7 @@ export async function mockFreezeflowApi(
     allocationCreateBodies: [],
     allocationUpdateBodies: [],
     packageRecordBodies: [],
+    packagingLossBodies: [],
     packageLabelUpdateBodies: [],
     packageLabelPreviewBodies: [],
     packageLabelPrintBodies: [],
@@ -267,6 +277,7 @@ export async function mockFreezeflowApi(
       packageIds: [],
       packageLabelIds: [],
       printEventIds: [],
+      packagingLossIds: [],
     },
     packagingSequences: {
       operation: 0,
@@ -276,6 +287,7 @@ export async function mockFreezeflowApi(
       packageLabel: 0,
       printJob: 0,
       printEvent: 0,
+      packagingLoss: 0,
       timestamp: 0,
     },
     createFreezeDryerBodies: [],
@@ -1569,6 +1581,58 @@ function handleRefinedPackagingMutation(
     );
   }
 
+  const lossMatch = path.match(
+    /^\/packaging-operations\/([^/]+)\/allocations\/([^/]+)\/losses$/,
+  );
+  if (method === "POST" && lossMatch) {
+    const body = (requestBody ?? {}) as RecordPackagingLossRequest;
+    state.packagingLossBodies.push({
+      operationId: lossMatch[1],
+      allocationId: lossMatch[2],
+      body,
+    });
+    const result = findOpenAllocation(state, lossMatch[1], lossMatch[2]);
+    if ("error" in result) return result.error;
+    const { operation, allocation } = result;
+
+    const weight = Number(body.weight_grams);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      return structuredError(
+        422,
+        "VALIDATION_ERROR",
+        "Weight must be positive.",
+      );
+    }
+    const reasonDetail = cleanOptionalText(body.reason_detail);
+    if (body.reason !== "Other" && reasonDetail !== null) {
+      return businessRuleError(
+        "Reason detail is only accepted when reason is Other.",
+      );
+    }
+    if (weight - Number(allocation.remaining_weight_grams) > 0.001) {
+      return businessRuleError(
+        "Packaging Loss cannot exceed the Allocation's Remaining Weight.",
+      );
+    }
+
+    const lossId = nextPackagingId(state, "packagingLoss");
+    const loss = createPackagingLoss({
+      id: lossId,
+      packaging_allocation_id: allocation.id,
+      weight_grams: String(weight),
+      reason: body.reason,
+      reason_detail: reasonDetail,
+      recorded_at: nextPackagingTimestamp(state),
+    });
+    allocation.packaging_losses.push(loss);
+    recalculateAllocation(allocation);
+    const updatedAt = nextPackagingTimestamp(state);
+    allocation.updated_at = updatedAt;
+    operation.updated_at = updatedAt;
+    state.createdPackagingIds.packagingLossIds.push(lossId);
+    return json({ packaging_loss: loss, packaging_operation: operation }, 201);
+  }
+
   const labelMatch = path.match(/^\/packages\/([^/]+)\/label$/);
   if (method === "PATCH" && labelMatch) {
     const body = (requestBody ?? {}) as PackageLabelUpdate;
@@ -2153,8 +2217,11 @@ function packagingCompletionBlocker(operation: PackagingOperation) {
     return "A Packaging Operation requires at least one Allocation.";
   }
   for (const allocation of operation.allocations) {
-    if (allocation.packages.length === 0) {
-      return "Every Allocation requires at least one Package.";
+    if (
+      allocation.packages.length === 0 &&
+      allocation.packaging_losses.length === 0
+    ) {
+      return "Every Allocation requires at least one Package or Packaging Loss.";
     }
     if (allocation.planned_packages.some((row) => !row.recorded_package_id)) {
       return "Every planned Package must be recorded before completion.";
@@ -2195,9 +2262,14 @@ function recalculateAllocation(allocation: PackagingAllocation) {
   const allocated =
     recordedFinishedProductWeight(allocation) +
     unrecordedPlannedWeight(allocation.planned_packages);
+  const totalLoss = allocation.packaging_losses.reduce(
+    (total, loss) => total + Number(loss.weight_grams),
+    0,
+  );
   allocation.selected_weight_grams = String(selected);
   allocation.allocated_weight_grams = String(allocated);
-  allocation.remaining_weight_grams = String(selected - allocated);
+  allocation.total_recorded_loss_weight_grams = String(totalLoss);
+  allocation.remaining_weight_grams = String(selected - allocated - totalLoss);
 }
 
 function recordedFinishedProductWeight(allocation: PackagingAllocation) {

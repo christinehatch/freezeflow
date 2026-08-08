@@ -81,10 +81,12 @@ function createAllocation(
     updated_at: "2026-07-08T00:00:00.000Z",
     selected_weight_grams: "100",
     allocated_weight_grams: "0",
+    total_recorded_loss_weight_grams: "0",
     remaining_weight_grams: "100",
     source_trays: [],
     planned_packages: [],
     packages: [],
+    packaging_losses: [],
     ...overrides,
   };
 }

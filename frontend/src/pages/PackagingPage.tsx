@@ -16,10 +16,12 @@ import {
   PackageLabelUpdate,
   PackageType,
   PlannedPackageRow,
+  PackagingLossReason,
   PackagingOperation,
   PackagingResult,
   PackagingWorksheetItem,
   ProductionBatch,
+  RecordPackagingLossRequest,
   StorageLocation,
   packagingApi,
   productionApi,
@@ -729,6 +731,26 @@ export function PackagingPage() {
     return response.packaging_operation;
   }
 
+  async function recordLoss(
+    operationId: string,
+    allocationId: string,
+    body: RecordPackagingLossRequest,
+  ) {
+    const response = await packagingApi.recordAllocationLoss({
+      operationId,
+      allocationId,
+      body,
+    });
+    queryClient.setQueryData(
+      [
+        "packaging-operation-by-batch",
+        response.packaging_operation.production_batch_id,
+      ],
+      response.packaging_operation,
+    );
+    return response.packaging_operation;
+  }
+
   async function savePackageLabel(packageId: string, body: PackageLabelUpdate) {
     await packagingApi.updatePackageLabel({ packageId, body });
   }
@@ -1204,6 +1226,7 @@ export function PackagingPage() {
             )
           }
           onRecordBag={recordBag}
+          onRecordLoss={recordLoss}
           onPreviewPackageLabels={previewPackageLabels}
           onPrintPackageLabels={(packageLabelIds) =>
             printPackageLabels(
@@ -1732,6 +1755,7 @@ function PackagingOperationWorkspace({
   formatError,
   onCompleteOperation,
   onRecordBag,
+  onRecordLoss,
   onPreviewPackageLabels,
   onPrintPackageLabels,
   onRefreshOperation,
@@ -1752,6 +1776,11 @@ function PackagingOperationWorkspace({
     operationId: string,
     allocationId: string,
     bag: PackageLineCreate,
+  ) => Promise<PackagingOperation>;
+  onRecordLoss: (
+    operationId: string,
+    allocationId: string,
+    loss: RecordPackagingLossRequest,
   ) => Promise<PackagingOperation>;
   onPreviewPackageLabels: (
     packageLabelIds: string[],
@@ -2040,6 +2069,9 @@ function PackagingOperationWorkspace({
               onRecordBag={(allocationId, bag) =>
                 onRecordBag(operation.id, allocationId, bag)
               }
+              onRecordLoss={(allocationId, loss) =>
+                onRecordLoss(operation.id, allocationId, loss)
+              }
               onReview={() => onStageChange("review")}
               operation={operation}
               packageTypes={packageTypes}
@@ -2319,7 +2351,7 @@ type WorkspaceAllocationEvaluation = {
   savedWeightsAvailable: boolean;
 };
 
-type BagEntryPhase = "enteringBag" | "choosingNextAction";
+type BagEntryPhase = "enteringBag" | "recordingLoss" | "choosingNextAction";
 
 type BagDraft = {
   packageTypeId: string;
@@ -2333,10 +2365,32 @@ type BagDraft = {
   plannedPackageRowId: string | null;
 };
 
+type LossDraft = {
+  weight: string;
+  weightUnit: WeightUnit;
+  reason: PackagingLossReason | "";
+  reasonDetail: string;
+};
+
+const PACKAGING_LOSS_REASON_OPTIONS: {
+  label: string;
+  value: PackagingLossReason;
+}[] = [
+  { label: "Sampled", value: "Sampled" },
+  { label: "Spilled", value: "Spilled" },
+  { label: "Crumbs", value: "Crumbs" },
+  { label: "Other", value: "Other" },
+];
+
+type SavedEntry =
+  | { kind: "bag"; bagNumber: number; remainingWeight: number }
+  | { kind: "loss"; remainingWeight: number };
+
 function SingleBagEntryLoop({
   formatError,
   onBack,
   onRecordBag,
+  onRecordLoss,
   onReview,
   operation,
   packageTypes,
@@ -2347,6 +2401,10 @@ function SingleBagEntryLoop({
   onRecordBag: (
     allocationId: string,
     bag: PackageLineCreate,
+  ) => Promise<PackagingOperation>;
+  onRecordLoss: (
+    allocationId: string,
+    loss: RecordPackagingLossRequest,
   ) => Promise<PackagingOperation>;
   onReview: () => void;
   operation: PackagingOperation;
@@ -2388,11 +2446,15 @@ function SingleBagEntryLoop({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<{
-    bagNumber: number;
-    remainingWeight: number;
-  } | null>(null);
+  const [lastSaved, setLastSaved] = useState<SavedEntry | null>(null);
+  const [lossDraft, setLossDraft] = useState<LossDraft>(() =>
+    createLossDraft(),
+  );
+  const [lossErrors, setLossErrors] = useState<Record<string, string>>({});
+  const [lossSaving, setLossSaving] = useState(false);
+  const [lossSaveError, setLossSaveError] = useState<string | null>(null);
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
+  const lossHeadingRef = useRef<HTMLHeadingElement>(null);
   const bagNumber = operation.packages.length + 1;
   const totalPackagedWeight = operation.packages.reduce(
     (total, recordedPackage) =>
@@ -2445,6 +2507,7 @@ function SingleBagEntryLoop({
 
   useEffect(() => {
     if (phase === "enteringBag") bagHeadingRef.current?.focus();
+    if (phase === "recordingLoss") lossHeadingRef.current?.focus();
   }, [activeAllocationId, phase]);
 
   function chooseAllocation(allocationId: string) {
@@ -2521,6 +2584,7 @@ function SingleBagEntryLoop({
         (allocation) => allocation.id === activeAllocation.id,
       );
       setLastSaved({
+        kind: "bag",
         bagNumber,
         remainingWeight: Number(updatedAllocation?.remaining_weight_grams ?? 0),
       });
@@ -2545,6 +2609,61 @@ function SingleBagEntryLoop({
     setSaveError(null);
     setDecisionError(null);
     setPhase("enteringBag");
+  }
+
+  function startRecordingLoss() {
+    setLossDraft(createLossDraft());
+    setLossErrors({});
+    setLossSaveError(null);
+    setDecisionError(null);
+    setPhase("recordingLoss");
+  }
+
+  function updateLossDraft(values: Partial<LossDraft>) {
+    setLossDraft((current) => ({ ...current, ...values }));
+    setLossErrors({});
+    setLossSaveError(null);
+  }
+
+  function cancelRecordingLoss() {
+    setLossErrors({});
+    setLossSaveError(null);
+    setPhase("choosingNextAction");
+  }
+
+  async function saveLoss(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeAllocation || lossSaving) return;
+    const nextErrors = validateLossDraft(lossDraft, activeRemaining);
+    if (Object.keys(nextErrors).length > 0) {
+      setLossErrors(nextErrors);
+      return;
+    }
+    setLossSaving(true);
+    setLossSaveError(null);
+    try {
+      const updated = await onRecordLoss(activeAllocation.id, {
+        weight_grams: toGrams(lossDraft.weight, lossDraft.weightUnit),
+        reason: lossDraft.reason as PackagingLossReason,
+        reason_detail:
+          lossDraft.reason === "Other"
+            ? lossDraft.reasonDetail.trim() || null
+            : null,
+      });
+      const updatedAllocation = updated.allocations.find(
+        (allocation) => allocation.id === activeAllocation.id,
+      );
+      setLastSaved({
+        kind: "loss",
+        remainingWeight: Number(updatedAllocation?.remaining_weight_grams ?? 0),
+      });
+      setDecisionError(null);
+      setPhase("choosingNextAction");
+    } catch (error) {
+      setLossSaveError(formatError(error));
+    } finally {
+      setLossSaving(false);
+    }
   }
 
   function reviewBags() {
@@ -2683,7 +2802,9 @@ function SingleBagEntryLoop({
 
       <p className="sr-only" aria-live="polite" role="status">
         {lastSaved
-          ? `Bag ${lastSaved.bagNumber} saved. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
+          ? lastSaved.kind === "bag"
+            ? `Bag ${lastSaved.bagNumber} saved. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
+            : `Packaging Loss recorded. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
           : ""}
       </p>
 
@@ -2798,6 +2919,90 @@ function SingleBagEntryLoop({
             </button>
           </div>
         </form>
+      ) : phase === "recordingLoss" && operation.status === "Open" ? (
+        <form className="single-bag-form" onSubmit={saveLoss} noValidate>
+          <h5 ref={lossHeadingRef} tabIndex={-1}>
+            Record Packaging Loss
+          </h5>
+          <div className="single-bag-form__fields">
+            <BagWeightField
+              error={lossErrors.weight}
+              id="loss-weight"
+              label="Weight"
+              unit={lossDraft.weightUnit}
+              value={lossDraft.weight}
+              onChange={(weight) => updateLossDraft({ weight })}
+              onUnitChange={(weightUnit) => updateLossDraft({ weightUnit })}
+            />
+            <Field
+              error={lossErrors.reason}
+              errorId="loss-reason-error"
+              htmlFor="loss-reason"
+              label="Reason"
+            >
+              <Select
+                aria-describedby={
+                  lossErrors.reason ? "loss-reason-error" : undefined
+                }
+                aria-invalid={Boolean(lossErrors.reason)}
+                id="loss-reason"
+                options={PACKAGING_LOSS_REASON_OPTIONS}
+                placeholder="Select a reason"
+                value={lossDraft.reason}
+                onChange={(reason) =>
+                  updateLossDraft({
+                    reason: reason as PackagingLossReason,
+                    reasonDetail:
+                      reason === "Other" ? lossDraft.reasonDetail : "",
+                  })
+                }
+              />
+            </Field>
+            {lossDraft.reason === "Other" ? (
+              <Field
+                className="single-bag-form__notes"
+                htmlFor="loss-reason-detail"
+                label="Detail"
+                optional
+              >
+                <Textarea
+                  id="loss-reason-detail"
+                  maxLength={200}
+                  placeholder="Describe what happened…"
+                  rows={3}
+                  value={lossDraft.reasonDetail}
+                  onChange={(event) =>
+                    updateLossDraft({ reasonDetail: event.target.value })
+                  }
+                />
+                <span className="single-bag-form__character-count">
+                  {lossDraft.reasonDetail.length} / 200
+                </span>
+              </Field>
+            ) : null}
+          </div>
+          {lossSaveError ? (
+            <p className="error-banner" role="alert">
+              {lossSaveError}
+            </p>
+          ) : null}
+          <div className="single-bag-actions">
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={cancelRecordingLoss}
+            >
+              Cancel
+            </button>
+            <button
+              className="primary-action"
+              disabled={lossSaving}
+              type="submit"
+            >
+              {lossSaving ? "Saving…" : "Save Packaging Loss"}
+            </button>
+          </div>
+        </form>
       ) : (
         <section
           className="single-bag-decision"
@@ -2805,8 +3010,10 @@ function SingleBagEntryLoop({
         >
           {lastSaved ? (
             <p className="single-bag-decision__saved">
-              Bag {lastSaved.bagNumber} saved ·{" "}
-              {formatGrams(String(lastSaved.remainingWeight), 3)} remaining to
+              {lastSaved.kind === "bag"
+                ? `Bag ${lastSaved.bagNumber} saved`
+                : "Packaging Loss recorded"}{" "}
+              · {formatGrams(String(lastSaved.remainingWeight), 3)} remaining to
               package
             </p>
           ) : null}
@@ -2826,6 +3033,16 @@ function SingleBagEntryLoop({
                 ? `Continue with Source ${nextOpenSourceNumber}`
                 : "Add another bag"}
             </button>
+            {operation.status === "Open" &&
+            activeRemaining > ALLOCATION_TOLERANCE_GRAMS ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={startRecordingLoss}
+              >
+                Record loss
+              </button>
+            ) : null}
             <button
               aria-describedby={
                 reviewBlocked ? "bag-review-blocked" : undefined
@@ -2861,12 +3078,23 @@ function SingleBagEntryLoop({
         <summary>Allocation history</summary>
         <div className="single-bag-history__content">
           {operation.allocations.map((allocation, index) => (
-            <p key={allocation.id}>
-              Source {index + 1} · {allocation.source_trays.length} Tray
-              {allocation.source_trays.length === 1 ? "" : "s"} ·{" "}
-              {formatGrams(String(allocation.remaining_weight_grams), 3)}{" "}
-              remaining
-            </p>
+            <div key={allocation.id}>
+              <p>
+                Source {index + 1} · {allocation.source_trays.length} Tray
+                {allocation.source_trays.length === 1 ? "" : "s"} ·{" "}
+                {formatGrams(String(allocation.remaining_weight_grams), 3)}{" "}
+                remaining
+              </p>
+              {allocation.packaging_losses.map((loss) => (
+                <p className="single-bag-history__loss" key={loss.id}>
+                  Packaging Loss · {formatGrams(String(loss.weight_grams), 3)} ·{" "}
+                  {loss.reason}
+                  {loss.reason === "Other" && loss.reason_detail
+                    ? ` — ${loss.reason_detail}`
+                    : ""}
+                </p>
+              ))}
+            </div>
           ))}
         </div>
       </details>
@@ -2932,6 +3160,29 @@ function validateBagDraft(
   } else if (Number.isFinite(finishedWeight) && sealedWeight < finishedWeight) {
     errors.sealedWeight =
       "Sealed Package Weight cannot be lower than Finished Product Weight.";
+  }
+  return errors;
+}
+
+function createLossDraft(): LossDraft {
+  return {
+    weight: "",
+    weightUnit: "g",
+    reason: "",
+    reasonDetail: "",
+  };
+}
+
+function validateLossDraft(draft: LossDraft, remainingWeight: number) {
+  const errors: Record<string, string> = {};
+  const weight = Number(toGrams(draft.weight, draft.weightUnit));
+  if (!draft.reason) {
+    errors.reason = "Select a reason.";
+  }
+  if (!Number.isFinite(weight) || weight <= 0) {
+    errors.weight = "Enter a weight greater than 0 g.";
+  } else if (weight - remainingWeight > ALLOCATION_TOLERANCE_GRAMS) {
+    errors.weight = `Weight exceeds the remaining ${formatGrams(String(remainingWeight), 3)}.`;
   }
   return errors;
 }

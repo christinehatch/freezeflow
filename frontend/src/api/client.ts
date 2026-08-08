@@ -202,6 +202,17 @@ export type PlannedPackageRow = {
   updated_at: string;
 };
 
+export type PackagingLossReason = "Sampled" | "Spilled" | "Crumbs" | "Other";
+
+export type PackagingLoss = {
+  id: string;
+  packaging_allocation_id: string;
+  weight_grams: DecimalValue;
+  reason: PackagingLossReason;
+  reason_detail: string | null;
+  recorded_at: string;
+};
+
 export type PackagingAllocation = {
   id: string;
   packaging_operation_id: string;
@@ -210,10 +221,12 @@ export type PackagingAllocation = {
   updated_at: string;
   selected_weight_grams: DecimalValue;
   allocated_weight_grams: DecimalValue;
+  total_recorded_loss_weight_grams: DecimalValue;
   remaining_weight_grams: DecimalValue;
   source_trays: PackagingAllocationSourceTray[];
   planned_packages: PlannedPackageRow[];
   packages: Package[];
+  packaging_losses: PackagingLoss[];
 };
 
 export type PackagingWorksheetItem = {
@@ -342,6 +355,17 @@ export type PackageLineCreate = {
 
 export type RecordAllocationPackagesRequest = {
   packages: PackageLineCreate[];
+};
+
+export type RecordPackagingLossRequest = {
+  weight_grams: DecimalValue;
+  reason: PackagingLossReason;
+  reason_detail?: string | null;
+};
+
+export type RecordPackagingLossResponse = {
+  packaging_loss: PackagingLoss;
+  packaging_operation: PackagingOperation;
 };
 
 export type RecordAllocationPackagesResponse = {
@@ -699,6 +723,19 @@ export const packagingApi = {
   }) =>
     apiPost<RecordAllocationPackagesResponse>(
       `/packaging-operations/${operationId}/allocations/${allocationId}/packages`,
+      body,
+    ),
+  recordAllocationLoss: ({
+    operationId,
+    allocationId,
+    body,
+  }: {
+    operationId: string;
+    allocationId: string;
+    body: RecordPackagingLossRequest;
+  }) =>
+    apiPost<RecordPackagingLossResponse>(
+      `/packaging-operations/${operationId}/allocations/${allocationId}/losses`,
       body,
     ),
   completePackagingOperation: ({

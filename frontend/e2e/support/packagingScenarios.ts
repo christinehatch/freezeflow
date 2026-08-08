@@ -5,6 +5,7 @@ import type {
   PackageLabelStatus,
   PackagingAllocation,
   PackagingAllocationSourceTray,
+  PackagingLoss,
   PackagingOperation,
   PlannedPackageRow,
   PrintEvent,
@@ -119,6 +120,20 @@ export function createAllocationSourceTray(
     final_dry_weight_grams: "240",
     notes: null,
     status: "Completed",
+    ...overrides,
+  };
+}
+
+export function createPackagingLoss(
+  overrides: Partial<PackagingLoss> = {},
+): PackagingLoss {
+  return {
+    id: "packaging-loss-scenario-1",
+    packaging_allocation_id: "allocation-scenario-1",
+    weight_grams: "6",
+    reason: "Crumbs",
+    reason_detail: null,
+    recorded_at: UPDATED_AT,
     ...overrides,
   };
 }
@@ -249,6 +264,10 @@ export function createPackagingAllocation(
     packaging_allocation_id: id,
     packaging_operation_id: operationId,
   }));
+  const packagingLosses = (overrides.packaging_losses ?? []).map((loss) => ({
+    ...loss,
+    packaging_allocation_id: id,
+  }));
   const selectedWeight = sourceTrays.reduce(
     (total, tray) => total + Number(tray.final_dry_weight_grams),
     0,
@@ -265,19 +284,27 @@ export function createPackagingAllocation(
           : total + Number(row.finished_product_weight_grams ?? 0),
       0,
     );
+  const totalLossWeight = packagingLosses.reduce(
+    (total, loss) => total + Number(loss.weight_grams),
+    0,
+  );
   return {
     notes: null,
     created_at: STARTED_AT,
     updated_at: UPDATED_AT,
     selected_weight_grams: String(selectedWeight),
     allocated_weight_grams: String(allocatedWeight),
-    remaining_weight_grams: String(selectedWeight - allocatedWeight),
+    total_recorded_loss_weight_grams: String(totalLossWeight),
+    remaining_weight_grams: String(
+      selectedWeight - allocatedWeight - totalLossWeight,
+    ),
     ...overrides,
     id,
     packaging_operation_id: operationId,
     source_trays: sourceTrays,
     planned_packages: plannedPackages,
     packages,
+    packaging_losses: packagingLosses,
   };
 }
 
