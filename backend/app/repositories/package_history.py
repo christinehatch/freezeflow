@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import PackageStatusHistory, PrintEvent
+from app.models import PackageStatusHistory, PackagingLoss, PrintEvent
 
 
-class AppendOnlyRepository[ModelT: PackageStatusHistory | PrintEvent]:
+class AppendOnlyRepository[ModelT: PackageStatusHistory | PrintEvent | PackagingLoss]:
     def __init__(self, model: type[ModelT]) -> None:
         self.model = model
 

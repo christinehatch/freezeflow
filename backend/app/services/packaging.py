@@ -13,6 +13,7 @@ from app.models import (
     PackageType,
     PackagingAllocation,
     PackagingAllocationSourceTray,
+    PackagingLossReason,
     PackagingOperation,
     PackagingOperationStatus,
     PlannedPackageRow,
@@ -27,6 +28,7 @@ from app.repositories import (
     package_repository,
     package_type_repository,
     packaging_allocation_repository,
+    packaging_loss_repository,
     packaging_operation_repository,
     planned_package_row_repository,
 )
@@ -39,10 +41,12 @@ from app.schemas import (
     PackageTypeUpdate,
     PackagingAllocationCreateRequest,
     PackagingAllocationUpdateRequest,
+    PackagingLossCreate,
     PackagingOperationCreate,
     PackagingOperationStart,
     PlannedPackageInput,
     RecordAllocationPackages,
+    RecordPackagingLoss,
 )
 from app.services.errors import BusinessRuleError
 
@@ -192,6 +196,9 @@ def get_packaging_operation(db: Session, operation_id: UUID) -> PackagingOperati
             selectinload(PackagingOperation.allocations).selectinload(
                 PackagingAllocation.planned_package_rows
             ),
+            selectinload(PackagingOperation.allocations).selectinload(
+                PackagingAllocation.packaging_losses
+            ),
             selectinload(PackagingOperation.allocations)
             .selectinload(PackagingAllocation.packages)
             .selectinload(Package.label)
@@ -241,6 +248,7 @@ def get_packaging_allocation(db: Session, allocation_id: UUID) -> PackagingAlloc
             .selectinload(PackagingAllocationSourceTray.tray)
             .selectinload(Tray.physical_tray),
             selectinload(PackagingAllocation.planned_package_rows),
+            selectinload(PackagingAllocation.packaging_losses),
             selectinload(PackagingAllocation.packages).selectinload(Package.label),
         )
     )
@@ -338,6 +346,34 @@ def record_allocation_packages(
     return [get_package(db, package.id) for package in created]
 
 
+def record_packaging_loss(
+    db: Session,
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: RecordPackagingLoss,
+) -> PackagingAllocation:
+    allocation = _open_allocation(db, operation_id, allocation_id)
+    reason_detail = _clean_optional_text(data.reason_detail)
+    if data.reason != PackagingLossReason.OTHER and reason_detail is not None:
+        raise BusinessRuleError("Reason detail is only accepted when reason is Other.")
+    excess = data.weight_grams - allocation.remaining_weight_grams
+    if excess > ALLOCATION_TOLERANCE_GRAMS:
+        raise BusinessRuleError(
+            "Packaging Loss cannot exceed the Allocation's Remaining Weight."
+        )
+    packaging_loss_repository.create(
+        db,
+        PackagingLossCreate(
+            packaging_allocation_id=allocation.id,
+            weight_grams=data.weight_grams,
+            reason=data.reason,
+            reason_detail=reason_detail,
+        ),
+    )
+    db.commit()
+    return get_packaging_allocation(db, allocation.id)
+
+
 def complete_packaging_operation(
     db: Session,
     operation_id: UUID,
@@ -352,8 +388,10 @@ def complete_packaging_operation(
             "A Packaging Operation requires at least one Allocation."
         )
     for allocation in operation.allocations:
-        if not allocation.packages:
-            raise BusinessRuleError("Every Allocation requires at least one Package.")
+        if not allocation.packages and not allocation.packaging_losses:
+            raise BusinessRuleError(
+                "Every Allocation requires at least one Package or Packaging Loss."
+            )
         if any(
             row.recorded_package_id is None for row in allocation.planned_package_rows
         ):

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     PackagingAllocation,
     PackagingAllocationSourceTray,
+    PackagingLoss,
     PackagingOperation,
     PackagingOperationStatus,
     PlannedPackageRow,
@@ -16,6 +17,7 @@ from app.models import (
     TrayStatus,
 )
 from app.repositories.base import Repository
+from app.repositories.package_history import AppendOnlyRepository
 from app.schemas import (
     PackagingAllocationCreate,
     PackagingAllocationSourceTrayCreate,
@@ -157,3 +159,4 @@ packaging_operation_repository = PackagingOperationRepository()
 packaging_allocation_repository = PackagingAllocationRepository()
 packaging_allocation_source_tray_repository = PackagingAllocationSourceTrayRepository()
 planned_package_row_repository = PlannedPackageRowRepository()
+packaging_loss_repository = AppendOnlyRepository[PackagingLoss](PackagingLoss)

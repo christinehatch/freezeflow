@@ -25,6 +25,7 @@ from app.schemas import (
     PackagingOperationComplete,
     PackagingOperationStart,
     RecordAllocationPackages,
+    RecordPackagingLoss,
 )
 from app.services.errors import BusinessRuleError
 from app.services.packaging import (
@@ -41,6 +42,7 @@ from app.services.packaging import (
     preview_package_labels,
     print_package_labels,
     record_allocation_packages,
+    record_packaging_loss,
     start_or_resume_packaging_operation,
     update_package_label,
     update_package_type,
@@ -207,6 +209,28 @@ def record_allocation_packages_endpoint(
             "packaging_operation": packaging_operation_data(operation),
         }
     )
+
+
+@router.post(
+    "/packaging-operations/{operation_id}/allocations/{allocation_id}/losses",
+    status_code=201,
+)
+def record_packaging_loss_endpoint(
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: RecordPackagingLoss,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        allocation = record_packaging_loss(
+            db,
+            operation_id,
+            allocation_id,
+            data,
+        )
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(packaging_allocation_data(allocation))
 
 
 @router.post("/packaging-operations/{operation_id}/complete")

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.enums import PackagingLossReason
+
 
 class PackagingOperationStart(BaseModel):
     started_at: datetime | None = None
@@ -70,6 +72,12 @@ class PackageLineCreate(BaseModel):
 
 class RecordAllocationPackages(BaseModel):
     packages: list[PackageLineCreate] = Field(min_length=1)
+
+
+class RecordPackagingLoss(BaseModel):
+    weight_grams: Decimal = Field(gt=0)
+    reason: PackagingLossReason
+    reason_detail: str | None = None
 
 
 class PackageLabelSelection(BaseModel):

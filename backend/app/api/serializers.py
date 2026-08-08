@@ -8,6 +8,7 @@ from app.models import (
     PackageLabel,
     PackageType,
     PackagingAllocation,
+    PackagingLoss,
     PackagingOperation,
     PhysicalTray,
     PlannedPackageRow,
@@ -192,8 +193,16 @@ def packaging_allocation_data(allocation: PackagingAllocation) -> dict[str, obje
         "updated_at": allocation.updated_at,
         "selected_weight_grams": allocation.selected_weight_grams,
         "allocated_weight_grams": allocation.allocated_weight_grams,
+        "total_recorded_loss_weight_grams": allocation.total_recorded_loss_weight_grams,
         "remaining_weight_grams": allocation.remaining_weight_grams,
         "source_trays": [source_tray_data(tray) for tray in source_trays],
+        "packaging_losses": [
+            packaging_loss_data(loss)
+            for loss in sorted(
+                allocation.packaging_losses,
+                key=lambda loss: loss.recorded_at,
+            )
+        ],
         "planned_packages": [
             planned_package_row_data(row)
             for row in sorted(
@@ -251,6 +260,17 @@ def planned_package_row_data(row: PlannedPackageRow) -> dict[str, object]:
         "recorded_package_id": row.recorded_package_id,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
+    }
+
+
+def packaging_loss_data(loss: PackagingLoss) -> dict[str, object]:
+    return {
+        "id": loss.id,
+        "packaging_allocation_id": loss.packaging_allocation_id,
+        "weight_grams": loss.weight_grams,
+        "reason": loss.reason,
+        "reason_detail": loss.reason_detail,
+        "recorded_at": loss.recorded_at,
     }
 
 
