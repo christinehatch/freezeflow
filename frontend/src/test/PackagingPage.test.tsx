@@ -291,7 +291,7 @@ describe("PackagingPage", () => {
       screen.getByText("138.1 g remaining to package"),
     ).toBeInTheDocument();
     expect(
-      within(packagingSummary).getByText("Packaged").parentElement,
+      within(packagingSummary).getByText("Allocated").parentElement,
     ).toHaveTextContent("100 g");
     expect(
       within(packagingSummary).getByText("Bags saved").parentElement,

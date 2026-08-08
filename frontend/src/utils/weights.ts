@@ -25,6 +25,20 @@ export function formatGrams(value: string | null, maximumFractionDigits = 1) {
   })} g`;
 }
 
+/** Formats a canonical gram value for display in the given unit. */
+export function formatWeightInUnit(
+  gramsValue: string | number | null,
+  unit: WeightUnit,
+  maximumFractionDigits = 3,
+) {
+  if (gramsValue === null) return "-";
+  const grams = Number(gramsValue);
+  if (!Number.isFinite(grams)) return "-";
+  if (unit === "g") return formatGrams(String(grams), maximumFractionDigits);
+  const converted = unit === "oz" ? grams / 28.349523125 : grams / 453.59237;
+  return `${converted.toLocaleString(undefined, { maximumFractionDigits })} ${unit}`;
+}
+
 export function fromGramsForInput(value: string | null): {
   value: string;
   unit: WeightUnit;

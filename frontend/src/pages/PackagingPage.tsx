@@ -52,6 +52,7 @@ import {
   WEIGHT_UNIT_OPTIONS,
   WeightUnit,
   formatGrams,
+  formatWeightInUnit,
   fromGramsForInput,
   toGrams,
 } from "../utils/weights";
@@ -137,6 +138,7 @@ export function PackagingPage() {
     string | null
   >(null);
   const [visibleStage, setVisibleStage] = useState<PackagingStageId>("source");
+  const [batchTraysOpen, setBatchTraysOpen] = useState(false);
   const [reviewingDirectPackages, setReviewingDirectPackages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PackagingResult | null>(null);
@@ -425,6 +427,7 @@ export function PackagingPage() {
 
   function selectBatch(batchId: string) {
     setActiveBatchId(batchId);
+    setBatchTraysOpen(false);
     setSelectedTrayIds([]);
     setPackageLines([createPackageLine(packageTypes[0])]);
     setPackageCountInput("1");
@@ -933,38 +936,47 @@ export function PackagingPage() {
                     )}
                   </div>
                 </div>
-                {activeWorksheetItem &&
+                {visibleStage === "source" &&
+                activeWorksheetItem &&
                 activeWorksheetItem.eligible_trays.length > 0 ? (
-                  <details className="packaging-batch-trays mt-3">
+                  <details
+                    className="packaging-batch-trays mt-3"
+                    open={batchTraysOpen}
+                    onToggle={(event) =>
+                      setBatchTraysOpen(event.currentTarget.open)
+                    }
+                  >
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                       What&rsquo;s in this batch?
                     </summary>
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {activeWorksheetItem.eligible_trays.map((tray) => (
-                        <li
-                          className="flex items-baseline justify-between gap-3"
-                          key={tray.id}
-                        >
-                          <span>
-                            <span className="text-slate-500">
-                              {tray.physical_tray.label}
-                            </span>{" "}
-                            <span className="font-semibold">
-                              {tray.product_name}
-                            </span>
-                            {tray.preparation ? (
-                              <span className="text-slate-600">
-                                {" "}
-                                · {tray.preparation}
+                    {batchTraysOpen ? (
+                      <ul className="mt-2 space-y-2 text-sm">
+                        {activeWorksheetItem.eligible_trays.map((tray) => (
+                          <li
+                            className="flex items-baseline justify-between gap-3"
+                            key={tray.id}
+                          >
+                            <span>
+                              <span className="text-slate-500">
+                                {tray.physical_tray.label}
+                              </span>{" "}
+                              <span className="font-semibold">
+                                {tray.product_name}
                               </span>
-                            ) : null}
-                          </span>
-                          <span className="whitespace-nowrap text-slate-700">
-                            {formatGrams(tray.final_dry_weight_grams)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                              {tray.preparation ? (
+                                <span className="text-slate-600">
+                                  {" "}
+                                  · {tray.preparation}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="whitespace-nowrap text-slate-700">
+                              {formatGrams(tray.final_dry_weight_grams)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </details>
                 ) : null}
                 {activeOperationQuery?.isError ? (
@@ -2455,6 +2467,7 @@ function SingleBagEntryLoop({
   const [lossSaveError, setLossSaveError] = useState<string | null>(null);
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
   const lossHeadingRef = useRef<HTMLHeadingElement>(null);
+  const lossReturnPhaseRef = useRef<BagEntryPhase>("choosingNextAction");
   const bagNumber = operation.packages.length + 1;
   const totalPackagedWeight = operation.packages.reduce(
     (total, recordedPackage) =>
@@ -2612,6 +2625,8 @@ function SingleBagEntryLoop({
   }
 
   function startRecordingLoss() {
+    lossReturnPhaseRef.current =
+      phase === "recordingLoss" ? "enteringBag" : phase;
     setLossDraft(createLossDraft());
     setLossErrors({});
     setLossSaveError(null);
@@ -2628,7 +2643,7 @@ function SingleBagEntryLoop({
   function cancelRecordingLoss() {
     setLossErrors({});
     setLossSaveError(null);
-    setPhase("choosingNextAction");
+    setPhase(lossReturnPhaseRef.current);
   }
 
   async function saveLoss(event: FormEvent<HTMLFormElement>) {
@@ -2677,6 +2692,12 @@ function SingleBagEntryLoop({
   if (!activeAllocation) return null;
 
   const isOverallocated = activeRemaining < -ALLOCATION_TOLERANCE_GRAMS;
+  const activeDisplayUnit: WeightUnit =
+    phase === "recordingLoss" ? lossDraft.weightUnit : draft.finishedWeightUnit;
+  const formatWorkspaceWeight = (value: number | null) =>
+    value === null || !Number.isFinite(value)
+      ? "Unavailable"
+      : formatWeightInUnit(value, activeDisplayUnit, 3);
 
   return (
     <div className="single-bag-loop">
@@ -2686,12 +2707,12 @@ function SingleBagEntryLoop({
       >
         <p className="single-bag-hero__remaining">
           {isOverallocated
-            ? `${formatGrams(String(Math.abs(activeRemaining)), 3)} overallocated`
-            : `${formatGrams(String(activeRemaining), 3)} remaining to package`}
+            ? `${formatWeightInUnit(Math.abs(activeRemaining), activeDisplayUnit)} overallocated`
+            : `${formatWeightInUnit(activeRemaining, activeDisplayUnit)} remaining to package`}
         </p>
         <p className="single-bag-hero__packaged">
-          {formatGrams(String(totalPackagedWeight), 3)} packaged across{" "}
-          {operation.packages.length} bag
+          {formatWeightInUnit(totalPackagedWeight, activeDisplayUnit)} packaged
+          across {operation.packages.length} bag
           {operation.packages.length === 1 ? "" : "s"}
         </p>
       </section>
@@ -2701,13 +2722,13 @@ function SingleBagEntryLoop({
         items={[
           {
             label: "Total in source",
-            value: formatOptionalWorkspaceWeight(
+            value: formatWorkspaceWeight(
               finiteWeightOrNull(activeAllocation.selected_weight_grams),
             ),
           },
           {
-            label: "Packaged",
-            value: formatOptionalWorkspaceWeight(
+            label: "Allocated",
+            value: formatWorkspaceWeight(
               finiteWeightOrNull(activeAllocation.allocated_weight_grams),
             ),
           },
@@ -2717,7 +2738,7 @@ function SingleBagEntryLoop({
           },
           {
             label: isOverallocated ? "Overallocated" : "Remaining",
-            value: formatOptionalWorkspaceWeight(
+            value: formatWorkspaceWeight(
               finiteWeightOrNull(activeAllocation.remaining_weight_grams) ===
                 null
                 ? null
@@ -2914,6 +2935,15 @@ function SingleBagEntryLoop({
             <button className="secondary-action" type="button" onClick={onBack}>
               Back
             </button>
+            {activeRemaining > ALLOCATION_TOLERANCE_GRAMS ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={startRecordingLoss}
+              >
+                Record loss
+              </button>
+            ) : null}
             <button className="primary-action" disabled={saving} type="submit">
               {saving ? "Saving…" : `Save Bag ${bagNumber}`}
             </button>
