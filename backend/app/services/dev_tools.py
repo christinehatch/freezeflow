@@ -75,7 +75,8 @@ class DeveloperDataService:
             "basic": self.seed_basic,
             "busy-production-day": self.seed_busy_production_day,
             "inventory": self.seed_inventory,
-            "packaging": self.seed_packaging,
+            "packaging-fresh": self.seed_packaging_fresh,
+            "packaging-resume": self.seed_packaging_resume,
             "weight-history": self.seed_weight_history,
             "edge-cases": self.seed_edge_cases,
             "randomize-dates": self.randomize_dates,
@@ -91,7 +92,7 @@ class DeveloperDataService:
         self._clear_database()
         return self._result("empty", "Empty database scenario is ready.")
 
-    def seed_basic(self) -> dict:
+    def seed_basic(self, *, plan_packaging: bool = True) -> dict:
         self._clear_database()
         data = self._seed_reference_data()
 
@@ -124,12 +125,13 @@ class DeveloperDataService:
             completed_runs=3,
             notes="Completed batch ready for packaging.",
         )
-        self._plan_batch_packaging(
-            ready_batch,
-            ready_trays,
-            data["package_types"],
-            data["locations"],
-        )
+        if plan_packaging:
+            self._plan_batch_packaging(
+                ready_batch,
+                ready_trays,
+                data["package_types"],
+                data["locations"],
+            )
 
         packaged_batch, packaged_trays = self._create_batch(
             dryer=data["dryers"][0],
@@ -220,11 +222,21 @@ class DeveloperDataService:
         )
         return result
 
-    def seed_packaging(self) -> dict:
-        result = self.seed_basic()
-        result["action"] = "packaging"
+    def seed_packaging_fresh(self) -> dict:
+        result = self.seed_basic(plan_packaging=False)
+        result["action"] = "packaging-fresh"
         result["message"] = (
-            "Packaging demo seeded with completed eligible Trays and packaged history."
+            "Fresh Packaging Session seeded: completed eligible Trays with no "
+            "Packaging Operation started yet."
+        )
+        return result
+
+    def seed_packaging_resume(self) -> dict:
+        result = self.seed_basic(plan_packaging=True)
+        result["action"] = "packaging-resume"
+        result["message"] = (
+            "Resume Packaging Session seeded: an Open Packaging Operation with "
+            "durable Planned Package rows already saved, no Bags recorded yet."
         )
         return result
 

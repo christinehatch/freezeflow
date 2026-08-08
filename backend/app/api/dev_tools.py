@@ -42,9 +42,14 @@ def seed_inventory(db: DBSession) -> dict:
     return run_action(db, "inventory")
 
 
-@router.post("/demo/packaging")
-def seed_packaging(db: DBSession) -> dict:
-    return run_action(db, "packaging")
+@router.post("/demo/packaging-fresh")
+def seed_packaging_fresh(db: DBSession) -> dict:
+    return run_action(db, "packaging-fresh")
+
+
+@router.post("/demo/packaging-resume")
+def seed_packaging_resume(db: DBSession) -> dict:
+    return run_action(db, "packaging-resume")
 
 
 @router.post("/demo/weight-history")

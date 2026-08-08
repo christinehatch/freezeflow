@@ -920,7 +920,10 @@ export const developerToolsApi = {
     devRequest<DevToolResult>("/dev/demo/busy-production-day"),
   seedEmpty: () => devRequest<DevToolResult>("/dev/demo/empty"),
   seedInventory: () => devRequest<DevToolResult>("/dev/demo/inventory"),
-  seedPackaging: () => devRequest<DevToolResult>("/dev/demo/packaging"),
+  seedPackagingFresh: () =>
+    devRequest<DevToolResult>("/dev/demo/packaging-fresh"),
+  seedPackagingResume: () =>
+    devRequest<DevToolResult>("/dev/demo/packaging-resume"),
   seedWeightHistory: () =>
     devRequest<DevToolResult>("/dev/demo/weight-history"),
   createRandomBatches: (count = 100) =>

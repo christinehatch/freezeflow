@@ -63,12 +63,22 @@ const actionGroups: { title: string; actions: DeveloperAction[] }[] = [
         run: developerToolsApi.seedInventory,
       },
       {
-        id: "packaging",
-        label: "Seed Packaging",
+        id: "packaging-fresh",
+        label: "Seed Fresh Packaging Session",
         description:
-          "Create completed Trays ready for Packaging plus package history.",
-        confirmation: "Replace current data with the Packaging scenario?",
-        run: developerToolsApi.seedPackaging,
+          "Create completed eligible Trays with no Packaging Operation started yet.",
+        confirmation:
+          "Replace current data with the Fresh Packaging Session scenario?",
+        run: developerToolsApi.seedPackagingFresh,
+      },
+      {
+        id: "packaging-resume",
+        label: "Seed Resume Packaging Session",
+        description:
+          "Create an Open Packaging Operation with durable Planned Package rows already saved, no Bags recorded yet.",
+        confirmation:
+          "Replace current data with the Resume Packaging Session scenario?",
+        run: developerToolsApi.seedPackagingResume,
       },
       {
         id: "weights",
