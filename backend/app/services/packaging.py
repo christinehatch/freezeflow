@@ -13,6 +13,7 @@ from app.models import (
     PackageType,
     PackagingAllocation,
     PackagingAllocationSourceTray,
+    PackagingLoss,
     PackagingLossReason,
     PackagingOperation,
     PackagingOperationStatus,
@@ -351,7 +352,7 @@ def record_packaging_loss(
     operation_id: UUID,
     allocation_id: UUID,
     data: RecordPackagingLoss,
-) -> PackagingAllocation:
+) -> PackagingLoss:
     allocation = _open_allocation(db, operation_id, allocation_id)
     reason_detail = _clean_optional_text(data.reason_detail)
     if data.reason != PackagingLossReason.OTHER and reason_detail is not None:
@@ -361,7 +362,7 @@ def record_packaging_loss(
         raise BusinessRuleError(
             "Packaging Loss cannot exceed the Allocation's Remaining Weight."
         )
-    packaging_loss_repository.create(
+    loss = packaging_loss_repository.create(
         db,
         PackagingLossCreate(
             packaging_allocation_id=allocation.id,
@@ -371,7 +372,7 @@ def record_packaging_loss(
         ),
     )
     db.commit()
-    return get_packaging_allocation(db, allocation.id)
+    return loss
 
 
 def complete_packaging_operation(

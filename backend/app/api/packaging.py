@@ -10,6 +10,7 @@ from app.api.serializers import (
     package_label_data,
     package_type_data,
     packaging_allocation_data,
+    packaging_loss_data,
     packaging_operation_data,
     packaging_worksheet_data,
     storage_location_data,
@@ -222,15 +223,21 @@ def record_packaging_loss_endpoint(
     db: DBSession,
 ) -> dict[str, object]:
     try:
-        allocation = record_packaging_loss(
+        loss = record_packaging_loss(
             db,
             operation_id,
             allocation_id,
             data,
         )
+        operation = get_packaging_operation(db, operation_id)
     except BusinessRuleError as error:
         raise_api_error(error)
-    return success(packaging_allocation_data(allocation))
+    return success(
+        {
+            "packaging_loss": packaging_loss_data(loss),
+            "packaging_operation": packaging_operation_data(operation),
+        }
+    )
 
 
 @router.post("/packaging-operations/{operation_id}/complete")

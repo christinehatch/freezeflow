@@ -828,14 +828,15 @@ def test_packaging_loss_reduces_remaining_and_appears_in_allocation_history(
     )
     assert loss_response.status_code == 201
     after_loss = _data(loss_response)
-    assert after_loss["remaining_weight_grams"] == 494.0
-    assert after_loss["total_recorded_loss_weight_grams"] == 6.0
-    assert len(after_loss["packaging_losses"]) == 1
-    recorded_loss = after_loss["packaging_losses"][0]
+    recorded_loss = after_loss["packaging_loss"]
     assert recorded_loss["weight_grams"] == 6.0
     assert recorded_loss["reason"] == "Crumbs"
     assert recorded_loss["reason_detail"] is None
     assert recorded_loss["recorded_at"] is not None
+    after_loss_allocation = after_loss["packaging_operation"]["allocations"][0]
+    assert after_loss_allocation["remaining_weight_grams"] == 494.0
+    assert after_loss_allocation["total_recorded_loss_weight_grams"] == 6.0
+    assert len(after_loss_allocation["packaging_losses"]) == 1
 
     other_loss_response = _record_loss(
         client,
@@ -848,10 +849,12 @@ def test_packaging_loss_reduces_remaining_and_appears_in_allocation_history(
         },
     )
     assert other_loss_response.status_code == 201
-    after_other_loss = _data(other_loss_response)
-    assert after_other_loss["remaining_weight_grams"] == 490.0
-    assert len(after_other_loss["packaging_losses"]) == 2
-    assert after_other_loss["packaging_losses"][1]["reason_detail"] == (
+    after_other_loss_allocation = _data(other_loss_response)["packaging_operation"][
+        "allocations"
+    ][0]
+    assert after_other_loss_allocation["remaining_weight_grams"] == 490.0
+    assert len(after_other_loss_allocation["packaging_losses"]) == 2
+    assert after_other_loss_allocation["packaging_losses"][1]["reason_detail"] == (
         "Dropped while sealing."
     )
 
@@ -889,7 +892,12 @@ def test_packaging_loss_alone_unblocks_completion(client: TestClient) -> None:
         {"weight_grams": "250.000", "reason": "Spilled"},
     )
     assert loss_response.status_code == 201
-    assert _data(loss_response)["remaining_weight_grams"] == 0.0
+    assert (
+        _data(loss_response)["packaging_operation"]["allocations"][0][
+            "remaining_weight_grams"
+        ]
+        == 0.0
+    )
 
     complete_response = client.post(
         f"/api/v1/packaging-operations/{operation['id']}/complete",
