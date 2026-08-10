@@ -277,7 +277,10 @@ test("records a planned Package, manages label readiness, and appends initial an
   expect(duplicate.body.detail.code).toBe("PACKAGE_RECORDING_CONFLICT");
   expect(fakeBackend.createdPackagingIds.packageIds).toHaveLength(1);
 
-  const recordedPlanEdit = await apiRequest(
+  // Recorded rows are immutable historical records excluded from
+  // reconciliation entirely (ADR-0017's Reconciliation scope): including or
+  // omitting one is a no-op for that row, never an edit or a removal.
+  const recordedPlanEdit = await apiRequest<PackagingAllocation>(
     page,
     "PATCH",
     `/packaging-operations/${operation.id}/allocations/${allocation.id}`,
@@ -287,18 +290,25 @@ test("records a planned Package, manages label readiness, and appends initial an
       ],
     },
   );
-  expect(recordedPlanEdit.body.detail.message).toBe(
-    "Recorded package plans cannot be edited.",
+  expect(recordedPlanEdit.status).toBe(200);
+  const stillRecorded = recordedPlanEdit.data.planned_packages.find(
+    (row) => row.id === plannedRow.id,
   );
-  const recordedPlanRemoval = await apiRequest(
+  expect(stillRecorded?.finished_product_weight_grams).toBe("120");
+  expect(stillRecorded?.recorded_package_id).toBe(recordedPackage.id);
+
+  const recordedPlanOmission = await apiRequest<PackagingAllocation>(
     page,
     "PATCH",
     `/packaging-operations/${operation.id}/allocations/${allocation.id}`,
     { planned_packages: [] },
   );
-  expect(recordedPlanRemoval.body.detail.message).toBe(
-    "Recorded package plans cannot be removed.",
-  );
+  expect(recordedPlanOmission.status).toBe(200);
+  expect(
+    recordedPlanOmission.data.planned_packages.some(
+      (row) => row.id === plannedRow.id,
+    ),
+  ).toBe(true);
 
   const previewPath = "/package-labels/preview";
   const printPath = "/package-labels/print";

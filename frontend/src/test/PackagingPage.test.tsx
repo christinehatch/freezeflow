@@ -30,6 +30,7 @@ import type {
   PackagingOperation,
   PackagingWorksheetItem,
   PlannedPackageInput,
+  PlannedPackageRow,
   ProductionBatch,
   StorageLocation,
   Tray,
@@ -277,6 +278,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "106",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
 
     expect(
@@ -299,7 +301,7 @@ describe("PackagingPage", () => {
     expect(parseRequestBody(latestPackagePost())).toEqual({
       packages: [
         {
-          planned_package_row_id: null,
+          planned_package_row_id: "planned-package-1",
           package_type_id: packageType.id,
           finished_product_weight_grams: "100.000",
           sealed_package_weight_grams: "106.000",
@@ -340,6 +342,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "250",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
     expect(
       screen.getByText(/Finished Product Weight exceeds the remaining/),
@@ -362,6 +365,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "106",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
     await screen.findByRole("heading", {
       name: "Do you have another bag to package?",
@@ -401,6 +405,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "206",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
     await screen.findByRole("heading", {
       name: "Do you have another bag to package?",
@@ -470,6 +475,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "206",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
     await screen.findByRole("heading", {
       name: "Do you have another bag to package?",
@@ -523,6 +529,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "206",
     );
+    await waitForBagAutosave(1);
     await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
     await screen.findByRole("heading", {
       name: "Do you have another bag to package?",
@@ -546,6 +553,220 @@ describe("PackagingPage", () => {
       screen.getByText(/Weight exceeds the remaining 40 g/),
     ).toBeInTheDocument();
     expect(latestLossPost()).toBeUndefined();
+  });
+
+  it("autosaves a new Bag as a Planned Package Row and reuses it when the Bag is saved", async () => {
+    const user = userEvent.setup();
+    const sourceTray = createTray({
+      id: "tray-autosave-1",
+      final_dry_weight_grams: "240",
+      latest_weight_grams: "240",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [createPackagingAllocation([sourceTray])],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 1" });
+    expect(screen.queryByText("Unsaved")).not.toBeInTheDocument();
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
+
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Finished Product Weight" }),
+      "100",
+    );
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Bag 1" })).toBeDisabled();
+
+    await waitForBagAutosave(1);
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(parseRequestBody(latestAllocationPatch())).toEqual({
+      planned_packages: [
+        {
+          package_type_id: null,
+          finished_product_weight_grams: "100.000",
+          finished_product_weight_unit: "g",
+          sealed_package_weight_grams: null,
+          sealed_package_weight_unit: "g",
+          oxygen_absorber: null,
+          storage_location_id: null,
+          notes: null,
+        },
+      ],
+    });
+
+    await chooseCustomOption(user, "Package Type", "Quart Mylar");
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
+      "106",
+    );
+    await waitForBagAutosave(1);
+    expect(parseRequestBody(latestAllocationPatch())).toEqual({
+      planned_packages: [
+        {
+          id: "planned-package-1",
+          package_type_id: packageType.id,
+          finished_product_weight_grams: "100.000",
+          finished_product_weight_unit: "g",
+          sealed_package_weight_grams: "106.000",
+          sealed_package_weight_unit: "g",
+          oxygen_absorber: "500cc",
+          storage_location_id: null,
+          notes: null,
+        },
+      ],
+    });
+
+    await user.click(screen.getByRole("button", { name: "Save Bag 1" }));
+    await screen.findByRole("heading", {
+      name: "Do you have another bag to package?",
+    });
+    expect(parseRequestBody(latestPackagePost())).toEqual({
+      packages: [
+        {
+          planned_package_row_id: "planned-package-1",
+          package_type_id: packageType.id,
+          finished_product_weight_grams: "100.000",
+          sealed_package_weight_grams: "106.000",
+          oxygen_absorber: "500cc",
+          storage_location_id: null,
+          notes: null,
+        },
+      ],
+    });
+  });
+
+  it("debounces rapid edits into a single autosave request", async () => {
+    const user = userEvent.setup();
+    const sourceTray = createTray({
+      id: "tray-autosave-2",
+      final_dry_weight_grams: "240",
+      latest_weight_grams: "240",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [createPackagingAllocation([sourceTray])],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 1" });
+
+    await chooseCustomOption(user, "Package Type", "Quart Mylar");
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Finished Product Weight" }),
+      "100",
+    );
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
+      "106",
+    );
+    expect(allocationPatchRequests()).toHaveLength(0);
+
+    await waitForBagAutosave(1);
+    expect(allocationPatchRequests()).toHaveLength(1);
+  });
+
+  it("flushes a pending autosave when switching the active source", async () => {
+    const user = userEvent.setup();
+    const firstTray = createTray({
+      id: "tray-flush-1",
+      final_dry_weight_grams: "240",
+      latest_weight_grams: "240",
+    });
+    const secondTray = createTray({
+      id: "tray-flush-2",
+      physical_tray_id: "physical-tray-flush-2",
+      final_dry_weight_grams: "300",
+      latest_weight_grams: "300",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [
+        createPackagingAllocation([firstTray], {
+          id: "packaging-allocation-flush-1",
+        }),
+        createPackagingAllocation([secondTray], {
+          id: "packaging-allocation-flush-2",
+        }),
+      ],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 1" });
+
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Finished Product Weight" }),
+      "50",
+    );
+    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+    expect(allocationPatchRequests()).toHaveLength(0);
+
+    await chooseCustomOption(user, "Product source", "Source 2");
+    await waitFor(() => {
+      expect(allocationPatchRequests()).toHaveLength(1);
+    });
+    expect(parseRequestBody(latestAllocationPatch())).toMatchObject({
+      planned_packages: [
+        expect.objectContaining({
+          finished_product_weight_grams: "50.000",
+        }),
+      ],
+    });
+  });
+
+  it("blocks Save Bag on an autosave failure and recovers through Retry", async () => {
+    const user = userEvent.setup();
+    const sourceTray = createTray({
+      id: "tray-autosave-error",
+      final_dry_weight_grams: "240",
+      latest_weight_grams: "240",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [createPackagingAllocation([sourceTray])],
+    });
+    const testState = createPackagingTestState({ operation });
+    let failNextPatch = true;
+    const controlledFetch = vi.fn(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        if (
+          failNextPatch &&
+          /\/api\/v1\/packaging-operations\/[^/]+\/allocations\/[^/]+$/.test(
+            String(input),
+          ) &&
+          init?.method === "PATCH"
+        ) {
+          failNextPatch = false;
+          return errorResponse(500, {
+            detail: { message: "Autosave temporarily unavailable." },
+          });
+        }
+        return testState.fetch(input, init);
+      },
+    );
+    vi.stubGlobal("fetch", controlledFetch);
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 1" });
+
+    await user.type(
+      screen.getByRole("spinbutton", { name: "Finished Product Weight" }),
+      "100",
+    );
+    expect(
+      await screen.findByText("Autosave failed", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Bag 1" })).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Retry saving this Bag" }),
+    );
+    await waitForBagAutosave(1);
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByText("Autosave failed")).not.toBeInTheDocument();
   });
 
   it("keeps multiple source pools independent and blocks Review when one is overallocated", async () => {
@@ -627,6 +848,7 @@ describe("PackagingPage", () => {
       screen.getByRole("spinbutton", { name: "Sealed Package Weight" }),
       "45",
     );
+    await waitForBagAutosave(2);
     await user.click(screen.getByRole("button", { name: "Save Bag 2" }));
 
     expect(
@@ -4118,10 +4340,11 @@ function createPackagingTestState(
       ) {
         throw new Error("Packaging operation and allocation must exist");
       }
-      const existingRows = new Map(
-        allocation.planned_packages.map((row) => [row.id, row]),
+      const editableIds = new Set(
+        allocation.planned_packages
+          .filter((row) => row.recorded_package_id === null)
+          .map((row) => row.id),
       );
-      const existingIds = new Set(existingRows.keys());
       const updatedAt = nextMutationTimestamp();
       if ("planned_packages" in body && !Array.isArray(body.planned_packages)) {
         throw new Error("planned_packages must be an array.");
@@ -4129,43 +4352,56 @@ function createPackagingTestState(
       const plannedInputs = Array.isArray(body.planned_packages)
         ? (body.planned_packages as PlannedPackageInput[])
         : [];
-      const plannedPackages =
-        "planned_packages" in body
-          ? plannedInputs.map((input) => {
-              assertOnlyKeys(input, PLANNED_PACKAGE_INPUT_KEYS);
-              const existingRow = input.id
-                ? existingRows.get(input.id)
-                : undefined;
-              if (input.id && !existingRow) {
-                throw new Error(
-                  "Planned Package does not belong to this Allocation.",
-                );
-              }
-              if (existingRow?.recorded_package_id) {
-                throw new Error("Recorded package plans cannot be edited.");
-              }
-              const id = input.id ?? nextPlannedPackageId(existingIds);
-              return {
-                ...createPlannedPackageRow(id),
-                ...existingRow,
-                ...input,
-                id,
-                packaging_allocation_id: allocation.id,
-                created_at: existingRow?.created_at ?? updatedAt,
-                updated_at: updatedAt,
-              };
-            })
-          : allocation.planned_packages;
+      // Recorded rows are immutable historical records excluded from
+      // reconciliation: they pass through unchanged whether or not the
+      // request mentions them, and only unrecorded rows are created,
+      // updated, or removed (ADR-0017's Reconciliation scope).
       if ("planned_packages" in body) {
-        for (const existingRow of existingRows.values()) {
+        for (const input of plannedInputs) {
           if (
-            existingRow.recorded_package_id &&
-            !plannedPackages.some((row) => row.id === existingRow.id)
+            input.id &&
+            !allocation.planned_packages.some((row) => row.id === input.id)
           ) {
-            throw new Error("Recorded package plans cannot be removed.");
+            throw new Error(
+              "Planned Package does not belong to this Allocation.",
+            );
           }
         }
       }
+      const plannedPackages =
+        "planned_packages" in body
+          ? allocation.planned_packages
+              .map((row) => {
+                if (row.recorded_package_id !== null) return row;
+                const input = plannedInputs.find((item) => item.id === row.id);
+                if (!input) return null;
+                assertOnlyKeys(input, PLANNED_PACKAGE_INPUT_KEYS);
+                return {
+                  ...row,
+                  ...input,
+                  id: row.id,
+                  packaging_allocation_id: allocation.id,
+                  updated_at: updatedAt,
+                };
+              })
+              .filter((row): row is PlannedPackageRow => row !== null)
+              .concat(
+                plannedInputs
+                  .filter((input) => !input.id)
+                  .map((input) => {
+                    assertOnlyKeys(input, PLANNED_PACKAGE_INPUT_KEYS);
+                    const id = nextPlannedPackageId(editableIds);
+                    return {
+                      ...createPlannedPackageRow(id),
+                      ...input,
+                      id,
+                      packaging_allocation_id: allocation.id,
+                      created_at: updatedAt,
+                      updated_at: updatedAt,
+                    };
+                  }),
+              )
+          : allocation.planned_packages;
       const allocatedWeight = allocationAllocatedWeight(
         plannedPackages,
         allocation.packages,
@@ -5152,6 +5388,20 @@ function latestAllocationPost() {
   return calls[calls.length - 1];
 }
 
+function allocationPatchRequests() {
+  return fetchMock().mock.calls.filter(
+    ([input, init]) =>
+      /\/api\/v1\/packaging-operations\/[^/]+\/allocations\/[^/]+$/.test(
+        String(input),
+      ) && init?.method === "PATCH",
+  );
+}
+
+function latestAllocationPatch() {
+  const calls = allocationPatchRequests();
+  return calls[calls.length - 1];
+}
+
 function allocationPostRequests() {
   return fetchMock().mock.calls.filter(
     ([input, init]) =>
@@ -5211,6 +5461,22 @@ function parseRequestBody(call: Parameters<typeof fetch> | undefined) {
 
 function parseBody(init?: RequestInit) {
   return init?.body ? JSON.parse(String(init.body)) : {};
+}
+
+/**
+ * ADR-0017: "Save Bag" is disabled while its Planned Package Row autosave is
+ * pending. Tests that fill in Bag fields must wait for the debounced
+ * autosave to settle before the Save Bag button is clickable.
+ */
+async function waitForBagAutosave(bagNumber: number) {
+  await waitFor(
+    () => {
+      expect(
+        screen.getByRole("button", { name: `Save Bag ${bagNumber}` }),
+      ).toBeEnabled();
+    },
+    { timeout: 3000 },
+  );
 }
 
 async function chooseCustomOption(

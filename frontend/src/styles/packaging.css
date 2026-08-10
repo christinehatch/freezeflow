@@ -829,6 +829,12 @@
   line-height: var(--ff-line-height-caption);
 }
 
+.single-bag-form__autosave-status {
+  color: var(--ff-color-text-muted);
+  font-size: var(--ff-font-size-caption);
+  margin: 0;
+}
+
 .single-bag-actions,
 .single-bag-decision__actions {
   align-items: center;

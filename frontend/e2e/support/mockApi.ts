@@ -17,6 +17,7 @@ import type {
   PackagingWorksheetItem,
   PhysicalTray,
   PlannedPackageInput,
+  PlannedPackageRow,
   PrintablePackageLabel,
   ProductionBatch,
   RecordAllocationPackagesRequest,
@@ -1889,32 +1890,26 @@ function reconcilePlannedPackages(
   const existing = new Map(
     allocation.planned_packages.map((row) => [row.id, row]),
   );
-  const requestedIds = new Set(
-    inputs.flatMap((input) => (input.id ? [input.id] : [])),
-  );
-  for (const row of existing.values()) {
-    if (row.recorded_package_id && !requestedIds.has(row.id)) {
-      return {
-        error: businessRuleError("Recorded package plans cannot be removed."),
-      };
-    }
-  }
-
-  const rows = [];
+  // Recorded rows are immutable historical records excluded from
+  // reconciliation entirely: they pass through unchanged whether or not the
+  // request mentions them (ADR-0017's Reconciliation scope). Only unrecorded
+  // rows are created, updated, or removed here.
   for (const input of inputs) {
-    const current = input.id ? existing.get(input.id) : undefined;
-    if (input.id && !current) {
+    if (input.id && !existing.has(input.id)) {
       return {
         error: businessRuleError(
           "Planned Package does not belong to this Allocation.",
         ),
       };
     }
-    if (current?.recorded_package_id) {
-      return {
-        error: businessRuleError("Recorded package plans cannot be edited."),
-      };
-    }
+  }
+
+  function buildRow(
+    input: PlannedPackageInput,
+    current: PlannedPackageRow | undefined,
+  ):
+    | { row: PlannedPackageRow }
+    | { error: ReturnType<typeof businessRuleError> } {
     const referenceError = validatePlanReferences(state, input);
     if (referenceError) return { error: referenceError };
     const weightError = validateOptionalPositiveWeight(
@@ -1927,20 +1922,39 @@ function reconcilePlannedPackages(
       "Sealed Package Weight",
     );
     if (sealedError) return { error: sealedError };
-
     const id = current?.id ?? nextPackagingId(state, "plannedPackage");
     const timestamp = nextPackagingTimestamp(state);
-    const row = createRefinedPlannedPackageRow({
-      ...current,
-      ...input,
-      id,
-      packaging_allocation_id: allocation.id,
-      created_at: current?.created_at ?? timestamp,
-      updated_at: timestamp,
-      recorded_package_id: null,
-    });
     if (!current) state.createdPackagingIds.plannedPackageRowIds.push(id);
-    rows.push(row);
+    return {
+      row: createRefinedPlannedPackageRow({
+        ...current,
+        ...input,
+        id,
+        packaging_allocation_id: allocation.id,
+        created_at: current?.created_at ?? timestamp,
+        updated_at: timestamp,
+        recorded_package_id: null,
+      }),
+    };
+  }
+
+  const rows: PlannedPackageRow[] = [];
+  for (const row of allocation.planned_packages) {
+    if (row.recorded_package_id) {
+      rows.push(row);
+      continue;
+    }
+    const input = inputs.find((item) => item.id === row.id);
+    if (!input) continue;
+    const result = buildRow(input, row);
+    if ("error" in result) return result;
+    rows.push(result.row);
+  }
+  for (const input of inputs) {
+    if (input.id) continue;
+    const result = buildRow(input, undefined);
+    if ("error" in result) return result;
+    rows.push(result.row);
   }
   return { rows };
 }

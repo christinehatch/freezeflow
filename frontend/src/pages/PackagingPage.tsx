@@ -10,11 +10,13 @@ import { useSearchParams } from "react-router";
 import {
   ApiError,
   Package,
+  PackagingAllocation,
   PackageLineCreate,
   PackageLabel,
   PackageLabelPrintResult,
   PackageLabelUpdate,
   PackageType,
+  PlannedPackageInput,
   PlannedPackageRow,
   PackagingLossReason,
   PackagingOperation,
@@ -754,6 +756,39 @@ export function PackagingPage() {
     return response.packaging_operation;
   }
 
+  async function autosavePlannedPackages(
+    operationId: string,
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) {
+    const updatedAllocation = await packagingApi.updatePackagingAllocation({
+      operationId,
+      allocationId,
+      body: { planned_packages: plannedPackages },
+    });
+    if (activeOperation) {
+      const queryKey = [
+        "packaging-operation-by-batch",
+        activeOperation.production_batch_id,
+      ] as const;
+      queryClient.setQueryData<PackagingOperation | null>(
+        queryKey,
+        (current) =>
+          current
+            ? {
+                ...current,
+                allocations: current.allocations.map((allocation) =>
+                  allocation.id === updatedAllocation.id
+                    ? updatedAllocation
+                    : allocation,
+                ),
+              }
+            : current,
+      );
+    }
+    return updatedAllocation;
+  }
+
   async function savePackageLabel(packageId: string, body: PackageLabelUpdate) {
     await packagingApi.updatePackageLabel({ packageId, body });
   }
@@ -1239,6 +1274,7 @@ export function PackagingPage() {
           }
           onRecordBag={recordBag}
           onRecordLoss={recordLoss}
+          onAutosavePlannedPackages={autosavePlannedPackages}
           onPreviewPackageLabels={previewPackageLabels}
           onPrintPackageLabels={(packageLabelIds) =>
             printPackageLabels(
@@ -1768,6 +1804,7 @@ function PackagingOperationWorkspace({
   onCompleteOperation,
   onRecordBag,
   onRecordLoss,
+  onAutosavePlannedPackages,
   onPreviewPackageLabels,
   onPrintPackageLabels,
   onRefreshOperation,
@@ -1794,6 +1831,11 @@ function PackagingOperationWorkspace({
     allocationId: string,
     loss: RecordPackagingLossRequest,
   ) => Promise<PackagingOperation>;
+  onAutosavePlannedPackages: (
+    operationId: string,
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) => Promise<PackagingAllocation>;
   onPreviewPackageLabels: (
     packageLabelIds: string[],
   ) => Promise<PackageLabel[]>;
@@ -2083,6 +2125,13 @@ function PackagingOperationWorkspace({
               }
               onRecordLoss={(allocationId, loss) =>
                 onRecordLoss(operation.id, allocationId, loss)
+              }
+              onAutosavePlannedPackages={(allocationId, plannedPackages) =>
+                onAutosavePlannedPackages(
+                  operation.id,
+                  allocationId,
+                  plannedPackages,
+                )
               }
               onReview={() => onStageChange("review")}
               operation={operation}
@@ -2377,6 +2426,29 @@ type BagDraft = {
   plannedPackageRowId: string | null;
 };
 
+/**
+ * ADR-0017: the Bag form is the sole editor for its Planned Package Row.
+ * "idle" — nothing meaningful entered yet, no row created.
+ * "unsaved" — edited since the last successful autosave, save pending.
+ * "saving" — autosave request in flight.
+ * "saved" — matches what the backend holds.
+ * "error" — the last autosave attempt failed.
+ */
+type AutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
+
+const AUTOSAVE_DEBOUNCE_MS = 1500;
+
+function isBagDraftBlank(draft: BagDraft): boolean {
+  return (
+    draft.packageTypeId === "" &&
+    draft.finishedWeight === "" &&
+    draft.sealedWeight === "" &&
+    draft.oxygenAbsorber === "" &&
+    draft.storageLocationId === "" &&
+    draft.notes === ""
+  );
+}
+
 type LossDraft = {
   weight: string;
   weightUnit: WeightUnit;
@@ -2403,6 +2475,7 @@ function SingleBagEntryLoop({
   onBack,
   onRecordBag,
   onRecordLoss,
+  onAutosavePlannedPackages,
   onReview,
   operation,
   packageTypes,
@@ -2418,6 +2491,10 @@ function SingleBagEntryLoop({
     allocationId: string,
     loss: RecordPackagingLossRequest,
   ) => Promise<PackagingOperation>;
+  onAutosavePlannedPackages: (
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) => Promise<PackagingAllocation>;
   onReview: () => void;
   operation: PackagingOperation;
   packageTypes: PackageType[];
@@ -2465,6 +2542,12 @@ function SingleBagEntryLoop({
   const [lossErrors, setLossErrors] = useState<Record<string, string>>({});
   const [lossSaving, setLossSaving] = useState(false);
   const [lossSaveError, setLossSaveError] = useState<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>(() =>
+    activePlan ? "saved" : "idle",
+  );
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushAutosaveRef = useRef<() => void>(() => {});
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
   const lossHeadingRef = useRef<HTMLHeadingElement>(null);
   const lossReturnPhaseRef = useRef<BagEntryPhase>("choosingNextAction");
@@ -2523,30 +2606,113 @@ function SingleBagEntryLoop({
     if (phase === "recordingLoss") lossHeadingRef.current?.focus();
   }, [activeAllocationId, phase]);
 
+  useEffect(() => {
+    return () => {
+      flushAutosaveRef.current();
+    };
+  }, []);
+
   function chooseAllocation(allocationId: string) {
     const allocation = operation.allocations.find(
       (candidate) => candidate.id === allocationId,
     );
     if (!allocation) return;
+    flushAutosaveRef.current();
     setActiveAllocationId(allocationId);
-    setDraft(
-      createBagDraft(
-        allocation.planned_packages.find(
-          (row) => row.recorded_package_id === null,
-        ),
-        draft.packageTypeId,
-      ),
+    const nextPlan = allocation.planned_packages.find(
+      (row) => row.recorded_package_id === null,
     );
+    setDraft(createBagDraft(nextPlan, draft.packageTypeId));
+    setAutosaveStatus(nextPlan ? "saved" : "idle");
+    setAutosaveError(null);
     setErrors({});
     setSaveError(null);
     setDecisionError(null);
     setPhase("enteringBag");
   }
 
+  function scheduleAutosave(target: BagDraft) {
+    if (!activeAllocation) return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (!target.plannedPackageRowId && isBagDraftBlank(target)) {
+      setAutosaveStatus("idle");
+      return;
+    }
+    setAutosaveStatus("unsaved");
+    autosaveTimerRef.current = setTimeout(() => {
+      void performAutosave(target);
+    }, AUTOSAVE_DEBOUNCE_MS);
+  }
+
+  async function performAutosave(target: BagDraft) {
+    if (!activeAllocation) return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    setAutosaveStatus("saving");
+    const knownSiblingIds = new Set(
+      activeAllocation.planned_packages
+        .filter(
+          (row) =>
+            row.recorded_package_id === null &&
+            row.id !== target.plannedPackageRowId,
+        )
+        .map((row) => row.id),
+    );
+    try {
+      const updatedAllocation = await onAutosavePlannedPackages(
+        activeAllocation.id,
+        buildPlannedPackagesPayload(activeAllocation, target),
+      );
+      const savedRowId = target.plannedPackageRowId
+        ? target.plannedPackageRowId
+        : (updatedAllocation.planned_packages.find(
+            (row) =>
+              row.recorded_package_id === null && !knownSiblingIds.has(row.id),
+          )?.id ?? null);
+      setDraft((current) =>
+        current.plannedPackageRowId
+          ? current
+          : { ...current, plannedPackageRowId: savedRowId },
+      );
+      setAutosaveStatus("saved");
+      setAutosaveError(null);
+    } catch (error) {
+      setAutosaveStatus("error");
+      setAutosaveError(formatError(error));
+    }
+  }
+
+  function flushAutosave() {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+      if (autosaveStatus === "unsaved") {
+        void performAutosave(draft);
+      }
+    }
+  }
+  flushAutosaveRef.current = flushAutosave;
+
+  function retryAutosave() {
+    void performAutosave(draft);
+  }
+
+  function handleBack() {
+    flushAutosaveRef.current();
+    onBack();
+  }
+
   function updateDraft(values: Partial<BagDraft>) {
-    setDraft((current) => ({ ...current, ...values }));
+    const next = { ...draft, ...values };
+    setDraft(next);
     setErrors({});
     setSaveError(null);
+    scheduleAutosave(next);
   }
 
   function changePackageType(packageTypeId: string) {
@@ -2570,7 +2736,25 @@ function SingleBagEntryLoop({
   async function saveBag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeAllocation || saving) return;
-    const nextErrors = validateBagDraft(draft, activeRemaining, packageTypes);
+    if (
+      autosaveStatus === "unsaved" ||
+      autosaveStatus === "saving" ||
+      autosaveStatus === "error"
+    ) {
+      return;
+    }
+    const persistedRowWeight = draft.plannedPackageRowId
+      ? Number(
+          activeAllocation.planned_packages.find(
+            (row) => row.id === draft.plannedPackageRowId,
+          )?.finished_product_weight_grams ?? 0,
+        )
+      : 0;
+    const nextErrors = validateBagDraft(
+      draft,
+      activeRemaining + persistedRowWeight,
+      packageTypes,
+    );
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -2601,6 +2785,8 @@ function SingleBagEntryLoop({
         bagNumber,
         remainingWeight: Number(updatedAllocation?.remaining_weight_grams ?? 0),
       });
+      setAutosaveStatus("idle");
+      setAutosaveError(null);
       setDecisionError(null);
       setPhase("choosingNextAction");
     } catch (error) {
@@ -2618,6 +2804,8 @@ function SingleBagEntryLoop({
       (row) => row.recorded_package_id === null,
     );
     setDraft(createBagDraft(nextPlan, draft.packageTypeId));
+    setAutosaveStatus(nextPlan ? "saved" : "idle");
+    setAutosaveError(null);
     setErrors({});
     setSaveError(null);
     setDecisionError(null);
@@ -2926,13 +3114,43 @@ function SingleBagEntryLoop({
               </span>
             </Field>
           </div>
+          {autosaveStatus !== "idle" ? (
+            <p className="single-bag-form__autosave-status" aria-live="polite">
+              {autosaveStatus === "saving"
+                ? "Saving…"
+                : autosaveStatus === "saved"
+                  ? "Saved"
+                  : autosaveStatus === "error"
+                    ? "Autosave failed"
+                    : "Unsaved"}
+            </p>
+          ) : null}
+          {autosaveStatus === "error" ? (
+            <div className="error-banner" role="alert">
+              <p>
+                {autosaveError ?? "This Bag could not be saved."} Save Bag is
+                unavailable until it saves successfully.
+              </p>
+              <button
+                className="secondary-action mt-2"
+                type="button"
+                onClick={retryAutosave}
+              >
+                Retry saving this Bag
+              </button>
+            </div>
+          ) : null}
           {saveError ? (
             <p className="error-banner" role="alert">
               {saveError}
             </p>
           ) : null}
           <div className="single-bag-actions">
-            <button className="secondary-action" type="button" onClick={onBack}>
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={handleBack}
+            >
               Back
             </button>
             {activeRemaining > ALLOCATION_TOLERANCE_GRAMS ? (
@@ -2944,7 +3162,16 @@ function SingleBagEntryLoop({
                 Record loss
               </button>
             ) : null}
-            <button className="primary-action" disabled={saving} type="submit">
+            <button
+              className="primary-action"
+              disabled={
+                saving ||
+                autosaveStatus === "unsaved" ||
+                autosaveStatus === "saving" ||
+                autosaveStatus === "error"
+              }
+              type="submit"
+            >
               {saving ? "Saving…" : `Save Bag ${bagNumber}`}
             </button>
           </div>
@@ -3098,7 +3325,7 @@ function SingleBagEntryLoop({
               {decisionError}
             </p>
           ) : null}
-          <button className="quiet-action" type="button" onClick={onBack}>
+          <button className="quiet-action" type="button" onClick={handleBack}>
             Back
           </button>
         </section>
@@ -3163,6 +3390,41 @@ function createBagDraft(
     notes: plannedPackage?.notes ?? "",
     plannedPackageRowId: plannedPackage?.id ?? null,
   };
+}
+
+/**
+ * Builds the PATCH .../allocations/{id} payload for autosaving one Bag's
+ * draft. Per ADR-0017's Reconciliation scope, this only ever needs to
+ * describe the Allocation's unrecorded Planned Package Rows: sibling rows
+ * are passed through by id alone (a no-op update, protecting them from the
+ * endpoint's remove-if-absent reconciliation), and the current draft carries
+ * its full field set so edits and clears both persist.
+ */
+function buildPlannedPackagesPayload(
+  allocation: PackagingAllocation,
+  draft: BagDraft,
+): PlannedPackageInput[] {
+  const siblings: PlannedPackageInput[] = allocation.planned_packages
+    .filter(
+      (row) =>
+        row.recorded_package_id === null &&
+        row.id !== draft.plannedPackageRowId,
+    )
+    .map((row) => ({ id: row.id }));
+  const current: PlannedPackageInput = {
+    ...(draft.plannedPackageRowId ? { id: draft.plannedPackageRowId } : {}),
+    package_type_id: draft.packageTypeId || null,
+    finished_product_weight_grams:
+      toGrams(draft.finishedWeight, draft.finishedWeightUnit) || null,
+    finished_product_weight_unit: draft.finishedWeightUnit,
+    sealed_package_weight_grams:
+      toGrams(draft.sealedWeight, draft.sealedWeightUnit) || null,
+    sealed_package_weight_unit: draft.sealedWeightUnit,
+    oxygen_absorber: draft.oxygenAbsorber.trim() || null,
+    storage_location_id: draft.storageLocationId || null,
+    notes: draft.notes.trim() || null,
+  };
+  return [...siblings, current];
 }
 
 function validateBagDraft(
