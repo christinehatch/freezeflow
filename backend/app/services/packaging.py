@@ -562,14 +562,26 @@ def _replace_allocation_sources(
 def _reconcile_planned_rows(
     db: Session, allocation: PackagingAllocation, inputs: list[PlannedPackageInput]
 ) -> None:
-    existing = {row.id: row for row in allocation.planned_package_rows}
+    # Recorded rows are immutable historical records and are excluded from
+    # reconciliation entirely: they are never deleted for being omitted, and
+    # never edited for being included. Only unrecorded rows are editable.
+    editable = {
+        row.id: row
+        for row in allocation.planned_package_rows
+        if row.recorded_package_id is None
+    }
+    recorded_ids = {
+        row.id
+        for row in allocation.planned_package_rows
+        if row.recorded_package_id is not None
+    }
     requested_ids = {item.id for item in inputs if item.id is not None}
-    for row in list(existing.values()):
-        if row.id not in requested_ids:
-            if row.recorded_package_id is not None:
-                raise BusinessRuleError("Recorded package plans cannot be removed.")
+    for row_id, row in list(editable.items()):
+        if row_id not in requested_ids:
             db.delete(row)
     for item in inputs:
+        if item.id is not None and item.id in recorded_ids:
+            continue
         values = item.model_dump(exclude={"id"}, exclude_unset=True)
         _validate_plan_references(db, values)
         if item.id is None:
@@ -578,13 +590,11 @@ def _reconcile_planned_rows(
                 {"packaging_allocation_id": allocation.id, **values},
             )
         else:
-            row = existing.get(item.id)
+            row = editable.get(item.id)
             if row is None:
                 raise BusinessRuleError(
                     "Planned Package does not belong to this Allocation."
                 )
-            if row.recorded_package_id is not None:
-                raise BusinessRuleError("Recorded package plans cannot be edited.")
             planned_package_row_repository.update(db, row, values)
     db.flush()
 

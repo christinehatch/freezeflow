@@ -126,20 +126,40 @@ missing piece is exclusively on the frontend: the Bag form must carry the
 autosaved row's id through to that call, the same way it already does when
 resuming an existing planned row.
 
+## Reconciliation scope
+
+`PATCH .../allocations/{id}`'s `planned_packages` array describes only the
+Allocation's current *unrecorded* Planned Package Rows — the ones a Bag form
+could still be editing. Recorded rows are immutable historical records and
+are excluded from that array's reconciliation entirely: an autosave request
+never needs to include them, and the endpoint never creates, edits, or
+removes a recorded row regardless of whether one happens to be present or
+absent from a given request.
+
+This was not the endpoint's original behavior. Reconciliation used to treat
+every row not present in the request as slated for removal, erroring on a
+recorded row either way — present or absent. That made autosave impossible in
+any Allocation with more than one Bag, since the very first autosave for Bag
+2 would always describe a payload that either omitted or included Bag 1's
+now-recorded row, and both were rejected. Recorded rows are not part of the
+"current planned work" this array exists to describe, so the endpoint now
+excludes them from reconciliation outright instead of erroring on either
+side of that boundary. See `docs/09-api-design.md` and
+`docs/persistence/18-planned-package-row.md` for the resulting contract.
+
 ## Deletion
 
 Planned Package Rows are never deleted. When a Package is recorded,
 `recordedPackageId` is set to reference the created Package. Recorded rows are
-excluded from unrecorded counts but remain part of the permanent Packaging
-history.
+excluded from unrecorded counts and from reconciliation, but remain part of
+the permanent Packaging history.
 
-This matches `_reconcile_planned_rows`'s existing enforcement
-(`"Recorded package plans cannot be removed."`), the persistence doc's own
-field definition for `recordedPackageId`, and this application's append-only
-treatment of every other historical record. Hard deletion on conversion would
-have been the one place in the architecture where a record disappears instead
-of being superseded or linked — the evidence points in only one direction, so
-this is settled rather than left open.
+This matches the persistence doc's own field definition for
+`recordedPackageId` and this application's append-only treatment of every
+other historical record. Hard deletion on conversion would have been the one
+place in the architecture where a record disappears instead of being
+superseded or linked — the evidence points in only one direction, so this is
+settled rather than left open.
 
 ## Application close or navigation away
 
@@ -193,8 +213,12 @@ built — the Bag form is the entire interface this entity has or needs.
   (in-memory-only draft state).
 * Gives operators a real, observable Saved/Unsaved state instead of a silent
   risk of losing an in-progress Bag.
-* Requires no new backend capability for conversion — only for autosave itself
-  (`PATCH .../allocations/{id}` already accepts `planned_packages`).
+* Requires no new backend capability for conversion, and no new endpoint for
+  autosave — `PATCH .../allocations/{id}` already accepts `planned_packages`.
+  It does require fixing that endpoint's reconciliation to exclude recorded
+  rows (see Reconciliation scope above), since autosave is the first real
+  caller to exercise an Allocation with both recorded and unrecorded rows at
+  once.
 * Makes the "Resume Packaging Session" developer scenario represent a state a
   real operator can actually reach, closing the gap that made it feel like
   the seed data was doing something the application couldn't.

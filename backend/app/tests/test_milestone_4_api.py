@@ -391,7 +391,10 @@ def test_planned_package_rows_can_be_updated_and_recorded_once(
     )
     _assert_business_error(reuse_response, "already been recorded")
 
-    change_recorded_response = client.patch(
+    # Recorded rows are excluded from reconciliation entirely: including one
+    # is a no-op for that row rather than an edit, and its sibling unrecorded
+    # row still updates normally.
+    included_response = client.patch(
         allocation_url,
         json={
             "planned_packages": [
@@ -406,14 +409,42 @@ def test_planned_package_rows_can_be_updated_and_recorded_once(
                     "package_type_id": package_type["id"],
                     "finished_product_weight_grams": "150.000",
                     "sealed_package_weight_grams": "155.000",
+                    "notes": "Updated while the sibling row stayed recorded.",
                 },
             ]
         },
     )
-    _assert_business_error(
-        change_recorded_response,
-        "Recorded package plans cannot be edited",
+    assert included_response.status_code == 200
+    included_plans = _data(included_response)["planned_packages"]
+    still_recorded = next(
+        row for row in included_plans if row["id"] == planned[0]["id"]
     )
+    assert still_recorded["finished_product_weight_grams"] == 100.0
+    assert still_recorded["recorded_package_id"] == recorded_package_id
+    updated_sibling = next(
+        row for row in included_plans if row["id"] == planned[1]["id"]
+    )
+    assert updated_sibling["notes"] == "Updated while the sibling row stayed recorded."
+
+    # Omitting a recorded row's id must not delete it either.
+    omitted_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "id": planned[1]["id"],
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "150.000",
+                    "sealed_package_weight_grams": "155.000",
+                },
+            ]
+        },
+    )
+    assert omitted_response.status_code == 200
+    omitted_plans = _data(omitted_response)["planned_packages"]
+    assert len(omitted_plans) == 2
+    still_present = next(row for row in omitted_plans if row["id"] == planned[0]["id"])
+    assert still_present["recorded_package_id"] == recorded_package_id
 
 
 def test_recording_packages_is_traceable_atomic_and_keeps_operation_open(
