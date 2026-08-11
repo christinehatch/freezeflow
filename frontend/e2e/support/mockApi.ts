@@ -2280,10 +2280,13 @@ function recalculateAllocation(allocation: PackagingAllocation) {
     (total, loss) => total + Number(loss.weight_grams),
     0,
   );
+  const bagged = recordedFinishedProductWeight(allocation);
   allocation.selected_weight_grams = String(selected);
   allocation.allocated_weight_grams = String(allocated);
   allocation.total_recorded_loss_weight_grams = String(totalLoss);
   allocation.remaining_weight_grams = String(selected - allocated - totalLoss);
+  allocation.bagged_weight_grams = String(bagged);
+  allocation.remaining_to_bag_grams = String(selected - bagged - totalLoss);
 }
 
 function recordedFinishedProductWeight(allocation: PackagingAllocation) {

@@ -1036,6 +1036,8 @@ function createOperation(packages: Package[]): PackagingOperation {
         allocated_weight_grams: "100",
         total_recorded_loss_weight_grams: "0",
         remaining_weight_grams: "0",
+        bagged_weight_grams: "100",
+        remaining_to_bag_grams: "0",
         source_trays: [],
         planned_packages: [],
         packaging_losses: [],

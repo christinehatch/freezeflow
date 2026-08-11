@@ -447,6 +447,59 @@ def test_planned_package_rows_can_be_updated_and_recorded_once(
     assert still_present["recorded_package_id"] == recorded_package_id
 
 
+def test_bagged_weight_ignores_drafts_while_allocated_weight_reserves_them(
+    client: TestClient,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch physical")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+    allocation_url = (
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}"
+    )
+
+    assert allocation["selected_weight_grams"] == 250.0
+    assert allocation["bagged_weight_grams"] == 0.0
+    assert allocation["remaining_to_bag_grams"] == 250.0
+
+    draft_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "100.000",
+                    "finished_product_weight_unit": "g",
+                    "sealed_package_weight_grams": "105.000",
+                    "sealed_package_weight_unit": "g",
+                }
+            ],
+        },
+    )
+    assert draft_response.status_code == 200
+    drafted = _data(draft_response)
+
+    assert drafted["allocated_weight_grams"] == 100.0
+    assert drafted["remaining_weight_grams"] == 150.0
+    assert drafted["bagged_weight_grams"] == 0.0
+    assert drafted["remaining_to_bag_grams"] == 250.0
+
+    planned_row_id = drafted["planned_packages"][0]["id"]
+    record_response = _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [{"planned_package_row_id": planned_row_id}],
+    )
+    recorded_allocation = record_response["packaging_operation"]["allocations"][0]
+
+    assert recorded_allocation["allocated_weight_grams"] == 100.0
+    assert recorded_allocation["remaining_weight_grams"] == 150.0
+    assert recorded_allocation["bagged_weight_grams"] == 100.0
+    assert recorded_allocation["remaining_to_bag_grams"] == 150.0
+
+
 def test_recording_packages_is_traceable_atomic_and_keeps_operation_open(
     client: TestClient,
     db_session: Session,

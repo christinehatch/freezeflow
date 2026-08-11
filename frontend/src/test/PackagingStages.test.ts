@@ -23,6 +23,8 @@ describe("Packaging workflow stage derivation", () => {
       createAllocation({
         allocated_weight_grams: "100",
         remaining_weight_grams: "0",
+        bagged_weight_grams: "100",
+        remaining_to_bag_grams: "0",
         planned_packages: [createPlan(recordedPackage.id)],
         packages: [recordedPackage],
       }),
@@ -45,6 +47,8 @@ describe("Packaging workflow stage derivation", () => {
       createAllocation({
         allocated_weight_grams: "100",
         remaining_weight_grams: "0",
+        bagged_weight_grams: "100",
+        remaining_to_bag_grams: "0",
         planned_packages: [createPlan(null)],
         packages: [createPackage("Ready")],
       }),
@@ -83,6 +87,8 @@ function createAllocation(
     allocated_weight_grams: "0",
     total_recorded_loss_weight_grams: "0",
     remaining_weight_grams: "100",
+    bagged_weight_grams: "0",
+    remaining_to_bag_grams: "100",
     source_trays: [],
     planned_packages: [],
     packages: [],

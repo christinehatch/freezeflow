@@ -195,6 +195,8 @@ def packaging_allocation_data(allocation: PackagingAllocation) -> dict[str, obje
         "allocated_weight_grams": allocation.allocated_weight_grams,
         "total_recorded_loss_weight_grams": allocation.total_recorded_loss_weight_grams,
         "remaining_weight_grams": allocation.remaining_weight_grams,
+        "bagged_weight_grams": allocation.bagged_weight_grams,
+        "remaining_to_bag_grams": allocation.remaining_to_bag_grams,
         "source_trays": [source_tray_data(tray) for tray in source_trays],
         "packaging_losses": [
             packaging_loss_data(loss)

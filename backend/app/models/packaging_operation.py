@@ -165,6 +165,24 @@ class PackagingAllocation(IdMixin, Base):
             - self.total_recorded_loss_weight_grams
         )
 
+    @property
+    def bagged_weight_grams(self) -> Decimal:
+        return sum(
+            (
+                package.finished_product_weight_grams or Decimal("0")
+                for package in self.packages
+            ),
+            start=Decimal("0"),
+        )
+
+    @property
+    def remaining_to_bag_grams(self) -> Decimal:
+        return (
+            self.selected_weight_grams
+            - self.bagged_weight_grams
+            - self.total_recorded_loss_weight_grams
+        )
+
 
 class PackagingAllocationSourceTray(IdMixin, Base):
     __tablename__ = "packaging_allocation_source_trays"

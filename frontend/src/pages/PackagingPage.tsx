@@ -2522,6 +2522,9 @@ function SingleBagEntryLoop({
   const activeRemaining = activeAllocation
     ? Number(activeAllocation.remaining_weight_grams)
     : 0;
+  const activeRemainingToBag = activeAllocation
+    ? Number(activeAllocation.remaining_to_bag_grams)
+    : 0;
   const initialPhase: BagEntryPhase =
     operation.status === "Open" &&
     (activeRemaining > ALLOCATION_TOLERANCE_GRAMS || Boolean(activePlan))
@@ -2896,7 +2899,7 @@ function SingleBagEntryLoop({
         <p className="single-bag-hero__remaining">
           {isOverallocated
             ? `${formatWeightInUnit(Math.abs(activeRemaining), activeDisplayUnit)} overallocated`
-            : `${formatWeightInUnit(activeRemaining, activeDisplayUnit)} remaining to package`}
+            : `${formatWeightInUnit(activeRemainingToBag, activeDisplayUnit)} remaining to package`}
         </p>
         <p className="single-bag-hero__packaged">
           {formatWeightInUnit(totalPackagedWeight, activeDisplayUnit)} packaged
@@ -2915,9 +2918,9 @@ function SingleBagEntryLoop({
             ),
           },
           {
-            label: "Allocated",
+            label: "Bagged",
             value: formatWorkspaceWeight(
-              finiteWeightOrNull(activeAllocation.allocated_weight_grams),
+              finiteWeightOrNull(activeAllocation.bagged_weight_grams),
             ),
           },
           {
@@ -2925,16 +2928,15 @@ function SingleBagEntryLoop({
             value: activeAllocation.packages.length,
           },
           {
-            label: isOverallocated ? "Overallocated" : "Remaining",
+            label: isOverallocated ? "Overallocated" : "Remaining to bag",
             value: formatWorkspaceWeight(
-              finiteWeightOrNull(activeAllocation.remaining_weight_grams) ===
-                null
-                ? null
-                : Math.abs(
+              isOverallocated
+                ? Math.abs(
                     finiteWeightOrNull(
                       activeAllocation.remaining_weight_grams,
                     ) ?? 0,
-                  ),
+                  )
+                : finiteWeightOrNull(activeAllocation.remaining_to_bag_grams),
             ),
             emphasis: true,
           },

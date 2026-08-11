@@ -293,7 +293,7 @@ describe("PackagingPage", () => {
       screen.getByText("138.1 g remaining to package"),
     ).toBeInTheDocument();
     expect(
-      within(packagingSummary).getByText("Allocated").parentElement,
+      within(packagingSummary).getByText("Bagged").parentElement,
     ).toHaveTextContent("100 g");
     expect(
       within(packagingSummary).getByText("Bags saved").parentElement,
@@ -4585,6 +4585,11 @@ function createPackagingTestState(
         return recordedPackage;
       });
       const allocationPackages = [...allocation.packages, ...createdPackages];
+      const baggedWeight = allocationPackages.reduce(
+        (total, item) =>
+          total + Number(item.finished_product_weight_grams ?? 0),
+        0,
+      );
       const updatedAllocation: PackagingAllocation = {
         ...allocation,
         packages: allocationPackages,
@@ -4595,6 +4600,12 @@ function createPackagingTestState(
         remaining_weight_grams: String(
           Number(allocation.selected_weight_grams) -
             allocationAllocatedWeight(updatedPlans, allocationPackages),
+        ),
+        bagged_weight_grams: String(baggedWeight),
+        remaining_to_bag_grams: String(
+          Number(allocation.selected_weight_grams) -
+            baggedWeight -
+            Number(allocation.total_recorded_loss_weight_grams),
         ),
         updated_at: updatedAt,
       };
@@ -4689,6 +4700,11 @@ function createPackagingTestState(
         remaining_weight_grams: String(
           Number(allocation.selected_weight_grams) -
             Number(allocation.allocated_weight_grams) -
+            totalLoss,
+        ),
+        remaining_to_bag_grams: String(
+          Number(allocation.selected_weight_grams) -
+            Number(allocation.bagged_weight_grams) -
             totalLoss,
         ),
       };
@@ -5055,6 +5071,8 @@ function createPackagingAllocation(
     allocated_weight_grams: "0",
     total_recorded_loss_weight_grams: "0",
     remaining_weight_grams: String(selectedWeight),
+    bagged_weight_grams: "0",
+    remaining_to_bag_grams: String(selectedWeight),
     source_trays: trays.map(toAllocationSourceTray),
     planned_packages: [],
     packages: [],
@@ -5074,6 +5092,22 @@ function createPackagingAllocation(
     ...loss,
     packaging_allocation_id: allocationId,
   }));
+  const bagged = allocation.packages.reduce(
+    (total, item) => total + Number(item.finished_product_weight_grams ?? 0),
+    0,
+  );
+  const totalLoss = allocation.packaging_losses.reduce(
+    (total, loss) => total + Number(loss.weight_grams),
+    0,
+  );
+  if (overrides.bagged_weight_grams === undefined) {
+    allocation.bagged_weight_grams = String(bagged);
+  }
+  if (overrides.remaining_to_bag_grams === undefined) {
+    allocation.remaining_to_bag_grams = String(
+      Number(allocation.selected_weight_grams) - bagged - totalLoss,
+    );
+  }
   return allocation;
 }
 

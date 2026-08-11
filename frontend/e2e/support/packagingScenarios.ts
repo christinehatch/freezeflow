@@ -288,6 +288,10 @@ export function createPackagingAllocation(
     (total, loss) => total + Number(loss.weight_grams),
     0,
   );
+  const baggedWeight = packages.reduce(
+    (total, item) => total + Number(item.finished_product_weight_grams ?? 0),
+    0,
+  );
   return {
     notes: null,
     created_at: STARTED_AT,
@@ -297,6 +301,10 @@ export function createPackagingAllocation(
     total_recorded_loss_weight_grams: String(totalLossWeight),
     remaining_weight_grams: String(
       selectedWeight - allocatedWeight - totalLossWeight,
+    ),
+    bagged_weight_grams: String(baggedWeight),
+    remaining_to_bag_grams: String(
+      selectedWeight - baggedWeight - totalLossWeight,
     ),
     ...overrides,
     id,
@@ -442,6 +450,8 @@ export function completedPackagingScenario(): PackagingScenario {
   }));
   allocation.allocated_weight_grams = "240";
   allocation.remaining_weight_grams = "0";
+  allocation.bagged_weight_grams = "240";
+  allocation.remaining_to_bag_grams = "0";
   operation.status = "Completed";
   operation.completed_at = "2026-07-18T10:30:00.000Z";
   operation.updated_at = operation.completed_at;

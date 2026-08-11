@@ -223,6 +223,8 @@ export type PackagingAllocation = {
   allocated_weight_grams: DecimalValue;
   total_recorded_loss_weight_grams: DecimalValue;
   remaining_weight_grams: DecimalValue;
+  bagged_weight_grams: DecimalValue;
+  remaining_to_bag_grams: DecimalValue;
   source_trays: PackagingAllocationSourceTray[];
   planned_packages: PlannedPackageRow[];
   packages: Package[];
