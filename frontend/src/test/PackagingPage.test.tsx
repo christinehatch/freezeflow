@@ -1285,30 +1285,36 @@ describe("PackagingPage", () => {
     expect(
       workspace.getByText("Package the chicken before the apples"),
     ).toBeInTheDocument();
+    const savedOperationDetails = within(
+      workspace
+        .getByText("Saved operation details", { selector: "summary" })
+        .closest("details")!,
+    );
     expect(
       workspace.getByText("Saved operation details", { selector: "summary" }),
     ).toBeInTheDocument();
     expect(
-      workspace.getByText("Packaging Allocations").parentElement,
+      savedOperationDetails.getByText("Product Sources").parentElement,
     ).toHaveTextContent("2");
     expect(
-      workspace.getByText("Planned Package Rows").parentElement,
-    ).toHaveTextContent("3");
+      savedOperationDetails.getByText("Bags in Progress").parentElement,
+    ).toHaveTextContent("2");
     expect(
-      workspace.getAllByText("Recorded Packages")[0].parentElement,
+      savedOperationDetails.getByText("Bags Saved").parentElement,
     ).toHaveTextContent("1");
     expect(
-      workspace.getByText("Available Completed Trays").parentElement,
+      savedOperationDetails.getByText("Available Completed Trays")
+        .parentElement,
     ).toHaveTextContent("0");
     expect(
-      workspace.getAllByText("Saved Selected Source Weight")[0].parentElement,
+      savedOperationDetails.getByText("Total in Source").parentElement,
     ).toHaveTextContent("423.1 g");
     expect(
-      workspace.getAllByText("Saved Allocated Weight")[0].parentElement,
-    ).toHaveTextContent("390 g");
+      savedOperationDetails.getByText("Bagged").parentElement,
+    ).toHaveTextContent("200 g");
     expect(
-      workspace.getAllByText("Saved Remaining Weight")[0].parentElement,
-    ).toHaveTextContent("33.1 g");
+      savedOperationDetails.getByText("Remaining to Bag").parentElement,
+    ).toHaveTextContent("223.1 g");
     const reviewSummary = within(
       workspace.getByLabelText("Packaging review summary"),
     );

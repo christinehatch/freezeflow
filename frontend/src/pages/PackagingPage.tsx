@@ -1863,18 +1863,22 @@ function PackagingOperationWorkspace({
       finiteWeightOrNull(allocation.selected_weight_grams),
     ),
   );
-  const allocatedWeight = sumAvailableWeights(
+  const baggedWeight = sumAvailableWeights(
     operation.allocations.map((allocation) =>
-      finiteWeightOrNull(allocation.allocated_weight_grams),
+      finiteWeightOrNull(allocation.bagged_weight_grams),
     ),
   );
-  const remainingWeight = sumAvailableWeights(
+  const remainingToBagWeight = sumAvailableWeights(
     operation.allocations.map((allocation) =>
-      finiteWeightOrNull(allocation.remaining_weight_grams),
+      finiteWeightOrNull(allocation.remaining_to_bag_grams),
     ),
   );
-  const plannedPackageCount = operation.allocations.reduce(
-    (total, allocation) => total + allocation.planned_packages.length,
+  const unrecordedPlannedPackageCount = operation.allocations.reduce(
+    (total, allocation) =>
+      total +
+      allocation.planned_packages.filter(
+        (row) => row.recorded_package_id === null,
+      ).length,
     0,
   );
   const recordedPackageCount = operation.allocations.reduce(
@@ -2026,7 +2030,7 @@ function PackagingOperationWorkspace({
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Packaging Allocations
+              Product Sources
             </p>
             <p className="mt-1 text-xl font-semibold">
               {operation.allocations.length}
@@ -2034,13 +2038,15 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Planned Package Rows
+              Bags in Progress
             </p>
-            <p className="mt-1 text-xl font-semibold">{plannedPackageCount}</p>
+            <p className="mt-1 text-xl font-semibold">
+              {unrecordedPlannedPackageCount}
+            </p>
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Recorded Packages
+              Bags Saved
             </p>
             <p className="mt-1 text-xl font-semibold">{recordedPackageCount}</p>
           </div>
@@ -2054,7 +2060,7 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Selected Source Weight
+              Total in Source
             </p>
             <p className="mt-1 text-xl font-semibold">
               {formatOptionalWorkspaceWeight(selectedWeight)}
@@ -2062,18 +2068,18 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Allocated Weight
+              Bagged
             </p>
             <p className="mt-1 text-xl font-semibold">
-              {formatOptionalWorkspaceWeight(allocatedWeight)}
+              {formatOptionalWorkspaceWeight(baggedWeight)}
             </p>
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Remaining Weight
+              Remaining to Bag
             </p>
             <p className="mt-1 text-xl font-semibold">
-              {formatOptionalWorkspaceWeight(remainingWeight)}
+              {formatOptionalWorkspaceWeight(remainingToBagWeight)}
             </p>
           </div>
         </div>

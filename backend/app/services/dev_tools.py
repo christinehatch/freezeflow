@@ -825,7 +825,7 @@ class DeveloperDataService:
                     sealed_package_weight_unit="g",
                     oxygen_absorber=package_types[index].default_oxygen_absorber,
                     storage_location=locations[index],
-                    notes="Durable package plan; no inventory Package exists yet.",
+                    notes="Planned bag from the two selected pork Trays.",
                     label_status=PackageLabelStatus.DRAFT,
                     label_display_name="Pork Shoulder",
                     label_preparation_summary=trays[index].preparation,
