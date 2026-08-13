@@ -25,7 +25,6 @@ type DraftTextField = keyof Pick<
   | "label_rehydration_instructions"
   | "label_serving_notes"
   | "label_net_weight_display"
-  | "label_fresh_equivalent_display"
 >;
 
 type PlannedPackageDraft = {
@@ -47,7 +46,6 @@ type PlannedPackageDraft = {
   label_rehydration_instructions: string;
   label_serving_notes: string;
   label_net_weight_display: string;
-  label_fresh_equivalent_display: string;
 };
 
 type SaveStatus =
@@ -91,10 +89,6 @@ const LABEL_FIELDS: Array<{
   },
   { field: "label_serving_notes", label: "Serving Notes", multiline: true },
   { field: "label_net_weight_display", label: "Net Weight Display" },
-  {
-    field: "label_fresh_equivalent_display",
-    label: "Fresh Equivalent Display",
-  },
 ];
 
 const SUPPORTED_WEIGHT_UNITS = new Set(
@@ -843,7 +837,6 @@ function createEmptyDraft(key: string): PlannedPackageDraft {
     label_rehydration_instructions: "",
     label_serving_notes: "",
     label_net_weight_display: "",
-    label_fresh_equivalent_display: "",
   };
 }
 
@@ -875,7 +868,6 @@ function createDraftFromSavedRow(row: PlannedPackageRow): PlannedPackageDraft {
     label_rehydration_instructions: row.label_rehydration_instructions ?? "",
     label_serving_notes: row.label_serving_notes ?? "",
     label_net_weight_display: row.label_net_weight_display ?? "",
-    label_fresh_equivalent_display: row.label_fresh_equivalent_display ?? "",
   };
 }
 
@@ -940,9 +932,6 @@ function serializePlannedPackageDraft(
     ),
     label_serving_notes: optionalText(row.label_serving_notes),
     label_net_weight_display: optionalText(row.label_net_weight_display),
-    label_fresh_equivalent_display: optionalText(
-      row.label_fresh_equivalent_display,
-    ),
   };
 }
 

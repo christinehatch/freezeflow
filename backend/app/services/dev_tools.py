@@ -727,9 +727,6 @@ class DeveloperDataService:
                     label_display_name=trays[0].product_name,
                     label_preparation_summary=trays[0].preparation,
                     label_net_weight_display=f"{product_weight} g freeze-dried",
-                    label_fresh_equivalent_display=(
-                        "Derived from completed production Trays"
-                    ),
                     recorded_package=package,
                 )
             )
@@ -769,7 +766,6 @@ class DeveloperDataService:
                 display_name=trays[0].product_name,
                 preparation_summary=trays[0].preparation,
                 net_weight_display=f"{product_weight} g freeze-dried",
-                fresh_equivalent_display="Derived from completed production Trays",
             )
             self.db.add(label)
             self.db.flush()
@@ -830,7 +826,6 @@ class DeveloperDataService:
                     label_display_name="Pork Shoulder",
                     label_preparation_summary=trays[index].preparation,
                     label_net_weight_display=f"{product_weight} g freeze-dried",
-                    label_fresh_equivalent_display="Fresh equivalent pending review",
                 )
             )
 

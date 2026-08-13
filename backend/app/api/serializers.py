@@ -20,6 +20,16 @@ from app.models import (
     TrayStatus,
     WeightCheck,
 )
+from app.services.packaging import fresh_equivalent_grams
+
+
+def _fresh_equivalent_display(
+    allocation: PackagingAllocation, weight_grams: Decimal | None
+) -> str | None:
+    if weight_grams is None:
+        return None
+    fresh = fresh_equivalent_grams(allocation, weight_grams)
+    return None if fresh is None else f"{fresh:.1f} g fresh"
 
 
 def tray_slot_data(tray_slot: TraySlot) -> dict[str, object]:
@@ -258,7 +268,9 @@ def planned_package_row_data(row: PlannedPackageRow) -> dict[str, object]:
         "label_rehydration_instructions": row.label_rehydration_instructions,
         "label_serving_notes": row.label_serving_notes,
         "label_net_weight_display": row.label_net_weight_display,
-        "label_fresh_equivalent_display": row.label_fresh_equivalent_display,
+        "label_fresh_equivalent_display": _fresh_equivalent_display(
+            row.packaging_allocation, row.finished_product_weight_grams
+        ),
         "recorded_package_id": row.recorded_package_id,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
@@ -337,7 +349,10 @@ def package_label_data(label: PackageLabel) -> dict[str, object]:
         "rehydration_instructions": label.rehydration_instructions,
         "serving_notes": label.serving_notes,
         "net_weight_display": label.net_weight_display,
-        "fresh_equivalent_display": label.fresh_equivalent_display,
+        "fresh_equivalent_display": _fresh_equivalent_display(
+            label.package.packaging_allocation,
+            label.package.finished_product_weight_grams,
+        ),
         "created_at": label.created_at,
         "updated_at": label.updated_at,
         "print_events": [

@@ -323,7 +323,6 @@ export type PlannedPackageInput = {
   label_rehydration_instructions?: string | null;
   label_serving_notes?: string | null;
   label_net_weight_display?: string | null;
-  label_fresh_equivalent_display?: string | null;
 };
 
 export type PackagingAllocationUpdateRequest = {
@@ -340,7 +339,6 @@ export type PackageLabelValues = {
   rehydration_instructions?: string | null;
   serving_notes?: string | null;
   net_weight_display?: string | null;
-  fresh_equivalent_display?: string | null;
 };
 
 export type PackageLineCreate = {
@@ -797,11 +795,6 @@ async function packageTraysThroughWorkflow(
     allocationId: allocation.id,
     body: {
       packages: body.packages.map((line) => {
-        const finishedWeight = Number(line.finished_product_weight_grams);
-        const freshEquivalent =
-          sourceWeight > 0 && startingWeight > 0
-            ? (finishedWeight / sourceWeight) * startingWeight
-            : null;
         return {
           package_type_id: line.package_type_id,
           finished_product_weight_grams: line.finished_product_weight_grams,
@@ -814,8 +807,6 @@ async function packageTraysThroughWorkflow(
             display_name: body.product_summary,
             preparation_summary: body.preparation_summary,
             net_weight_display: `${line.finished_product_weight_grams} g`,
-            fresh_equivalent_display:
-              freshEquivalent === null ? null : `${freshEquivalent} g`,
           },
         };
       }),

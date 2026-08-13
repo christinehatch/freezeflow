@@ -162,7 +162,6 @@ describe("PlannedPackageEditor", () => {
       ["Rehydration Instructions", "Add two cups of water"],
       ["Serving Notes", "Serves two"],
       ["Net Weight Display", "8.4 oz"],
-      ["Fresh Equivalent Display", "1.7 lb fresh"],
     ] as const;
     for (const [label, value] of labelValues) {
       const field = row.getByLabelText(
@@ -474,7 +473,6 @@ describe("PlannedPackageEditor", () => {
       ["Rehydration Instructions", "Add two cups of water"],
       ["Serving Notes", "Serves two"],
       ["Net Weight Display", "1 oz"],
-      ["Fresh Equivalent Display", "3 oz fresh"],
     ] as const;
     for (const [label, value] of labels) {
       await user.type(
@@ -511,7 +509,6 @@ describe("PlannedPackageEditor", () => {
         label_rehydration_instructions: "Add two cups of water",
         label_serving_notes: "Serves two",
         label_net_weight_display: "1 oz",
-        label_fresh_equivalent_display: "3 oz fresh",
       },
     ]);
     expect(onRefresh).toHaveBeenCalledTimes(1);

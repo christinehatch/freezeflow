@@ -671,7 +671,6 @@ def _default_label_values(
             "rehydration_instructions": planned.label_rehydration_instructions,
             "serving_notes": planned.label_serving_notes,
             "net_weight_display": planned.label_net_weight_display,
-            "fresh_equivalent_display": planned.label_fresh_equivalent_display,
         }
         label_values = {
             **{k: v for k, v in planned_labels.items() if v is not None},
@@ -683,15 +682,10 @@ def _default_label_values(
         "net_weight_display",
         f'{Decimal(values["finished_product_weight_grams"]):.1f} g',
     )
-    fresh = _fresh_equivalent(
-        allocation, Decimal(values["finished_product_weight_grams"])
-    )
-    if fresh is not None:
-        label_values.setdefault("fresh_equivalent_display", f"{fresh:.1f} g fresh")
     return PackageLabelCreate(status=PackageLabelStatus.READY, **label_values)
 
 
-def _fresh_equivalent(
+def fresh_equivalent_grams(
     allocation: PackagingAllocation, package_weight: Decimal
 ) -> Decimal | None:
     dry = allocation.selected_weight_grams
@@ -721,6 +715,10 @@ def _selected_labels(
                 selectinload(PackageLabel.package).selectinload(
                     Package.storage_location
                 ),
+                selectinload(PackageLabel.package)
+                .selectinload(Package.packaging_allocation)
+                .selectinload(PackagingAllocation.source_tray_links)
+                .selectinload(PackagingAllocationSourceTray.tray),
                 selectinload(PackageLabel.print_events),
             )
         ).all()

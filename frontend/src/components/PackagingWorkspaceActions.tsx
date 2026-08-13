@@ -38,7 +38,6 @@ const LABEL_FIELDS: Array<{
   },
   { field: "serving_notes", label: "Serving Notes", multiline: true },
   { field: "net_weight_display", label: "Net Weight Display" },
-  { field: "fresh_equivalent_display", label: "Fresh Equivalent Display" },
 ];
 
 type LabelDraft = Record<keyof PackageLabelValues, string>;
@@ -371,7 +370,6 @@ function createLabelDraft(label: PackageLabel): LabelDraft {
     rehydration_instructions: label.rehydration_instructions ?? "",
     serving_notes: label.serving_notes ?? "",
     net_weight_display: label.net_weight_display ?? "",
-    fresh_equivalent_display: label.fresh_equivalent_display ?? "",
   };
 }
 
@@ -384,7 +382,6 @@ function serializeLabelDraft(draft: LabelDraft): PackageLabelUpdate {
     rehydration_instructions: optionalText(draft.rehydration_instructions),
     serving_notes: optionalText(draft.serving_notes),
     net_weight_display: optionalText(draft.net_weight_display),
-    fresh_equivalent_display: optionalText(draft.fresh_equivalent_display),
   };
 }
 

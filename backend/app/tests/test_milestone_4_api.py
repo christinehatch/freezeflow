@@ -894,6 +894,49 @@ def test_package_finished_weight_remains_structured_and_not_derived(
     assert stored.package_weight_grams == Decimal("257.000")
 
 
+def test_fresh_equivalent_display_is_always_computed_and_cannot_be_overridden(
+    client: TestClient,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch fresh")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+    allocation_url = (
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}"
+    )
+
+    draft_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "100.000",
+                    "finished_product_weight_unit": "g",
+                    "sealed_package_weight_grams": "105.000",
+                    "sealed_package_weight_unit": "g",
+                    "label_fresh_equivalent_display": "Should be ignored",
+                }
+            ],
+        },
+    )
+    assert draft_response.status_code == 200
+    drafted = _data(draft_response)
+    planned_row = drafted["planned_packages"][0]
+    assert planned_row["label_fresh_equivalent_display"] == "362.8 g fresh"
+
+    recorded = _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [{"planned_package_row_id": planned_row["id"]}],
+    )
+    assert (
+        recorded["packages"][0]["label"]["fresh_equivalent_display"] == "362.8 g fresh"
+    )
+
+
 def test_packaging_loss_reduces_remaining_and_appears_in_allocation_history(
     client: TestClient,
     db_session: Session,

@@ -1529,7 +1529,6 @@ function handleRefinedPackagingMutation(
         rehydration_instructions: line.label.rehydration_instructions,
         serving_notes: line.label.serving_notes,
         net_weight_display: line.label.net_weight_display,
-        fresh_equivalent_display: line.label.fresh_equivalent_display,
         created_at: timestamp,
         updated_at: timestamp,
         print_events: [],
@@ -2011,7 +2010,6 @@ type ResolvedPackageLine = {
     rehydration_instructions: string | null;
     serving_notes: string | null;
     net_weight_display: string | null;
-    fresh_equivalent_display: string | null;
   };
 };
 
@@ -2144,10 +2142,6 @@ function resolvePackageLines(
             labelValues.net_weight_display ??
               plannedRow?.label_net_weight_display,
           ) ?? `${Number(finishedProductWeight).toFixed(1)} g`,
-        fresh_equivalent_display: cleanOptionalText(
-          labelValues.fresh_equivalent_display ??
-            plannedRow?.label_fresh_equivalent_display,
-        ),
       },
     });
   }
@@ -2187,9 +2181,6 @@ function updateLabelValues(
       | null,
     serving_notes: optional("serving_notes") as string | null,
     net_weight_display: optional("net_weight_display") as string | null,
-    fresh_equivalent_display: optional("fresh_equivalent_display") as
-      | string
-      | null,
     status: label.print_events.length > 0 ? "Needs Reprint" : "Ready",
     updated_at: updatedAt,
   } satisfies PackageLabel;

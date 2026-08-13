@@ -3054,7 +3054,6 @@ describe("PackagingPage", () => {
       ["Rehydration Instructions", "  Add warm water  "],
       ["Serving Notes", "  Serves two  "],
       ["Net Weight Display", "  3.5 oz  "],
-      ["Fresh Equivalent Display", "  1 lb fresh  "],
     ] as const;
     for (const [fieldName, value] of values) {
       const field = editor.getByLabelText(`PKG-2026-000001 Label ${fieldName}`);
@@ -3081,7 +3080,6 @@ describe("PackagingPage", () => {
       rehydration_instructions: "Add warm water",
       serving_notes: "Serves two",
       net_weight_display: "3.5 oz",
-      fresh_equivalent_display: "1 lb fresh",
     });
     expect(parseRequestBody(packageLabelPatchRequests()[0])).not.toHaveProperty(
       "status",
@@ -4130,7 +4128,6 @@ const PLANNED_PACKAGE_INPUT_KEYS = [
   "label_rehydration_instructions",
   "label_serving_notes",
   "label_net_weight_display",
-  "label_fresh_equivalent_display",
 ] as const;
 
 function assertOnlyKeys(value: object, allowedKeys: readonly string[]) {
@@ -4569,10 +4566,6 @@ function createPackagingTestState(
               lineLabel.net_weight_display ??
               plannedPackage?.label_net_weight_display ??
               `${Number(finishedProductWeight).toFixed(1)} g`,
-            fresh_equivalent_display:
-              lineLabel.fresh_equivalent_display ??
-              plannedPackage?.label_fresh_equivalent_display ??
-              null,
             created_at: updatedAt,
             updated_at: updatedAt,
           },
@@ -4740,7 +4733,6 @@ function createPackagingTestState(
         "rehydration_instructions",
         "serving_notes",
         "net_weight_display",
-        "fresh_equivalent_display",
       ]);
       if (!state.operation || state.operation.status !== "Open") {
         throw new Error("Completed Packaging Operations cannot be changed.");

@@ -38,7 +38,6 @@ class PlannedPackageInput(BaseModel):
     label_rehydration_instructions: str | None = None
     label_serving_notes: str | None = None
     label_net_weight_display: str | None = None
-    label_fresh_equivalent_display: str | None = None
 
 
 class PackagingAllocationUpdateRequest(BaseModel):
@@ -55,7 +54,6 @@ class PackageLabelValues(BaseModel):
     rehydration_instructions: str | None = None
     serving_notes: str | None = None
     net_weight_display: str | None = None
-    fresh_equivalent_display: str | None = None
 
 
 class PackageLineCreate(BaseModel):

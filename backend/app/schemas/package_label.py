@@ -16,7 +16,6 @@ class PackageLabelCreate(BaseModel):
     rehydration_instructions: str | None = None
     serving_notes: str | None = None
     net_weight_display: str | None = None
-    fresh_equivalent_display: str | None = None
 
 
 class PackageLabelUpdate(BaseModel):
@@ -28,7 +27,6 @@ class PackageLabelUpdate(BaseModel):
     rehydration_instructions: str | None = None
     serving_notes: str | None = None
     net_weight_display: str | None = None
-    fresh_equivalent_display: str | None = None
 
 
 class PackageLabelRead(PackageLabelCreate, ReadSchema):
