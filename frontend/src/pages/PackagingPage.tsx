@@ -10,16 +10,20 @@ import { useSearchParams } from "react-router";
 import {
   ApiError,
   Package,
+  PackagingAllocation,
   PackageLineCreate,
   PackageLabel,
   PackageLabelPrintResult,
   PackageLabelUpdate,
   PackageType,
+  PlannedPackageInput,
   PlannedPackageRow,
+  PackagingLossReason,
   PackagingOperation,
   PackagingResult,
   PackagingWorksheetItem,
   ProductionBatch,
+  RecordPackagingLossRequest,
   StorageLocation,
   packagingApi,
   productionApi,
@@ -50,6 +54,7 @@ import {
   WEIGHT_UNIT_OPTIONS,
   WeightUnit,
   formatGrams,
+  formatWeightInUnit,
   fromGramsForInput,
   toGrams,
 } from "../utils/weights";
@@ -135,6 +140,7 @@ export function PackagingPage() {
     string | null
   >(null);
   const [visibleStage, setVisibleStage] = useState<PackagingStageId>("source");
+  const [batchTraysOpen, setBatchTraysOpen] = useState(false);
   const [reviewingDirectPackages, setReviewingDirectPackages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PackagingResult | null>(null);
@@ -423,6 +429,7 @@ export function PackagingPage() {
 
   function selectBatch(batchId: string) {
     setActiveBatchId(batchId);
+    setBatchTraysOpen(false);
     setSelectedTrayIds([]);
     setPackageLines([createPackageLine(packageTypes[0])]);
     setPackageCountInput("1");
@@ -729,6 +736,59 @@ export function PackagingPage() {
     return response.packaging_operation;
   }
 
+  async function recordLoss(
+    operationId: string,
+    allocationId: string,
+    body: RecordPackagingLossRequest,
+  ) {
+    const response = await packagingApi.recordAllocationLoss({
+      operationId,
+      allocationId,
+      body,
+    });
+    queryClient.setQueryData(
+      [
+        "packaging-operation-by-batch",
+        response.packaging_operation.production_batch_id,
+      ],
+      response.packaging_operation,
+    );
+    return response.packaging_operation;
+  }
+
+  async function autosavePlannedPackages(
+    operationId: string,
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) {
+    const updatedAllocation = await packagingApi.updatePackagingAllocation({
+      operationId,
+      allocationId,
+      body: { planned_packages: plannedPackages },
+    });
+    if (activeOperation) {
+      const queryKey = [
+        "packaging-operation-by-batch",
+        activeOperation.production_batch_id,
+      ] as const;
+      queryClient.setQueryData<PackagingOperation | null>(
+        queryKey,
+        (current) =>
+          current
+            ? {
+                ...current,
+                allocations: current.allocations.map((allocation) =>
+                  allocation.id === updatedAllocation.id
+                    ? updatedAllocation
+                    : allocation,
+                ),
+              }
+            : current,
+      );
+    }
+    return updatedAllocation;
+  }
+
   async function savePackageLabel(packageId: string, body: PackageLabelUpdate) {
     await packagingApi.updatePackageLabel({ packageId, body });
   }
@@ -911,38 +971,47 @@ export function PackagingPage() {
                     )}
                   </div>
                 </div>
-                {activeWorksheetItem &&
+                {visibleStage === "source" &&
+                activeWorksheetItem &&
                 activeWorksheetItem.eligible_trays.length > 0 ? (
-                  <details className="packaging-batch-trays mt-3">
+                  <details
+                    className="packaging-batch-trays mt-3"
+                    open={batchTraysOpen}
+                    onToggle={(event) =>
+                      setBatchTraysOpen(event.currentTarget.open)
+                    }
+                  >
                     <summary className="cursor-pointer text-sm font-semibold text-slate-700">
                       What&rsquo;s in this batch?
                     </summary>
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {activeWorksheetItem.eligible_trays.map((tray) => (
-                        <li
-                          className="flex items-baseline justify-between gap-3"
-                          key={tray.id}
-                        >
-                          <span>
-                            <span className="text-slate-500">
-                              {tray.physical_tray.label}
-                            </span>{" "}
-                            <span className="font-semibold">
-                              {tray.product_name}
-                            </span>
-                            {tray.preparation ? (
-                              <span className="text-slate-600">
-                                {" "}
-                                · {tray.preparation}
+                    {batchTraysOpen ? (
+                      <ul className="mt-2 space-y-2 text-sm">
+                        {activeWorksheetItem.eligible_trays.map((tray) => (
+                          <li
+                            className="flex items-baseline justify-between gap-3"
+                            key={tray.id}
+                          >
+                            <span>
+                              <span className="text-slate-500">
+                                {tray.physical_tray.label}
+                              </span>{" "}
+                              <span className="font-semibold">
+                                {tray.product_name}
                               </span>
-                            ) : null}
-                          </span>
-                          <span className="whitespace-nowrap text-slate-700">
-                            {formatGrams(tray.final_dry_weight_grams)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                              {tray.preparation ? (
+                                <span className="text-slate-600">
+                                  {" "}
+                                  · {tray.preparation}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="whitespace-nowrap text-slate-700">
+                              {formatGrams(tray.final_dry_weight_grams)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </details>
                 ) : null}
                 {activeOperationQuery?.isError ? (
@@ -1204,6 +1273,8 @@ export function PackagingPage() {
             )
           }
           onRecordBag={recordBag}
+          onRecordLoss={recordLoss}
+          onAutosavePlannedPackages={autosavePlannedPackages}
           onPreviewPackageLabels={previewPackageLabels}
           onPrintPackageLabels={(packageLabelIds) =>
             printPackageLabels(
@@ -1732,6 +1803,8 @@ function PackagingOperationWorkspace({
   formatError,
   onCompleteOperation,
   onRecordBag,
+  onRecordLoss,
+  onAutosavePlannedPackages,
   onPreviewPackageLabels,
   onPrintPackageLabels,
   onRefreshOperation,
@@ -1753,6 +1826,16 @@ function PackagingOperationWorkspace({
     allocationId: string,
     bag: PackageLineCreate,
   ) => Promise<PackagingOperation>;
+  onRecordLoss: (
+    operationId: string,
+    allocationId: string,
+    loss: RecordPackagingLossRequest,
+  ) => Promise<PackagingOperation>;
+  onAutosavePlannedPackages: (
+    operationId: string,
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) => Promise<PackagingAllocation>;
   onPreviewPackageLabels: (
     packageLabelIds: string[],
   ) => Promise<PackageLabel[]>;
@@ -1780,18 +1863,22 @@ function PackagingOperationWorkspace({
       finiteWeightOrNull(allocation.selected_weight_grams),
     ),
   );
-  const allocatedWeight = sumAvailableWeights(
+  const baggedWeight = sumAvailableWeights(
     operation.allocations.map((allocation) =>
-      finiteWeightOrNull(allocation.allocated_weight_grams),
+      finiteWeightOrNull(allocation.bagged_weight_grams),
     ),
   );
-  const remainingWeight = sumAvailableWeights(
+  const remainingToBagWeight = sumAvailableWeights(
     operation.allocations.map((allocation) =>
-      finiteWeightOrNull(allocation.remaining_weight_grams),
+      finiteWeightOrNull(allocation.remaining_to_bag_grams),
     ),
   );
-  const plannedPackageCount = operation.allocations.reduce(
-    (total, allocation) => total + allocation.planned_packages.length,
+  const unrecordedPlannedPackageCount = operation.allocations.reduce(
+    (total, allocation) =>
+      total +
+      allocation.planned_packages.filter(
+        (row) => row.recorded_package_id === null,
+      ).length,
     0,
   );
   const recordedPackageCount = operation.allocations.reduce(
@@ -1943,7 +2030,7 @@ function PackagingOperationWorkspace({
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Packaging Allocations
+              Product Sources
             </p>
             <p className="mt-1 text-xl font-semibold">
               {operation.allocations.length}
@@ -1951,13 +2038,15 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Planned Package Rows
+              Bags in Progress
             </p>
-            <p className="mt-1 text-xl font-semibold">{plannedPackageCount}</p>
+            <p className="mt-1 text-xl font-semibold">
+              {unrecordedPlannedPackageCount}
+            </p>
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Recorded Packages
+              Bags Saved
             </p>
             <p className="mt-1 text-xl font-semibold">{recordedPackageCount}</p>
           </div>
@@ -1971,7 +2060,7 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Selected Source Weight
+              Total in Source
             </p>
             <p className="mt-1 text-xl font-semibold">
               {formatOptionalWorkspaceWeight(selectedWeight)}
@@ -1979,18 +2068,18 @@ function PackagingOperationWorkspace({
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Allocated Weight
+              Bagged
             </p>
             <p className="mt-1 text-xl font-semibold">
-              {formatOptionalWorkspaceWeight(allocatedWeight)}
+              {formatOptionalWorkspaceWeight(baggedWeight)}
             </p>
           </div>
           <div className="object-card">
             <p className="text-xs font-semibold uppercase text-slate-500">
-              Saved Remaining Weight
+              Remaining to Bag
             </p>
             <p className="mt-1 text-xl font-semibold">
-              {formatOptionalWorkspaceWeight(remainingWeight)}
+              {formatOptionalWorkspaceWeight(remainingToBagWeight)}
             </p>
           </div>
         </div>
@@ -2039,6 +2128,16 @@ function PackagingOperationWorkspace({
               onBack={() => onStageChange("product")}
               onRecordBag={(allocationId, bag) =>
                 onRecordBag(operation.id, allocationId, bag)
+              }
+              onRecordLoss={(allocationId, loss) =>
+                onRecordLoss(operation.id, allocationId, loss)
+              }
+              onAutosavePlannedPackages={(allocationId, plannedPackages) =>
+                onAutosavePlannedPackages(
+                  operation.id,
+                  allocationId,
+                  plannedPackages,
+                )
               }
               onReview={() => onStageChange("review")}
               operation={operation}
@@ -2319,7 +2418,7 @@ type WorkspaceAllocationEvaluation = {
   savedWeightsAvailable: boolean;
 };
 
-type BagEntryPhase = "enteringBag" | "choosingNextAction";
+type BagEntryPhase = "enteringBag" | "recordingLoss" | "choosingNextAction";
 
 type BagDraft = {
   packageTypeId: string;
@@ -2333,10 +2432,56 @@ type BagDraft = {
   plannedPackageRowId: string | null;
 };
 
+/**
+ * ADR-0017: the Bag form is the sole editor for its Planned Package Row.
+ * "idle" — nothing meaningful entered yet, no row created.
+ * "unsaved" — edited since the last successful autosave, save pending.
+ * "saving" — autosave request in flight.
+ * "saved" — matches what the backend holds.
+ * "error" — the last autosave attempt failed.
+ */
+type AutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
+
+const AUTOSAVE_DEBOUNCE_MS = 1500;
+
+function isBagDraftBlank(draft: BagDraft): boolean {
+  return (
+    draft.packageTypeId === "" &&
+    draft.finishedWeight === "" &&
+    draft.sealedWeight === "" &&
+    draft.oxygenAbsorber === "" &&
+    draft.storageLocationId === "" &&
+    draft.notes === ""
+  );
+}
+
+type LossDraft = {
+  weight: string;
+  weightUnit: WeightUnit;
+  reason: PackagingLossReason | "";
+  reasonDetail: string;
+};
+
+const PACKAGING_LOSS_REASON_OPTIONS: {
+  label: string;
+  value: PackagingLossReason;
+}[] = [
+  { label: "Sampled", value: "Sampled" },
+  { label: "Spilled", value: "Spilled" },
+  { label: "Crumbs", value: "Crumbs" },
+  { label: "Other", value: "Other" },
+];
+
+type SavedEntry =
+  | { kind: "bag"; bagNumber: number; remainingWeight: number }
+  | { kind: "loss"; remainingWeight: number };
+
 function SingleBagEntryLoop({
   formatError,
   onBack,
   onRecordBag,
+  onRecordLoss,
+  onAutosavePlannedPackages,
   onReview,
   operation,
   packageTypes,
@@ -2348,6 +2493,14 @@ function SingleBagEntryLoop({
     allocationId: string,
     bag: PackageLineCreate,
   ) => Promise<PackagingOperation>;
+  onRecordLoss: (
+    allocationId: string,
+    loss: RecordPackagingLossRequest,
+  ) => Promise<PackagingOperation>;
+  onAutosavePlannedPackages: (
+    allocationId: string,
+    plannedPackages: PlannedPackageInput[],
+  ) => Promise<PackagingAllocation>;
   onReview: () => void;
   operation: PackagingOperation;
   packageTypes: PackageType[];
@@ -2375,6 +2528,9 @@ function SingleBagEntryLoop({
   const activeRemaining = activeAllocation
     ? Number(activeAllocation.remaining_weight_grams)
     : 0;
+  const activeRemainingToBag = activeAllocation
+    ? Number(activeAllocation.remaining_to_bag_grams)
+    : 0;
   const initialPhase: BagEntryPhase =
     operation.status === "Open" &&
     (activeRemaining > ALLOCATION_TOLERANCE_GRAMS || Boolean(activePlan))
@@ -2388,11 +2544,22 @@ function SingleBagEntryLoop({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [decisionError, setDecisionError] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<{
-    bagNumber: number;
-    remainingWeight: number;
-  } | null>(null);
+  const [lastSaved, setLastSaved] = useState<SavedEntry | null>(null);
+  const [lossDraft, setLossDraft] = useState<LossDraft>(() =>
+    createLossDraft(),
+  );
+  const [lossErrors, setLossErrors] = useState<Record<string, string>>({});
+  const [lossSaving, setLossSaving] = useState(false);
+  const [lossSaveError, setLossSaveError] = useState<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>(() =>
+    activePlan ? "saved" : "idle",
+  );
+  const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushAutosaveRef = useRef<() => void>(() => {});
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
+  const lossHeadingRef = useRef<HTMLHeadingElement>(null);
+  const lossReturnPhaseRef = useRef<BagEntryPhase>("choosingNextAction");
   const bagNumber = operation.packages.length + 1;
   const totalPackagedWeight = operation.packages.reduce(
     (total, recordedPackage) =>
@@ -2445,32 +2612,116 @@ function SingleBagEntryLoop({
 
   useEffect(() => {
     if (phase === "enteringBag") bagHeadingRef.current?.focus();
+    if (phase === "recordingLoss") lossHeadingRef.current?.focus();
   }, [activeAllocationId, phase]);
+
+  useEffect(() => {
+    return () => {
+      flushAutosaveRef.current();
+    };
+  }, []);
 
   function chooseAllocation(allocationId: string) {
     const allocation = operation.allocations.find(
       (candidate) => candidate.id === allocationId,
     );
     if (!allocation) return;
+    flushAutosaveRef.current();
     setActiveAllocationId(allocationId);
-    setDraft(
-      createBagDraft(
-        allocation.planned_packages.find(
-          (row) => row.recorded_package_id === null,
-        ),
-        draft.packageTypeId,
-      ),
+    const nextPlan = allocation.planned_packages.find(
+      (row) => row.recorded_package_id === null,
     );
+    setDraft(createBagDraft(nextPlan, draft.packageTypeId));
+    setAutosaveStatus(nextPlan ? "saved" : "idle");
+    setAutosaveError(null);
     setErrors({});
     setSaveError(null);
     setDecisionError(null);
     setPhase("enteringBag");
   }
 
+  function scheduleAutosave(target: BagDraft) {
+    if (!activeAllocation) return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (!target.plannedPackageRowId && isBagDraftBlank(target)) {
+      setAutosaveStatus("idle");
+      return;
+    }
+    setAutosaveStatus("unsaved");
+    autosaveTimerRef.current = setTimeout(() => {
+      void performAutosave(target);
+    }, AUTOSAVE_DEBOUNCE_MS);
+  }
+
+  async function performAutosave(target: BagDraft) {
+    if (!activeAllocation) return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    setAutosaveStatus("saving");
+    const knownSiblingIds = new Set(
+      activeAllocation.planned_packages
+        .filter(
+          (row) =>
+            row.recorded_package_id === null &&
+            row.id !== target.plannedPackageRowId,
+        )
+        .map((row) => row.id),
+    );
+    try {
+      const updatedAllocation = await onAutosavePlannedPackages(
+        activeAllocation.id,
+        buildPlannedPackagesPayload(activeAllocation, target),
+      );
+      const savedRowId = target.plannedPackageRowId
+        ? target.plannedPackageRowId
+        : (updatedAllocation.planned_packages.find(
+            (row) =>
+              row.recorded_package_id === null && !knownSiblingIds.has(row.id),
+          )?.id ?? null);
+      setDraft((current) =>
+        current.plannedPackageRowId
+          ? current
+          : { ...current, plannedPackageRowId: savedRowId },
+      );
+      setAutosaveStatus("saved");
+      setAutosaveError(null);
+    } catch (error) {
+      setAutosaveStatus("error");
+      setAutosaveError(formatError(error));
+    }
+  }
+
+  function flushAutosave() {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+      if (autosaveStatus === "unsaved") {
+        void performAutosave(draft);
+      }
+    }
+  }
+  flushAutosaveRef.current = flushAutosave;
+
+  function retryAutosave() {
+    void performAutosave(draft);
+  }
+
+  function handleBack() {
+    flushAutosaveRef.current();
+    onBack();
+  }
+
   function updateDraft(values: Partial<BagDraft>) {
-    setDraft((current) => ({ ...current, ...values }));
+    const next = { ...draft, ...values };
+    setDraft(next);
     setErrors({});
     setSaveError(null);
+    scheduleAutosave(next);
   }
 
   function changePackageType(packageTypeId: string) {
@@ -2494,7 +2745,25 @@ function SingleBagEntryLoop({
   async function saveBag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeAllocation || saving) return;
-    const nextErrors = validateBagDraft(draft, activeRemaining, packageTypes);
+    if (
+      autosaveStatus === "unsaved" ||
+      autosaveStatus === "saving" ||
+      autosaveStatus === "error"
+    ) {
+      return;
+    }
+    const persistedRowWeight = draft.plannedPackageRowId
+      ? Number(
+          activeAllocation.planned_packages.find(
+            (row) => row.id === draft.plannedPackageRowId,
+          )?.finished_product_weight_grams ?? 0,
+        )
+      : 0;
+    const nextErrors = validateBagDraft(
+      draft,
+      activeRemaining + persistedRowWeight,
+      packageTypes,
+    );
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -2521,9 +2790,12 @@ function SingleBagEntryLoop({
         (allocation) => allocation.id === activeAllocation.id,
       );
       setLastSaved({
+        kind: "bag",
         bagNumber,
         remainingWeight: Number(updatedAllocation?.remaining_weight_grams ?? 0),
       });
+      setAutosaveStatus("idle");
+      setAutosaveError(null);
       setDecisionError(null);
       setPhase("choosingNextAction");
     } catch (error) {
@@ -2541,10 +2813,69 @@ function SingleBagEntryLoop({
       (row) => row.recorded_package_id === null,
     );
     setDraft(createBagDraft(nextPlan, draft.packageTypeId));
+    setAutosaveStatus(nextPlan ? "saved" : "idle");
+    setAutosaveError(null);
     setErrors({});
     setSaveError(null);
     setDecisionError(null);
     setPhase("enteringBag");
+  }
+
+  function startRecordingLoss() {
+    lossReturnPhaseRef.current =
+      phase === "recordingLoss" ? "enteringBag" : phase;
+    setLossDraft(createLossDraft());
+    setLossErrors({});
+    setLossSaveError(null);
+    setDecisionError(null);
+    setPhase("recordingLoss");
+  }
+
+  function updateLossDraft(values: Partial<LossDraft>) {
+    setLossDraft((current) => ({ ...current, ...values }));
+    setLossErrors({});
+    setLossSaveError(null);
+  }
+
+  function cancelRecordingLoss() {
+    setLossErrors({});
+    setLossSaveError(null);
+    setPhase(lossReturnPhaseRef.current);
+  }
+
+  async function saveLoss(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeAllocation || lossSaving) return;
+    const nextErrors = validateLossDraft(lossDraft, activeRemaining);
+    if (Object.keys(nextErrors).length > 0) {
+      setLossErrors(nextErrors);
+      return;
+    }
+    setLossSaving(true);
+    setLossSaveError(null);
+    try {
+      const updated = await onRecordLoss(activeAllocation.id, {
+        weight_grams: toGrams(lossDraft.weight, lossDraft.weightUnit),
+        reason: lossDraft.reason as PackagingLossReason,
+        reason_detail:
+          lossDraft.reason === "Other"
+            ? lossDraft.reasonDetail.trim() || null
+            : null,
+      });
+      const updatedAllocation = updated.allocations.find(
+        (allocation) => allocation.id === activeAllocation.id,
+      );
+      setLastSaved({
+        kind: "loss",
+        remainingWeight: Number(updatedAllocation?.remaining_weight_grams ?? 0),
+      });
+      setDecisionError(null);
+      setPhase("choosingNextAction");
+    } catch (error) {
+      setLossSaveError(formatError(error));
+    } finally {
+      setLossSaving(false);
+    }
   }
 
   function reviewBags() {
@@ -2558,6 +2889,12 @@ function SingleBagEntryLoop({
   if (!activeAllocation) return null;
 
   const isOverallocated = activeRemaining < -ALLOCATION_TOLERANCE_GRAMS;
+  const activeDisplayUnit: WeightUnit =
+    phase === "recordingLoss" ? lossDraft.weightUnit : draft.finishedWeightUnit;
+  const formatWorkspaceWeight = (value: number | null) =>
+    value === null || !Number.isFinite(value)
+      ? "Unavailable"
+      : formatWeightInUnit(value, activeDisplayUnit, 3);
 
   return (
     <div className="single-bag-loop">
@@ -2567,12 +2904,12 @@ function SingleBagEntryLoop({
       >
         <p className="single-bag-hero__remaining">
           {isOverallocated
-            ? `${formatGrams(String(Math.abs(activeRemaining)), 3)} overallocated`
-            : `${formatGrams(String(activeRemaining), 3)} remaining to package`}
+            ? `${formatWeightInUnit(Math.abs(activeRemaining), activeDisplayUnit)} overallocated`
+            : `${formatWeightInUnit(activeRemainingToBag, activeDisplayUnit)} remaining to package`}
         </p>
         <p className="single-bag-hero__packaged">
-          {formatGrams(String(totalPackagedWeight), 3)} packaged across{" "}
-          {operation.packages.length} bag
+          {formatWeightInUnit(totalPackagedWeight, activeDisplayUnit)} packaged
+          across {operation.packages.length} bag
           {operation.packages.length === 1 ? "" : "s"}
         </p>
       </section>
@@ -2582,14 +2919,14 @@ function SingleBagEntryLoop({
         items={[
           {
             label: "Total in source",
-            value: formatOptionalWorkspaceWeight(
+            value: formatWorkspaceWeight(
               finiteWeightOrNull(activeAllocation.selected_weight_grams),
             ),
           },
           {
-            label: "Packaged",
-            value: formatOptionalWorkspaceWeight(
-              finiteWeightOrNull(activeAllocation.allocated_weight_grams),
+            label: "Bagged",
+            value: formatWorkspaceWeight(
+              finiteWeightOrNull(activeAllocation.bagged_weight_grams),
             ),
           },
           {
@@ -2597,16 +2934,15 @@ function SingleBagEntryLoop({
             value: activeAllocation.packages.length,
           },
           {
-            label: isOverallocated ? "Overallocated" : "Remaining",
-            value: formatOptionalWorkspaceWeight(
-              finiteWeightOrNull(activeAllocation.remaining_weight_grams) ===
-                null
-                ? null
-                : Math.abs(
+            label: isOverallocated ? "Overallocated" : "Remaining to bag",
+            value: formatWorkspaceWeight(
+              isOverallocated
+                ? Math.abs(
                     finiteWeightOrNull(
                       activeAllocation.remaining_weight_grams,
                     ) ?? 0,
-                  ),
+                  )
+                : finiteWeightOrNull(activeAllocation.remaining_to_bag_grams),
             ),
             emphasis: true,
           },
@@ -2683,7 +3019,9 @@ function SingleBagEntryLoop({
 
       <p className="sr-only" aria-live="polite" role="status">
         {lastSaved
-          ? `Bag ${lastSaved.bagNumber} saved. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
+          ? lastSaved.kind === "bag"
+            ? `Bag ${lastSaved.bagNumber} saved. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
+            : `Packaging Loss recorded. ${formatGrams(String(lastSaved.remainingWeight), 3)} remaining to package.`
           : ""}
       </p>
 
@@ -2784,17 +3122,149 @@ function SingleBagEntryLoop({
               </span>
             </Field>
           </div>
+          {autosaveStatus !== "idle" ? (
+            <p className="single-bag-form__autosave-status" aria-live="polite">
+              {autosaveStatus === "saving"
+                ? "Saving…"
+                : autosaveStatus === "saved"
+                  ? "Saved"
+                  : autosaveStatus === "error"
+                    ? "Autosave failed"
+                    : "Unsaved"}
+            </p>
+          ) : null}
+          {autosaveStatus === "error" ? (
+            <div className="error-banner" role="alert">
+              <p>
+                {autosaveError ?? "This Bag could not be saved."} Save Bag is
+                unavailable until it saves successfully.
+              </p>
+              <button
+                className="secondary-action mt-2"
+                type="button"
+                onClick={retryAutosave}
+              >
+                Retry saving this Bag
+              </button>
+            </div>
+          ) : null}
           {saveError ? (
             <p className="error-banner" role="alert">
               {saveError}
             </p>
           ) : null}
           <div className="single-bag-actions">
-            <button className="secondary-action" type="button" onClick={onBack}>
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={handleBack}
+            >
               Back
             </button>
-            <button className="primary-action" disabled={saving} type="submit">
+            {activeRemaining > ALLOCATION_TOLERANCE_GRAMS ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={startRecordingLoss}
+              >
+                Record loss
+              </button>
+            ) : null}
+            <button
+              className="primary-action"
+              disabled={
+                saving ||
+                autosaveStatus === "unsaved" ||
+                autosaveStatus === "saving" ||
+                autosaveStatus === "error"
+              }
+              type="submit"
+            >
               {saving ? "Saving…" : `Save Bag ${bagNumber}`}
+            </button>
+          </div>
+        </form>
+      ) : phase === "recordingLoss" && operation.status === "Open" ? (
+        <form className="single-bag-form" onSubmit={saveLoss} noValidate>
+          <h5 ref={lossHeadingRef} tabIndex={-1}>
+            Record Packaging Loss
+          </h5>
+          <div className="single-bag-form__fields">
+            <BagWeightField
+              error={lossErrors.weight}
+              id="loss-weight"
+              label="Weight"
+              unit={lossDraft.weightUnit}
+              value={lossDraft.weight}
+              onChange={(weight) => updateLossDraft({ weight })}
+              onUnitChange={(weightUnit) => updateLossDraft({ weightUnit })}
+            />
+            <Field
+              error={lossErrors.reason}
+              errorId="loss-reason-error"
+              htmlFor="loss-reason"
+              label="Reason"
+            >
+              <Select
+                aria-describedby={
+                  lossErrors.reason ? "loss-reason-error" : undefined
+                }
+                aria-invalid={Boolean(lossErrors.reason)}
+                id="loss-reason"
+                options={PACKAGING_LOSS_REASON_OPTIONS}
+                placeholder="Select a reason"
+                value={lossDraft.reason}
+                onChange={(reason) =>
+                  updateLossDraft({
+                    reason: reason as PackagingLossReason,
+                    reasonDetail:
+                      reason === "Other" ? lossDraft.reasonDetail : "",
+                  })
+                }
+              />
+            </Field>
+            {lossDraft.reason === "Other" ? (
+              <Field
+                className="single-bag-form__notes"
+                htmlFor="loss-reason-detail"
+                label="Detail"
+                optional
+              >
+                <Textarea
+                  id="loss-reason-detail"
+                  maxLength={200}
+                  placeholder="Describe what happened…"
+                  rows={3}
+                  value={lossDraft.reasonDetail}
+                  onChange={(event) =>
+                    updateLossDraft({ reasonDetail: event.target.value })
+                  }
+                />
+                <span className="single-bag-form__character-count">
+                  {lossDraft.reasonDetail.length} / 200
+                </span>
+              </Field>
+            ) : null}
+          </div>
+          {lossSaveError ? (
+            <p className="error-banner" role="alert">
+              {lossSaveError}
+            </p>
+          ) : null}
+          <div className="single-bag-actions">
+            <button
+              className="secondary-action"
+              type="button"
+              onClick={cancelRecordingLoss}
+            >
+              Cancel
+            </button>
+            <button
+              className="primary-action"
+              disabled={lossSaving}
+              type="submit"
+            >
+              {lossSaving ? "Saving…" : "Save Packaging Loss"}
             </button>
           </div>
         </form>
@@ -2805,8 +3275,10 @@ function SingleBagEntryLoop({
         >
           {lastSaved ? (
             <p className="single-bag-decision__saved">
-              Bag {lastSaved.bagNumber} saved ·{" "}
-              {formatGrams(String(lastSaved.remainingWeight), 3)} remaining to
+              {lastSaved.kind === "bag"
+                ? `Bag ${lastSaved.bagNumber} saved`
+                : "Packaging Loss recorded"}{" "}
+              · {formatGrams(String(lastSaved.remainingWeight), 3)} remaining to
               package
             </p>
           ) : null}
@@ -2826,6 +3298,16 @@ function SingleBagEntryLoop({
                 ? `Continue with Source ${nextOpenSourceNumber}`
                 : "Add another bag"}
             </button>
+            {operation.status === "Open" &&
+            activeRemaining > ALLOCATION_TOLERANCE_GRAMS ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={startRecordingLoss}
+              >
+                Record loss
+              </button>
+            ) : null}
             <button
               aria-describedby={
                 reviewBlocked ? "bag-review-blocked" : undefined
@@ -2851,7 +3333,7 @@ function SingleBagEntryLoop({
               {decisionError}
             </p>
           ) : null}
-          <button className="quiet-action" type="button" onClick={onBack}>
+          <button className="quiet-action" type="button" onClick={handleBack}>
             Back
           </button>
         </section>
@@ -2861,12 +3343,23 @@ function SingleBagEntryLoop({
         <summary>Allocation history</summary>
         <div className="single-bag-history__content">
           {operation.allocations.map((allocation, index) => (
-            <p key={allocation.id}>
-              Source {index + 1} · {allocation.source_trays.length} Tray
-              {allocation.source_trays.length === 1 ? "" : "s"} ·{" "}
-              {formatGrams(String(allocation.remaining_weight_grams), 3)}{" "}
-              remaining
-            </p>
+            <div key={allocation.id}>
+              <p>
+                Source {index + 1} · {allocation.source_trays.length} Tray
+                {allocation.source_trays.length === 1 ? "" : "s"} ·{" "}
+                {formatGrams(String(allocation.remaining_weight_grams), 3)}{" "}
+                remaining
+              </p>
+              {allocation.packaging_losses.map((loss) => (
+                <p className="single-bag-history__loss" key={loss.id}>
+                  Packaging Loss · {formatGrams(String(loss.weight_grams), 3)} ·{" "}
+                  {loss.reason}
+                  {loss.reason === "Other" && loss.reason_detail
+                    ? ` — ${loss.reason_detail}`
+                    : ""}
+                </p>
+              ))}
+            </div>
           ))}
         </div>
       </details>
@@ -2907,6 +3400,41 @@ function createBagDraft(
   };
 }
 
+/**
+ * Builds the PATCH .../allocations/{id} payload for autosaving one Bag's
+ * draft. Per ADR-0017's Reconciliation scope, this only ever needs to
+ * describe the Allocation's unrecorded Planned Package Rows: sibling rows
+ * are passed through by id alone (a no-op update, protecting them from the
+ * endpoint's remove-if-absent reconciliation), and the current draft carries
+ * its full field set so edits and clears both persist.
+ */
+function buildPlannedPackagesPayload(
+  allocation: PackagingAllocation,
+  draft: BagDraft,
+): PlannedPackageInput[] {
+  const siblings: PlannedPackageInput[] = allocation.planned_packages
+    .filter(
+      (row) =>
+        row.recorded_package_id === null &&
+        row.id !== draft.plannedPackageRowId,
+    )
+    .map((row) => ({ id: row.id }));
+  const current: PlannedPackageInput = {
+    ...(draft.plannedPackageRowId ? { id: draft.plannedPackageRowId } : {}),
+    package_type_id: draft.packageTypeId || null,
+    finished_product_weight_grams:
+      toGrams(draft.finishedWeight, draft.finishedWeightUnit) || null,
+    finished_product_weight_unit: draft.finishedWeightUnit,
+    sealed_package_weight_grams:
+      toGrams(draft.sealedWeight, draft.sealedWeightUnit) || null,
+    sealed_package_weight_unit: draft.sealedWeightUnit,
+    oxygen_absorber: draft.oxygenAbsorber.trim() || null,
+    storage_location_id: draft.storageLocationId || null,
+    notes: draft.notes.trim() || null,
+  };
+  return [...siblings, current];
+}
+
 function validateBagDraft(
   draft: BagDraft,
   remainingWeight: number,
@@ -2932,6 +3460,29 @@ function validateBagDraft(
   } else if (Number.isFinite(finishedWeight) && sealedWeight < finishedWeight) {
     errors.sealedWeight =
       "Sealed Package Weight cannot be lower than Finished Product Weight.";
+  }
+  return errors;
+}
+
+function createLossDraft(): LossDraft {
+  return {
+    weight: "",
+    weightUnit: "g",
+    reason: "",
+    reasonDetail: "",
+  };
+}
+
+function validateLossDraft(draft: LossDraft, remainingWeight: number) {
+  const errors: Record<string, string> = {};
+  const weight = Number(toGrams(draft.weight, draft.weightUnit));
+  if (!draft.reason) {
+    errors.reason = "Select a reason.";
+  }
+  if (!Number.isFinite(weight) || weight <= 0) {
+    errors.weight = "Enter a weight greater than 0 g.";
+  } else if (weight - remainingWeight > ALLOCATION_TOLERANCE_GRAMS) {
+    errors.weight = `Weight exceeds the remaining ${formatGrams(String(remainingWeight), 3)}.`;
   }
   return errors;
 }

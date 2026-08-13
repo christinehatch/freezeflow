@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.enums import PackagingLossReason
+
 
 class PackagingOperationStart(BaseModel):
     started_at: datetime | None = None
@@ -36,7 +38,6 @@ class PlannedPackageInput(BaseModel):
     label_rehydration_instructions: str | None = None
     label_serving_notes: str | None = None
     label_net_weight_display: str | None = None
-    label_fresh_equivalent_display: str | None = None
 
 
 class PackagingAllocationUpdateRequest(BaseModel):
@@ -53,7 +54,6 @@ class PackageLabelValues(BaseModel):
     rehydration_instructions: str | None = None
     serving_notes: str | None = None
     net_weight_display: str | None = None
-    fresh_equivalent_display: str | None = None
 
 
 class PackageLineCreate(BaseModel):
@@ -70,6 +70,12 @@ class PackageLineCreate(BaseModel):
 
 class RecordAllocationPackages(BaseModel):
     packages: list[PackageLineCreate] = Field(min_length=1)
+
+
+class RecordPackagingLoss(BaseModel):
+    weight_grams: Decimal = Field(gt=0)
+    reason: PackagingLossReason
+    reason_detail: str | None = None
 
 
 class PackageLabelSelection(BaseModel):

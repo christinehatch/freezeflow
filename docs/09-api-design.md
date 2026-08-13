@@ -607,6 +607,15 @@ Allocation notes while the operation is Open. Removing a Tray is rejected when
 doing so would make recorded Package Finished Product Weight exceed the selected
 source weight.
 
+The `planned_packages` array, when present, describes the Allocation's
+complete set of *unrecorded* planned Package rows: a row with no `id` is
+created, a row with an existing `id` is updated, and an existing unrecorded
+row whose `id` is absent from the array is removed. Recorded rows — those
+with a `recordedPackageId` — are immutable historical records and are
+excluded from this reconciliation entirely. A recorded row is left untouched
+whether the request includes or omits its `id`; it is never created, edited,
+or removed through this endpoint.
+
 ## Record Packages
 
 ```http

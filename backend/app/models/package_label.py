@@ -41,7 +41,6 @@ class PackageLabel(IdMixin, Base):
     rehydration_instructions: Mapped[str | None] = mapped_column(Text)
     serving_notes: Mapped[str | None] = mapped_column(Text)
     net_weight_display: Mapped[str | None] = mapped_column(String(255))
-    fresh_equivalent_display: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )

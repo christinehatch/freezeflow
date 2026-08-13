@@ -4,11 +4,15 @@ import type {
   PackageLabel,
   PackageLabelPrintResult,
   PackagingAllocation,
+  PackagingLoss,
   PackagingOperation,
   PackagingWorksheetItem,
   RecordAllocationPackagesResponse,
 } from "../src/api/client";
 import {
+  createAllocationSourceTray,
+  createPackagingAllocation,
+  createPackagingOperation,
   createScenarioProductionBatch,
   createScenarioTray,
   noOperationPackagingScenario,
@@ -273,7 +277,10 @@ test("records a planned Package, manages label readiness, and appends initial an
   expect(duplicate.body.detail.code).toBe("PACKAGE_RECORDING_CONFLICT");
   expect(fakeBackend.createdPackagingIds.packageIds).toHaveLength(1);
 
-  const recordedPlanEdit = await apiRequest(
+  // Recorded rows are immutable historical records excluded from
+  // reconciliation entirely (ADR-0017's Reconciliation scope): including or
+  // omitting one is a no-op for that row, never an edit or a removal.
+  const recordedPlanEdit = await apiRequest<PackagingAllocation>(
     page,
     "PATCH",
     `/packaging-operations/${operation.id}/allocations/${allocation.id}`,
@@ -283,18 +290,25 @@ test("records a planned Package, manages label readiness, and appends initial an
       ],
     },
   );
-  expect(recordedPlanEdit.body.detail.message).toBe(
-    "Recorded package plans cannot be edited.",
+  expect(recordedPlanEdit.status).toBe(200);
+  const stillRecorded = recordedPlanEdit.data.planned_packages.find(
+    (row) => row.id === plannedRow.id,
   );
-  const recordedPlanRemoval = await apiRequest(
+  expect(stillRecorded?.finished_product_weight_grams).toBe("120");
+  expect(stillRecorded?.recorded_package_id).toBe(recordedPackage.id);
+
+  const recordedPlanOmission = await apiRequest<PackagingAllocation>(
     page,
     "PATCH",
     `/packaging-operations/${operation.id}/allocations/${allocation.id}`,
     { planned_packages: [] },
   );
-  expect(recordedPlanRemoval.body.detail.message).toBe(
-    "Recorded package plans cannot be removed.",
-  );
+  expect(recordedPlanOmission.status).toBe(200);
+  expect(
+    recordedPlanOmission.data.planned_packages.some(
+      (row) => row.id === plannedRow.id,
+    ),
+  ).toBe(true);
 
   const previewPath = "/package-labels/preview";
   const printPath = "/package-labels/print";
@@ -430,7 +444,7 @@ test("enforces completion blockers and preserves successful completion as read-o
 
   const blocked = await apiRequest(page, "POST", completionPath, {});
   expect(blocked.body.detail.message).toBe(
-    "Every Allocation requires at least one Package.",
+    "Every Allocation requires at least one Package or Packaging Loss.",
   );
 
   const planned = await apiRequest<PackagingAllocation>(
@@ -503,6 +517,79 @@ test("enforces completion blockers and preserves successful completion as read-o
       .status,
   ).toBe(400);
   expect(fakeBackend.packagingCompleteBodies).toHaveLength(4);
+});
+
+test("records a Packaging Loss that fully accounts for an Allocation and unblocks completion", async ({
+  page,
+}) => {
+  const batch = createScenarioProductionBatch();
+  const sourceTray = createAllocationSourceTray({
+    id: batch.trays[0].id,
+    production_batch_id: batch.id,
+  });
+  const allocation = createPackagingAllocation({ source_trays: [sourceTray] });
+  const operation = createPackagingOperation({
+    production_batch_id: batch.id,
+    allocations: [allocation],
+  });
+  const fakeBackend = await mockFreezeflowApi(page, {
+    productionBatches: [batch],
+    packagingOperations: [operation],
+  });
+  const lossPath = `/packaging-operations/${operation.id}/allocations/${allocation.id}/losses`;
+  const completionPath = `/packaging-operations/${operation.id}/complete`;
+
+  await page.goto("/freeze-dryers");
+
+  const blocked = await apiRequest(page, "POST", completionPath, {});
+  expect(blocked.body.detail.message).toBe(
+    "Every Allocation requires at least one Package or Packaging Loss.",
+  );
+
+  const rejectedDetail = await apiRequest(page, "POST", lossPath, {
+    weight_grams: "10",
+    reason: "Sampled",
+    reason_detail: "Should be rejected.",
+  });
+  expect(rejectedDetail.status).toBe(400);
+  expect(rejectedDetail.body.detail.message).toBe(
+    "Reason detail is only accepted when reason is Other.",
+  );
+
+  const exceedsRemaining = await apiRequest(page, "POST", lossPath, {
+    weight_grams: "999",
+    reason: "Spilled",
+  });
+  expect(exceedsRemaining.status).toBe(400);
+
+  const recorded = await apiRequest<{
+    packaging_loss: PackagingLoss;
+    packaging_operation: PackagingOperation;
+  }>(page, "POST", lossPath, {
+    weight_grams: "240",
+    reason: "Crumbs",
+  });
+  expect(recorded.status).toBe(201);
+  expect(recorded.data.packaging_loss).toMatchObject({
+    weight_grams: "240",
+    reason: "Crumbs",
+    reason_detail: null,
+  });
+  const updatedAllocation = recorded.data.packaging_operation.allocations[0];
+  expect(updatedAllocation.remaining_weight_grams).toBe("0");
+  expect(updatedAllocation.packaging_losses).toHaveLength(1);
+
+  const completed = await apiRequest<PackagingOperation>(
+    page,
+    "POST",
+    completionPath,
+    {},
+  );
+  expect(completed.status).toBe(200);
+  expect(completed.data.status).toBe("Completed");
+  expect(completed.data.allocations[0].packages).toHaveLength(0);
+  expect(completed.data.allocations[0].packaging_losses).toHaveLength(1);
+  expect(fakeBackend.packagingLossBodies).toHaveLength(3);
 });
 
 async function apiRequest<T = unknown>(

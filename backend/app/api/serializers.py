@@ -8,6 +8,7 @@ from app.models import (
     PackageLabel,
     PackageType,
     PackagingAllocation,
+    PackagingLoss,
     PackagingOperation,
     PhysicalTray,
     PlannedPackageRow,
@@ -19,6 +20,16 @@ from app.models import (
     TrayStatus,
     WeightCheck,
 )
+from app.services.packaging import fresh_equivalent_grams
+
+
+def _fresh_equivalent_display(
+    allocation: PackagingAllocation, weight_grams: Decimal | None
+) -> str | None:
+    if weight_grams is None:
+        return None
+    fresh = fresh_equivalent_grams(allocation, weight_grams)
+    return None if fresh is None else f"{fresh:.1f} g fresh"
 
 
 def tray_slot_data(tray_slot: TraySlot) -> dict[str, object]:
@@ -192,8 +203,18 @@ def packaging_allocation_data(allocation: PackagingAllocation) -> dict[str, obje
         "updated_at": allocation.updated_at,
         "selected_weight_grams": allocation.selected_weight_grams,
         "allocated_weight_grams": allocation.allocated_weight_grams,
+        "total_recorded_loss_weight_grams": allocation.total_recorded_loss_weight_grams,
         "remaining_weight_grams": allocation.remaining_weight_grams,
+        "bagged_weight_grams": allocation.bagged_weight_grams,
+        "remaining_to_bag_grams": allocation.remaining_to_bag_grams,
         "source_trays": [source_tray_data(tray) for tray in source_trays],
+        "packaging_losses": [
+            packaging_loss_data(loss)
+            for loss in sorted(
+                allocation.packaging_losses,
+                key=lambda loss: loss.recorded_at,
+            )
+        ],
         "planned_packages": [
             planned_package_row_data(row)
             for row in sorted(
@@ -247,10 +268,23 @@ def planned_package_row_data(row: PlannedPackageRow) -> dict[str, object]:
         "label_rehydration_instructions": row.label_rehydration_instructions,
         "label_serving_notes": row.label_serving_notes,
         "label_net_weight_display": row.label_net_weight_display,
-        "label_fresh_equivalent_display": row.label_fresh_equivalent_display,
+        "label_fresh_equivalent_display": _fresh_equivalent_display(
+            row.packaging_allocation, row.finished_product_weight_grams
+        ),
         "recorded_package_id": row.recorded_package_id,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
+    }
+
+
+def packaging_loss_data(loss: PackagingLoss) -> dict[str, object]:
+    return {
+        "id": loss.id,
+        "packaging_allocation_id": loss.packaging_allocation_id,
+        "weight_grams": loss.weight_grams,
+        "reason": loss.reason,
+        "reason_detail": loss.reason_detail,
+        "recorded_at": loss.recorded_at,
     }
 
 
@@ -315,7 +349,10 @@ def package_label_data(label: PackageLabel) -> dict[str, object]:
         "rehydration_instructions": label.rehydration_instructions,
         "serving_notes": label.serving_notes,
         "net_weight_display": label.net_weight_display,
-        "fresh_equivalent_display": label.fresh_equivalent_display,
+        "fresh_equivalent_display": _fresh_equivalent_display(
+            label.package.packaging_allocation,
+            label.package.finished_product_weight_grams,
+        ),
         "created_at": label.created_at,
         "updated_at": label.updated_at,
         "print_events": [

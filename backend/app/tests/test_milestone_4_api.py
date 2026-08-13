@@ -10,6 +10,7 @@ from app.models import (
     PackageLabel,
     PackageLabelStatus,
     PackageStatusHistory,
+    PackagingLoss,
     PackagingOperation,
     PackagingOperationStatus,
     PrintEvent,
@@ -177,6 +178,19 @@ def _record_packages(
     )
     assert response.status_code == 201
     return _data(response)
+
+
+def _record_loss(
+    client: TestClient,
+    operation_id: str,
+    allocation_id: str,
+    body: dict,
+) -> object:
+    return client.post(
+        f"/api/v1/packaging-operations/{operation_id}/allocations/"
+        f"{allocation_id}/losses",
+        json=body,
+    )
 
 
 def test_packaging_operation_starts_resumes_and_is_queryable(
@@ -377,7 +391,10 @@ def test_planned_package_rows_can_be_updated_and_recorded_once(
     )
     _assert_business_error(reuse_response, "already been recorded")
 
-    change_recorded_response = client.patch(
+    # Recorded rows are excluded from reconciliation entirely: including one
+    # is a no-op for that row rather than an edit, and its sibling unrecorded
+    # row still updates normally.
+    included_response = client.patch(
         allocation_url,
         json={
             "planned_packages": [
@@ -392,14 +409,95 @@ def test_planned_package_rows_can_be_updated_and_recorded_once(
                     "package_type_id": package_type["id"],
                     "finished_product_weight_grams": "150.000",
                     "sealed_package_weight_grams": "155.000",
+                    "notes": "Updated while the sibling row stayed recorded.",
                 },
             ]
         },
     )
-    _assert_business_error(
-        change_recorded_response,
-        "Recorded package plans cannot be edited",
+    assert included_response.status_code == 200
+    included_plans = _data(included_response)["planned_packages"]
+    still_recorded = next(
+        row for row in included_plans if row["id"] == planned[0]["id"]
     )
+    assert still_recorded["finished_product_weight_grams"] == 100.0
+    assert still_recorded["recorded_package_id"] == recorded_package_id
+    updated_sibling = next(
+        row for row in included_plans if row["id"] == planned[1]["id"]
+    )
+    assert updated_sibling["notes"] == "Updated while the sibling row stayed recorded."
+
+    # Omitting a recorded row's id must not delete it either.
+    omitted_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "id": planned[1]["id"],
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "150.000",
+                    "sealed_package_weight_grams": "155.000",
+                },
+            ]
+        },
+    )
+    assert omitted_response.status_code == 200
+    omitted_plans = _data(omitted_response)["planned_packages"]
+    assert len(omitted_plans) == 2
+    still_present = next(row for row in omitted_plans if row["id"] == planned[0]["id"])
+    assert still_present["recorded_package_id"] == recorded_package_id
+
+
+def test_bagged_weight_ignores_drafts_while_allocated_weight_reserves_them(
+    client: TestClient,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch physical")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+    allocation_url = (
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}"
+    )
+
+    assert allocation["selected_weight_grams"] == 250.0
+    assert allocation["bagged_weight_grams"] == 0.0
+    assert allocation["remaining_to_bag_grams"] == 250.0
+
+    draft_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "100.000",
+                    "finished_product_weight_unit": "g",
+                    "sealed_package_weight_grams": "105.000",
+                    "sealed_package_weight_unit": "g",
+                }
+            ],
+        },
+    )
+    assert draft_response.status_code == 200
+    drafted = _data(draft_response)
+
+    assert drafted["allocated_weight_grams"] == 100.0
+    assert drafted["remaining_weight_grams"] == 150.0
+    assert drafted["bagged_weight_grams"] == 0.0
+    assert drafted["remaining_to_bag_grams"] == 250.0
+
+    planned_row_id = drafted["planned_packages"][0]["id"]
+    record_response = _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [{"planned_package_row_id": planned_row_id}],
+    )
+    recorded_allocation = record_response["packaging_operation"]["allocations"][0]
+
+    assert recorded_allocation["allocated_weight_grams"] == 100.0
+    assert recorded_allocation["remaining_weight_grams"] == 150.0
+    assert recorded_allocation["bagged_weight_grams"] == 100.0
+    assert recorded_allocation["remaining_to_bag_grams"] == 150.0
 
 
 def test_recording_packages_is_traceable_atomic_and_keeps_operation_open(
@@ -794,3 +892,240 @@ def test_package_finished_weight_remains_structured_and_not_derived(
     stored = db_session.query(Package).one()
     assert stored.finished_product_weight_grams == Decimal("250.000")
     assert stored.package_weight_grams == Decimal("257.000")
+
+
+def test_fresh_equivalent_display_is_always_computed_and_cannot_be_overridden(
+    client: TestClient,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch fresh")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+    allocation_url = (
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}"
+    )
+
+    draft_response = client.patch(
+        allocation_url,
+        json={
+            "planned_packages": [
+                {
+                    "package_type_id": package_type["id"],
+                    "finished_product_weight_grams": "100.000",
+                    "finished_product_weight_unit": "g",
+                    "sealed_package_weight_grams": "105.000",
+                    "sealed_package_weight_unit": "g",
+                    "label_fresh_equivalent_display": "Should be ignored",
+                }
+            ],
+        },
+    )
+    assert draft_response.status_code == 200
+    drafted = _data(draft_response)
+    planned_row = drafted["planned_packages"][0]
+    assert planned_row["label_fresh_equivalent_display"] == "362.8 g fresh"
+
+    recorded = _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [{"planned_package_row_id": planned_row["id"]}],
+    )
+    assert (
+        recorded["packages"][0]["label"]["fresh_equivalent_display"] == "362.8 g fresh"
+    )
+
+
+def test_packaging_loss_reduces_remaining_and_appears_in_allocation_history(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch loss")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [tray["id"] for tray in trays])
+    assert allocation["remaining_weight_grams"] == 500.0
+
+    loss_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "6.000", "reason": "Crumbs"},
+    )
+    assert loss_response.status_code == 201
+    after_loss = _data(loss_response)
+    recorded_loss = after_loss["packaging_loss"]
+    assert recorded_loss["weight_grams"] == 6.0
+    assert recorded_loss["reason"] == "Crumbs"
+    assert recorded_loss["reason_detail"] is None
+    assert recorded_loss["recorded_at"] is not None
+    after_loss_allocation = after_loss["packaging_operation"]["allocations"][0]
+    assert after_loss_allocation["remaining_weight_grams"] == 494.0
+    assert after_loss_allocation["total_recorded_loss_weight_grams"] == 6.0
+    assert len(after_loss_allocation["packaging_losses"]) == 1
+
+    other_loss_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {
+            "weight_grams": "4.000",
+            "reason": "Other",
+            "reason_detail": "Dropped while sealing.",
+        },
+    )
+    assert other_loss_response.status_code == 201
+    after_other_loss_allocation = _data(other_loss_response)["packaging_operation"][
+        "allocations"
+    ][0]
+    assert after_other_loss_allocation["remaining_weight_grams"] == 490.0
+    assert len(after_other_loss_allocation["packaging_losses"]) == 2
+    assert after_other_loss_allocation["packaging_losses"][1]["reason_detail"] == (
+        "Dropped while sealing."
+    )
+
+    _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [
+            {
+                "package_type_id": package_type["id"],
+                "finished_product_weight_grams": "490.000",
+                "sealed_package_weight_grams": "495.000",
+            }
+        ],
+    )
+    complete_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/complete",
+        json={},
+    )
+    assert complete_response.status_code == 200
+
+    db_session.expire_all()
+    assert db_session.query(PackagingLoss).count() == 2
+
+
+def test_packaging_loss_alone_unblocks_completion(client: TestClient) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch full loss")
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+
+    loss_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "250.000", "reason": "Spilled"},
+    )
+    assert loss_response.status_code == 201
+    assert (
+        _data(loss_response)["packaging_operation"]["allocations"][0][
+            "remaining_weight_grams"
+        ]
+        == 0.0
+    )
+
+    complete_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/complete",
+        json={},
+    )
+    assert complete_response.status_code == 200
+    assert _data(complete_response)["status"] == PackagingOperationStatus.COMPLETED
+
+
+def test_packaging_loss_validation_rules(client: TestClient) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch loss rules")
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"]])
+
+    no_work_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/complete",
+        json={},
+    )
+    _assert_business_error(no_work_response, "requires at least one Package")
+
+    zero_weight_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "0", "reason": "Sampled"},
+    )
+    assert zero_weight_response.status_code == 422
+
+    detail_without_other_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {
+            "weight_grams": "5.000",
+            "reason": "Sampled",
+            "reason_detail": "Should not be accepted.",
+        },
+    )
+    _assert_business_error(
+        detail_without_other_response,
+        "only accepted when reason is Other",
+    )
+
+    exceeds_remaining_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "999.000", "reason": "Spilled"},
+    )
+    _assert_business_error(exceeds_remaining_response, "cannot exceed")
+
+    ok_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "10.000", "reason": "Sampled"},
+    )
+    assert ok_response.status_code == 201
+
+    other_batch, other_trays = _create_completed_batch(
+        client,
+        batch_number="Batch loss other operation",
+    )
+    other_operation = _start_operation(client, other_batch["id"])
+    _allocate(client, other_operation["id"], [other_trays[0]["id"]])
+    mismatched_response = _record_loss(
+        client,
+        other_operation["id"],
+        allocation["id"],
+        {"weight_grams": "1.000", "reason": "Sampled"},
+    )
+    _assert_business_error(
+        mismatched_response,
+        "Allocation does not belong to this Packaging Operation",
+    )
+
+    _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "240.000", "reason": "Crumbs"},
+    )
+    closing_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/complete",
+        json={},
+    )
+    assert closing_response.status_code == 200
+
+    reopened_response = _record_loss(
+        client,
+        operation["id"],
+        allocation["id"],
+        {"weight_grams": "1.000", "reason": "Sampled"},
+    )
+    _assert_business_error(
+        reopened_response,
+        "Completed Packaging Operations cannot be changed",
+    )
+
+    delete_response = client.delete(
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}/losses"
+    )
+    assert delete_response.status_code == 405

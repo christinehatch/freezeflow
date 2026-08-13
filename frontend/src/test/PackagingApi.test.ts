@@ -100,7 +100,11 @@ const allocation: PackagingAllocation = {
   updated_at: "2026-07-18T10:00:00Z",
   selected_weight_grams: "232.5",
   allocated_weight_grams: "232.5",
+  total_recorded_loss_weight_grams: "0",
   remaining_weight_grams: "0",
+  bagged_weight_grams: "232.5",
+  remaining_to_bag_grams: "0",
+  packaging_losses: [],
   source_trays: [
     {
       id: "tray-1",

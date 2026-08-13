@@ -284,6 +284,23 @@ Users should not have to remember information the software already knows.
 
 ---
 
+## Present Physical State, Not Internal Mechanism
+
+Some internal state exists only to protect correctness — reservations, in-progress drafts, pending validations — not to describe what has physically happened yet.
+
+The interface should describe the physical process the user is performing, not the bookkeeping that protects it.
+
+Examples:
+
+* A reservation that prevents overcommitting a limited resource is a validation mechanism, not a progress indicator.
+* A draft that has not been committed should not be presented as if it were already complete.
+
+The internal mechanism may still surface, but only to explain why an action was blocked—for example, "You have unsaved bags reserving space—save or discard one to continue"—never as a persistent figure the user is expected to track on its own.
+
+When in doubt, ask: would this number make sense to someone doing this task with pen and paper? If not, it may be internal bookkeeping rather than something to show.
+
+---
+
 ## Don't Make the User Remember
 
 Freezeflow should become the user's production memory.

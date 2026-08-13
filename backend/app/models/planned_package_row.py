@@ -77,7 +77,6 @@ class PlannedPackageRow(IdMixin, Base):
     label_rehydration_instructions: Mapped[str | None] = mapped_column(Text)
     label_serving_notes: Mapped[str | None] = mapped_column(Text)
     label_net_weight_display: Mapped[str | None] = mapped_column(String(255))
-    label_fresh_equivalent_display: Mapped[str | None] = mapped_column(String(255))
     recorded_package_id: Mapped[UUID | None] = mapped_column(
         GUID(), ForeignKey("packages.id"), unique=True
     )

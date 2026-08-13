@@ -11,6 +11,7 @@ from app.repositories.packages import package_repository
 from app.repositories.packaging_operations import (
     packaging_allocation_repository,
     packaging_allocation_source_tray_repository,
+    packaging_loss_repository,
     packaging_operation_repository,
     planned_package_row_repository,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "package_status_history_repository",
     "packaging_allocation_repository",
     "packaging_allocation_source_tray_repository",
+    "packaging_loss_repository",
     "packaging_operation_repository",
     "planned_package_row_repository",
     "print_event_repository",

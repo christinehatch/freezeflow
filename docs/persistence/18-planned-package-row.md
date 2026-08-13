@@ -25,7 +25,14 @@ creating a Package or inventory.
 
 # Behavior
 
-Planned rows may be added, edited, or removed while the Operation is Open. They
-are not Packages, do not receive Package Identifiers, and do not create inventory
-or history. Recording a row atomically creates the Package, Package Label,
-initial `In Storage` Package Status History, and initial Storage Location History.
+Planned rows may be added, edited, or removed while the Operation is Open, but
+only while unrecorded. They are not Packages, do not receive Package
+Identifiers, and do not create inventory or history. Recording a row
+atomically creates the Package, Package Label, initial `In Storage` Package
+Status History, and initial Storage Location History.
+
+From that point, the row is an immutable historical record: it is permanently
+excluded from the add/edit/remove reconciliation used to save planned Package
+rows, regardless of whether a later request includes or omits it. Reconciling
+planned Package rows only ever describes the Allocation's current unrecorded
+rows.

@@ -24,6 +24,7 @@ from app.models.mixins import IdMixin, utc_now
 
 if TYPE_CHECKING:
     from app.models.package import Package
+    from app.models.packaging_loss import PackagingLoss
     from app.models.planned_package_row import PlannedPackageRow
     from app.models.production_batch import ProductionBatch
     from app.models.tray import Tray
@@ -116,6 +117,9 @@ class PackagingAllocation(IdMixin, Base):
     packages: Mapped[list[Package]] = relationship(
         back_populates="packaging_allocation"
     )
+    packaging_losses: Mapped[list[PackagingLoss]] = relationship(
+        back_populates="packaging_allocation", cascade="all, delete-orphan"
+    )
 
     @property
     def selected_weight_grams(self) -> Decimal:
@@ -147,8 +151,37 @@ class PackagingAllocation(IdMixin, Base):
         return recorded_weight + planned_weight
 
     @property
+    def total_recorded_loss_weight_grams(self) -> Decimal:
+        return sum(
+            (loss.weight_grams for loss in self.packaging_losses),
+            start=Decimal("0"),
+        )
+
+    @property
     def remaining_weight_grams(self) -> Decimal:
-        return self.selected_weight_grams - self.allocated_weight_grams
+        return (
+            self.selected_weight_grams
+            - self.allocated_weight_grams
+            - self.total_recorded_loss_weight_grams
+        )
+
+    @property
+    def bagged_weight_grams(self) -> Decimal:
+        return sum(
+            (
+                package.finished_product_weight_grams or Decimal("0")
+                for package in self.packages
+            ),
+            start=Decimal("0"),
+        )
+
+    @property
+    def remaining_to_bag_grams(self) -> Decimal:
+        return (
+            self.selected_weight_grams
+            - self.bagged_weight_grams
+            - self.total_recorded_loss_weight_grams
+        )
 
 
 class PackagingAllocationSourceTray(IdMixin, Base):

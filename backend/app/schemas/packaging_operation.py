@@ -1,9 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.enums import PackagingOperationStatus
+from app.models.enums import PackagingLossReason, PackagingOperationStatus
 from app.schemas.base import ReadSchema
 
 
@@ -52,3 +53,15 @@ class PackagingAllocationSourceTrayRead(
     PackagingAllocationSourceTrayCreate, ReadSchema
 ):
     id: UUID
+
+
+class PackagingLossCreate(BaseModel):
+    packaging_allocation_id: UUID
+    weight_grams: Decimal
+    reason: PackagingLossReason
+    reason_detail: str | None = None
+
+
+class PackagingLossRead(PackagingLossCreate, ReadSchema):
+    id: UUID
+    recorded_at: datetime

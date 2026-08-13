@@ -13,6 +13,8 @@ from app.models import (
     PackageType,
     PackagingAllocation,
     PackagingAllocationSourceTray,
+    PackagingLoss,
+    PackagingLossReason,
     PackagingOperation,
     PackagingOperationStatus,
     PlannedPackageRow,
@@ -27,6 +29,7 @@ from app.repositories import (
     package_repository,
     package_type_repository,
     packaging_allocation_repository,
+    packaging_loss_repository,
     packaging_operation_repository,
     planned_package_row_repository,
 )
@@ -39,10 +42,12 @@ from app.schemas import (
     PackageTypeUpdate,
     PackagingAllocationCreateRequest,
     PackagingAllocationUpdateRequest,
+    PackagingLossCreate,
     PackagingOperationCreate,
     PackagingOperationStart,
     PlannedPackageInput,
     RecordAllocationPackages,
+    RecordPackagingLoss,
 )
 from app.services.errors import BusinessRuleError
 
@@ -192,6 +197,9 @@ def get_packaging_operation(db: Session, operation_id: UUID) -> PackagingOperati
             selectinload(PackagingOperation.allocations).selectinload(
                 PackagingAllocation.planned_package_rows
             ),
+            selectinload(PackagingOperation.allocations).selectinload(
+                PackagingAllocation.packaging_losses
+            ),
             selectinload(PackagingOperation.allocations)
             .selectinload(PackagingAllocation.packages)
             .selectinload(Package.label)
@@ -241,6 +249,7 @@ def get_packaging_allocation(db: Session, allocation_id: UUID) -> PackagingAlloc
             .selectinload(PackagingAllocationSourceTray.tray)
             .selectinload(Tray.physical_tray),
             selectinload(PackagingAllocation.planned_package_rows),
+            selectinload(PackagingAllocation.packaging_losses),
             selectinload(PackagingAllocation.packages).selectinload(Package.label),
         )
     )
@@ -338,6 +347,34 @@ def record_allocation_packages(
     return [get_package(db, package.id) for package in created]
 
 
+def record_packaging_loss(
+    db: Session,
+    operation_id: UUID,
+    allocation_id: UUID,
+    data: RecordPackagingLoss,
+) -> PackagingLoss:
+    allocation = _open_allocation(db, operation_id, allocation_id)
+    reason_detail = _clean_optional_text(data.reason_detail)
+    if data.reason != PackagingLossReason.OTHER and reason_detail is not None:
+        raise BusinessRuleError("Reason detail is only accepted when reason is Other.")
+    excess = data.weight_grams - allocation.remaining_weight_grams
+    if excess > ALLOCATION_TOLERANCE_GRAMS:
+        raise BusinessRuleError(
+            "Packaging Loss cannot exceed the Allocation's Remaining Weight."
+        )
+    loss = packaging_loss_repository.create(
+        db,
+        PackagingLossCreate(
+            packaging_allocation_id=allocation.id,
+            weight_grams=data.weight_grams,
+            reason=data.reason,
+            reason_detail=reason_detail,
+        ),
+    )
+    db.commit()
+    return loss
+
+
 def complete_packaging_operation(
     db: Session,
     operation_id: UUID,
@@ -352,8 +389,10 @@ def complete_packaging_operation(
             "A Packaging Operation requires at least one Allocation."
         )
     for allocation in operation.allocations:
-        if not allocation.packages:
-            raise BusinessRuleError("Every Allocation requires at least one Package.")
+        if not allocation.packages and not allocation.packaging_losses:
+            raise BusinessRuleError(
+                "Every Allocation requires at least one Package or Packaging Loss."
+            )
         if any(
             row.recorded_package_id is None for row in allocation.planned_package_rows
         ):
@@ -523,14 +562,26 @@ def _replace_allocation_sources(
 def _reconcile_planned_rows(
     db: Session, allocation: PackagingAllocation, inputs: list[PlannedPackageInput]
 ) -> None:
-    existing = {row.id: row for row in allocation.planned_package_rows}
+    # Recorded rows are immutable historical records and are excluded from
+    # reconciliation entirely: they are never deleted for being omitted, and
+    # never edited for being included. Only unrecorded rows are editable.
+    editable = {
+        row.id: row
+        for row in allocation.planned_package_rows
+        if row.recorded_package_id is None
+    }
+    recorded_ids = {
+        row.id
+        for row in allocation.planned_package_rows
+        if row.recorded_package_id is not None
+    }
     requested_ids = {item.id for item in inputs if item.id is not None}
-    for row in list(existing.values()):
-        if row.id not in requested_ids:
-            if row.recorded_package_id is not None:
-                raise BusinessRuleError("Recorded package plans cannot be removed.")
+    for row_id, row in list(editable.items()):
+        if row_id not in requested_ids:
             db.delete(row)
     for item in inputs:
+        if item.id is not None and item.id in recorded_ids:
+            continue
         values = item.model_dump(exclude={"id"}, exclude_unset=True)
         _validate_plan_references(db, values)
         if item.id is None:
@@ -539,13 +590,11 @@ def _reconcile_planned_rows(
                 {"packaging_allocation_id": allocation.id, **values},
             )
         else:
-            row = existing.get(item.id)
+            row = editable.get(item.id)
             if row is None:
                 raise BusinessRuleError(
                     "Planned Package does not belong to this Allocation."
                 )
-            if row.recorded_package_id is not None:
-                raise BusinessRuleError("Recorded package plans cannot be edited.")
             planned_package_row_repository.update(db, row, values)
     db.flush()
 
@@ -622,7 +671,6 @@ def _default_label_values(
             "rehydration_instructions": planned.label_rehydration_instructions,
             "serving_notes": planned.label_serving_notes,
             "net_weight_display": planned.label_net_weight_display,
-            "fresh_equivalent_display": planned.label_fresh_equivalent_display,
         }
         label_values = {
             **{k: v for k, v in planned_labels.items() if v is not None},
@@ -634,15 +682,10 @@ def _default_label_values(
         "net_weight_display",
         f'{Decimal(values["finished_product_weight_grams"]):.1f} g',
     )
-    fresh = _fresh_equivalent(
-        allocation, Decimal(values["finished_product_weight_grams"])
-    )
-    if fresh is not None:
-        label_values.setdefault("fresh_equivalent_display", f"{fresh:.1f} g fresh")
     return PackageLabelCreate(status=PackageLabelStatus.READY, **label_values)
 
 
-def _fresh_equivalent(
+def fresh_equivalent_grams(
     allocation: PackagingAllocation, package_weight: Decimal
 ) -> Decimal | None:
     dry = allocation.selected_weight_grams
@@ -672,6 +715,10 @@ def _selected_labels(
                 selectinload(PackageLabel.package).selectinload(
                     Package.storage_location
                 ),
+                selectinload(PackageLabel.package)
+                .selectinload(Package.packaging_allocation)
+                .selectinload(PackagingAllocation.source_tray_links)
+                .selectinload(PackagingAllocationSourceTray.tray),
                 selectinload(PackageLabel.print_events),
             )
         ).all()

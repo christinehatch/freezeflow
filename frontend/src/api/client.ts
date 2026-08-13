@@ -202,6 +202,17 @@ export type PlannedPackageRow = {
   updated_at: string;
 };
 
+export type PackagingLossReason = "Sampled" | "Spilled" | "Crumbs" | "Other";
+
+export type PackagingLoss = {
+  id: string;
+  packaging_allocation_id: string;
+  weight_grams: DecimalValue;
+  reason: PackagingLossReason;
+  reason_detail: string | null;
+  recorded_at: string;
+};
+
 export type PackagingAllocation = {
   id: string;
   packaging_operation_id: string;
@@ -210,10 +221,14 @@ export type PackagingAllocation = {
   updated_at: string;
   selected_weight_grams: DecimalValue;
   allocated_weight_grams: DecimalValue;
+  total_recorded_loss_weight_grams: DecimalValue;
   remaining_weight_grams: DecimalValue;
+  bagged_weight_grams: DecimalValue;
+  remaining_to_bag_grams: DecimalValue;
   source_trays: PackagingAllocationSourceTray[];
   planned_packages: PlannedPackageRow[];
   packages: Package[];
+  packaging_losses: PackagingLoss[];
 };
 
 export type PackagingWorksheetItem = {
@@ -308,7 +323,6 @@ export type PlannedPackageInput = {
   label_rehydration_instructions?: string | null;
   label_serving_notes?: string | null;
   label_net_weight_display?: string | null;
-  label_fresh_equivalent_display?: string | null;
 };
 
 export type PackagingAllocationUpdateRequest = {
@@ -325,7 +339,6 @@ export type PackageLabelValues = {
   rehydration_instructions?: string | null;
   serving_notes?: string | null;
   net_weight_display?: string | null;
-  fresh_equivalent_display?: string | null;
 };
 
 export type PackageLineCreate = {
@@ -342,6 +355,17 @@ export type PackageLineCreate = {
 
 export type RecordAllocationPackagesRequest = {
   packages: PackageLineCreate[];
+};
+
+export type RecordPackagingLossRequest = {
+  weight_grams: DecimalValue;
+  reason: PackagingLossReason;
+  reason_detail?: string | null;
+};
+
+export type RecordPackagingLossResponse = {
+  packaging_loss: PackagingLoss;
+  packaging_operation: PackagingOperation;
 };
 
 export type RecordAllocationPackagesResponse = {
@@ -701,6 +725,19 @@ export const packagingApi = {
       `/packaging-operations/${operationId}/allocations/${allocationId}/packages`,
       body,
     ),
+  recordAllocationLoss: ({
+    operationId,
+    allocationId,
+    body,
+  }: {
+    operationId: string;
+    allocationId: string;
+    body: RecordPackagingLossRequest;
+  }) =>
+    apiPost<RecordPackagingLossResponse>(
+      `/packaging-operations/${operationId}/allocations/${allocationId}/losses`,
+      body,
+    ),
   completePackagingOperation: ({
     operationId,
     body,
@@ -758,11 +795,6 @@ async function packageTraysThroughWorkflow(
     allocationId: allocation.id,
     body: {
       packages: body.packages.map((line) => {
-        const finishedWeight = Number(line.finished_product_weight_grams);
-        const freshEquivalent =
-          sourceWeight > 0 && startingWeight > 0
-            ? (finishedWeight / sourceWeight) * startingWeight
-            : null;
         return {
           package_type_id: line.package_type_id,
           finished_product_weight_grams: line.finished_product_weight_grams,
@@ -775,8 +807,6 @@ async function packageTraysThroughWorkflow(
             display_name: body.product_summary,
             preparation_summary: body.preparation_summary,
             net_weight_display: `${line.finished_product_weight_grams} g`,
-            fresh_equivalent_display:
-              freshEquivalent === null ? null : `${freshEquivalent} g`,
           },
         };
       }),
@@ -883,7 +913,10 @@ export const developerToolsApi = {
     devRequest<DevToolResult>("/dev/demo/busy-production-day"),
   seedEmpty: () => devRequest<DevToolResult>("/dev/demo/empty"),
   seedInventory: () => devRequest<DevToolResult>("/dev/demo/inventory"),
-  seedPackaging: () => devRequest<DevToolResult>("/dev/demo/packaging"),
+  seedPackagingFresh: () =>
+    devRequest<DevToolResult>("/dev/demo/packaging-fresh"),
+  seedPackagingResume: () =>
+    devRequest<DevToolResult>("/dev/demo/packaging-resume"),
   seedWeightHistory: () =>
     devRequest<DevToolResult>("/dev/demo/weight-history"),
   createRandomBatches: (count = 100) =>

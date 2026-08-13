@@ -39,5 +39,12 @@ class PackageLabelStatus(StrEnum):
     NEEDS_REPRINT = "Needs Reprint"
 
 
+class PackagingLossReason(StrEnum):
+    SAMPLED = "Sampled"
+    SPILLED = "Spilled"
+    CRUMBS = "Crumbs"
+    OTHER = "Other"
+
+
 def enum_values(enum_class: type[StrEnum]) -> list[str]:
     return [member.value for member in enum_class]

@@ -4,6 +4,7 @@ from app.models.enums import (
     DryingRunStatus,
     InventoryStatus,
     PackageLabelStatus,
+    PackagingLossReason,
     PackagingOperationStatus,
     ProductionBatchStatus,
     TrayStatus,
@@ -13,6 +14,7 @@ from app.models.package import Package
 from app.models.package_label import PackageLabel
 from app.models.package_status_history import PackageStatusHistory
 from app.models.package_type import PackageType
+from app.models.packaging_loss import PackagingLoss
 from app.models.packaging_operation import (
     PackagingAllocation,
     PackagingAllocationSourceTray,
@@ -45,6 +47,8 @@ __all__ = [
     "PackageType",
     "PackagingAllocation",
     "PackagingAllocationSourceTray",
+    "PackagingLoss",
+    "PackagingLossReason",
     "PackagingOperation",
     "PackagingOperationTray",
     "PackagingOperationStatus",

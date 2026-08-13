@@ -26,7 +26,6 @@ class PlannedPackageRowCreate(BaseModel):
     label_rehydration_instructions: str | None = None
     label_serving_notes: str | None = None
     label_net_weight_display: str | None = None
-    label_fresh_equivalent_display: str | None = None
 
 
 class PlannedPackageRowUpdate(BaseModel):
@@ -46,7 +45,6 @@ class PlannedPackageRowUpdate(BaseModel):
     label_rehydration_instructions: str | None = None
     label_serving_notes: str | None = None
     label_net_weight_display: str | None = None
-    label_fresh_equivalent_display: str | None = None
 
 
 class PlannedPackageRowRead(PlannedPackageRowCreate, ReadSchema):
