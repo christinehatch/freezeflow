@@ -283,6 +283,11 @@ export function PackageLabelEditor({
             Label status: <strong>{authoritativeStatus}</strong>. The backend
             determines Ready and Needs Reprint when this label is saved.
           </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Fresh Equivalent:{" "}
+            <strong>{label.fresh_equivalent_display ?? "Not available"}</strong>
+            . Calculated automatically from source Tray weights.
+          </p>
         </div>
         <p className="text-sm text-slate-600">
           Package Identifier and Packaging Date remain authoritative Package

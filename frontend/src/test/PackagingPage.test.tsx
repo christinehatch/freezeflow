@@ -3090,10 +3090,14 @@ describe("PackagingPage", () => {
         .closest("article")!,
     );
     expect(recordedSummary.getAllByText("Ready").length).toBeGreaterThan(0);
-    expect(recordedSummary.getByText("Taco Dinner")).toBeInTheDocument();
     expect(
-      recordedSummary.getAllByText("Chicken, peppers").length,
-    ).toBeGreaterThan(0);
+      recordedSummary.getByLabelText("PKG-2026-000001 Label Display Name"),
+    ).toHaveValue("Taco Dinner");
+    expect(
+      recordedSummary.getByLabelText(
+        "PKG-2026-000001 Label Ingredients Summary",
+      ),
+    ).toHaveValue("Chicken, peppers");
     expect(completePackagingPostRequests()).toHaveLength(0);
     expect(printPackageLabelPostRequests()).toHaveLength(0);
     const persistedPackage = testState.getOperation()?.packages[0];

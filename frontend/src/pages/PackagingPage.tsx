@@ -3945,46 +3945,16 @@ function RecordedPackageSummary({
         </p>
       </div>
 
-      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <WorkspaceDetail
-          label="Package Type"
-          value={
-            recordedPackage.package_type?.name ?? "Package Type unavailable"
-          }
-        />
-        <WorkspaceDetail
-          label="Finished Product Weight"
-          value={
-            recordedPackage.finished_product_weight_grams === null
-              ? "Not specified"
-              : formatGrams(
-                  String(recordedPackage.finished_product_weight_grams),
-                )
-          }
-        />
-        <WorkspaceDetail
-          label="Sealed Package Weight"
-          value={formatGrams(String(recordedPackage.package_weight_grams))}
-        />
-        <WorkspaceDetail
-          label="Oxygen Absorber"
-          value={recordedPackage.oxygen_absorber || "Not specified"}
-        />
-        <WorkspaceDetail
-          label="Storage Location"
-          value={
-            recordedPackage.storage_location?.name ??
-            "Storage Location unavailable"
-          }
-        />
-        <WorkspaceDetail
-          label="Notes"
-          value={recordedPackage.notes || "No notes"}
-        />
-      </dl>
-
       {label ? (
-        <>
+        editable ? (
+          <PackageLabelEditor
+            formatError={formatError}
+            label={label}
+            onRefresh={onRefreshLabel}
+            onSave={onSaveLabel}
+            packageIdentifier={recordedPackage.package_identifier}
+          />
+        ) : (
           <PackageLabelDetails
             description={label.description}
             displayName={label.display_name}
@@ -3996,16 +3966,7 @@ function RecordedPackageSummary({
             servingNotes={label.serving_notes}
             status={label.status}
           />
-          {editable ? (
-            <PackageLabelEditor
-              formatError={formatError}
-              label={label}
-              onRefresh={onRefreshLabel}
-              onSave={onSaveLabel}
-              packageIdentifier={recordedPackage.package_identifier}
-            />
-          ) : null}
-        </>
+        )
       ) : (
         <p className="mt-3 text-sm text-slate-600">
           No Package Label is recorded for this Package.
