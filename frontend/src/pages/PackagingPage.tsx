@@ -2261,6 +2261,22 @@ function PackagingOperationWorkspace({
                 </ul>
               </div>
             )}
+            {operation.status !== "Completed" && availableTrays.length > 0 ? (
+              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-semibold">
+                  {availableTrays.length} completed Tray
+                  {availableTrays.length === 1 ? "" : "s"} for this Batch{" "}
+                  {availableTrays.length === 1 ? "hasn't" : "haven't"} been
+                  added to a Packaging Allocation.
+                </p>
+                <p className="mt-1">
+                  Completing this Packaging Operation won&rsquo;t include{" "}
+                  {availableTrays.length === 1 ? "it" : "them"}. A new Packaging
+                  Operation will be needed to package{" "}
+                  {availableTrays.length === 1 ? "it" : "them"} later.
+                </p>
+              </div>
+            ) : null}
             <PackagingCompletionAction
               eligible={appearsEligible}
               formatError={formatError}

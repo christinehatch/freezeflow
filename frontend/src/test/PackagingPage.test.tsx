@@ -1626,6 +1626,45 @@ describe("PackagingPage", () => {
     expect(completePackagingPostRequests()).toHaveLength(0);
   });
 
+  it("warns when eligible completed Trays remain unallocated at the Finish stage", async () => {
+    const tray = defaultWorksheet()[0].eligible_trays[0];
+    const recordedPackage = createPackage({
+      finished_product_weight_grams: "238.1",
+    });
+    const allocation = createPackagingAllocation([tray], {
+      allocated_weight_grams: "238.1",
+      packages: [recordedPackage],
+      remaining_weight_grams: "0",
+      selected_weight_grams: "238.1",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [allocation],
+      packages: [recordedPackage],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+
+    const eligibility = within(
+      await screen.findByLabelText("Packaging completion eligibility"),
+    );
+    expect(
+      eligibility.getByText("Appears eligible for completion"),
+    ).toBeInTheDocument();
+    expect(
+      eligibility.getByText(
+        "1 completed Tray for this Batch hasn't been added to a Packaging Allocation.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      eligibility.getByText(/A new Packaging Operation will be needed/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete Packaging" }),
+    ).toBeEnabled();
+  });
+
   it("shows every planned-work and Package Label blocker before completion", async () => {
     const tray = defaultWorksheet()[0].eligible_trays[0];
     const missingLabelPackage = {
