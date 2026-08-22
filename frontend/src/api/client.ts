@@ -147,6 +147,11 @@ export type Package = {
   label: PackageLabel;
 };
 
+export type PackageEligibleForPrint = Package & {
+  production_batch_id: string;
+  batch_number: string;
+};
+
 export type PackagingOperationStatus = "Open" | "Completed";
 export type PackageLabelStatus = "Draft" | "Ready" | "Needs Reprint";
 
@@ -653,6 +658,8 @@ export const productionApi = {
 
 export const packagingApi = {
   getWorksheet: () => apiGet<PackagingWorksheetItem[]>("/packaging/worksheet"),
+  getPackagesEligibleForTodaysPrint: () =>
+    apiGet<PackageEligibleForPrint[]>("/package-labels/eligible-today"),
   listPackageTypes: () => apiGet<PackageType[]>("/package-types"),
   createPackageType: (body: {
     name: string;

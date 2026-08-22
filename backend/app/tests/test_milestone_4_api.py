@@ -692,6 +692,69 @@ def test_package_labels_can_be_edited_previewed_printed_and_reprinted(
     assert db_session.query(PrintEvent).count() == 3
 
 
+def test_eligible_today_lists_only_ready_and_reprint_labels_packaged_today(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    batch, trays = _create_completed_batch(client, batch_number="Batch today")
+    package_type = _create_package_type(client)
+    operation = _start_operation(client, batch["id"])
+    allocation = _allocate(client, operation["id"], [trays[0]["id"], trays[1]["id"]])
+    recorded = _record_packages(
+        client,
+        operation["id"],
+        allocation["id"],
+        [
+            {
+                "package_type_id": package_type["id"],
+                "finished_product_weight_grams": "125.000",
+                "sealed_package_weight_grams": "130.000",
+            },
+            {
+                "package_type_id": package_type["id"],
+                "finished_product_weight_grams": "125.000",
+                "sealed_package_weight_grams": "130.000",
+            },
+        ],
+    )
+    ready_package, draft_package = recorded["packages"]
+
+    edit_response = client.patch(
+        f"/api/v1/packages/{ready_package['id']}/label",
+        json={"display_name": "Today's Ready Meal"},
+    )
+    assert edit_response.status_code == 200
+    assert _data(edit_response)["status"] == PackageLabelStatus.READY
+
+    draft_label = db_session.get(Package, draft_package["id"]).label
+    draft_label.status = PackageLabelStatus.DRAFT
+    db_session.add(draft_label)
+    db_session.commit()
+
+    response = client.get("/api/v1/package-labels/eligible-today")
+    assert response.status_code == 200
+    eligible = _data(response)
+    eligible_ids = [package["id"] for package in eligible]
+
+    assert ready_package["id"] in eligible_ids
+    assert draft_package["id"] not in eligible_ids
+    eligible_entry = next(
+        package for package in eligible if package["id"] == ready_package["id"]
+    )
+    assert eligible_entry["batch_number"] == batch["batch_number"]
+    assert eligible_entry["production_batch_id"] == batch["id"]
+    assert eligible_entry["label"]["display_name"] == "Today's Ready Meal"
+
+    old_package = db_session.get(Package, ready_package["id"])
+    old_package.packaged_at = datetime(2020, 1, 1, tzinfo=UTC)
+    db_session.add(old_package)
+    db_session.commit()
+
+    response = client.get("/api/v1/package-labels/eligible-today")
+    assert response.status_code == 200
+    assert ready_package["id"] not in [package["id"] for package in _data(response)]
+
+
 def test_completion_reports_each_blocker_and_succeeds_explicitly(
     client: TestClient,
     db_session: Session,

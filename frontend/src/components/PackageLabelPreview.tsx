@@ -12,6 +12,7 @@ import {
   type Avery5163Label,
   type Avery5163PrintOutput,
   paginateAvery5163Items,
+  toAvery5163Label,
 } from "../utils/avery5163Labels";
 import { formatGrams } from "../utils/weights";
 
@@ -20,7 +21,7 @@ type PreviewPackage = {
   recordedPackage: Package;
 };
 
-type PreviewLabel = PreviewPackage & {
+export type PreviewLabel = PreviewPackage & {
   label: PackageLabel;
 };
 
@@ -614,7 +615,7 @@ export function PackageLabelPreview({
   );
 }
 
-function AveryLabelPreviewCard({ item }: { item: PreviewLabel }) {
+export function AveryLabelPreviewCard({ item }: { item: PreviewLabel }) {
   const { label, recordedPackage } = item;
   const summary =
     label.ingredients_summary ||
@@ -766,31 +767,6 @@ function authoritativePrintItems(
     seenIds.add(label.id);
     return [{ ...packageContext, label }];
   });
-}
-
-function toAvery5163Label(item: PreviewLabel): Avery5163Label {
-  const { label, recordedPackage } = item;
-  return {
-    packageIdentifier: recordedPackage.package_identifier,
-    productName: label.display_name,
-    preparationSummary:
-      label.ingredients_summary ||
-      label.preparation_summary ||
-      label.description ||
-      "No ingredients or preparation summary",
-    netWeightDisplay: label.net_weight_display,
-    freshEquivalentDisplay: label.fresh_equivalent_display,
-    freshEquivalentGrams: null,
-    finishedProductWeightGrams:
-      recordedPackage.finished_product_weight_grams === null
-        ? null
-        : String(recordedPackage.finished_product_weight_grams),
-    packageType:
-      recordedPackage.package_type?.name ?? "Package Type unavailable",
-    batchLine: "",
-    oxygenAbsorber: recordedPackage.oxygen_absorber,
-    packagedAt: recordedPackage.packaged_at,
-  };
 }
 
 function sortedPrintEvents(events: PrintEvent[]) {

@@ -449,6 +449,37 @@ def get_package(db: Session, package_id: UUID) -> Package:
     return package
 
 
+def list_packages_eligible_for_todays_print(db: Session) -> list[Package]:
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return list(
+        db.scalars(
+            select(Package)
+            .join(Package.label)
+            .where(
+                PackageLabel.status.in_(
+                    [PackageLabelStatus.READY, PackageLabelStatus.NEEDS_REPRINT]
+                ),
+                Package.packaged_at >= today_start,
+                Package.packaged_at <= today_end,
+            )
+            .options(
+                selectinload(Package.packaging_allocation)
+                .selectinload(PackagingAllocation.packaging_operation)
+                .selectinload(PackagingOperation.production_batch)
+                .selectinload(ProductionBatch.freeze_dryer),
+                selectinload(Package.packaging_allocation)
+                .selectinload(PackagingAllocation.source_tray_links)
+                .selectinload(PackagingAllocationSourceTray.tray),
+                selectinload(Package.package_type),
+                selectinload(Package.storage_location),
+                selectinload(Package.label).selectinload(PackageLabel.print_events),
+            )
+            .order_by(Package.packaged_at.desc())
+        ).all()
+    )
+
+
 def get_package_label(db: Session, package_id: UUID) -> PackageLabel:
     package = get_package(db, package_id)
     return package.label

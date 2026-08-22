@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.responses import raise_api_error, success
 from app.api.serializers import (
     package_data,
+    package_eligible_for_print_data,
     package_label_data,
     package_type_data,
     packaging_allocation_data,
@@ -39,6 +40,7 @@ from app.services.packaging import (
     get_packaging_operation,
     get_packaging_worksheet,
     list_package_types,
+    list_packages_eligible_for_todays_print,
     list_storage_locations,
     preview_package_labels,
     print_package_labels,
@@ -58,6 +60,14 @@ DBSession = Annotated[Session, Depends(get_db)]
 def get_packaging_worksheet_endpoint(db: DBSession) -> dict[str, object]:
     batches = get_packaging_worksheet(db)
     return success(packaging_worksheet_data(batches))
+
+
+@router.get("/package-labels/eligible-today")
+def get_packages_eligible_for_todays_print_endpoint(
+    db: DBSession,
+) -> dict[str, object]:
+    packages = list_packages_eligible_for_todays_print(db)
+    return success([package_eligible_for_print_data(package) for package in packages])
 
 
 @router.get("/package-types")
