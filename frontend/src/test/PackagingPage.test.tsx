@@ -451,6 +451,53 @@ describe("PackagingPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("expands a saved Bag to preview and edit its label without leaving Stage 3", async () => {
+    const user = userEvent.setup();
+    const tray = defaultWorksheet()[0].eligible_trays[0];
+    const recordedPackage = createPackage({
+      finished_product_weight_grams: "100",
+    });
+    const allocation = createPackagingAllocation([tray], {
+      allocated_weight_grams: "100",
+      packages: [recordedPackage],
+      remaining_weight_grams: "138.1",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [allocation],
+      packages: [recordedPackage],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 2" });
+
+    const savedBag = screen.getByRole("listitem", { name: /Bag 1/ });
+    expect(within(savedBag).getByText("Taco Chicken")).toBeInTheDocument();
+    expect(
+      within(savedBag).queryByLabelText("PKG-2026-000001 Package Label editor"),
+    ).not.toBeInTheDocument();
+
+    await user.click(within(savedBag).getByText("Bag 1"));
+
+    await user.click(within(savedBag).getByRole("button", { name: "Edit" }));
+    const editor = within(
+      within(savedBag).getByLabelText("PKG-2026-000001 Package Label editor"),
+    );
+    const displayName = editor.getByLabelText(
+      "PKG-2026-000001 Label Display Name",
+    );
+    await user.clear(displayName);
+    await user.type(displayName, "Taco Chicken Updated");
+    await user.click(
+      editor.getByRole("button", { name: "Save Package Label" }),
+    );
+    expect(await editor.findByText("Package Label saved")).toBeInTheDocument();
+    expect(packageLabelPatchRequests()).toHaveLength(1);
+
+    expect(screen.getByRole("heading", { name: "Bag 2" })).toBeInTheDocument();
+  });
+
   it("only collects a Detail for reason Other and rejects it otherwise", async () => {
     const user = userEvent.setup();
     const sourceTray = createTray({
@@ -769,8 +816,79 @@ describe("PackagingPage", () => {
     expect(screen.queryByText("Autosave failed")).not.toBeInTheDocument();
   });
 
+  it("splits Saved bags by active Source, keeping Bag numbering global", async () => {
+    const trays = defaultWorksheet()[0].eligible_trays;
+    const firstSourcePackage = createPackage({
+      id: "package-source-1",
+      packaging_allocation_id: "packaging-allocation-1",
+      finished_product_weight_grams: "199.1",
+    });
+    const secondSourcePackage = createPackage({
+      id: "package-source-2",
+      packaging_allocation_id: "packaging-allocation-2",
+      package_identifier: "PKG-2026-000002",
+      finished_product_weight_grams: "50",
+    });
+    const firstAllocation = createPackagingAllocation([trays[0]], {
+      id: "packaging-allocation-1",
+      allocated_weight_grams: "199.1",
+      remaining_weight_grams: "0",
+      packages: [firstSourcePackage],
+    });
+    const secondAllocation = createPackagingAllocation([trays[1]], {
+      id: "packaging-allocation-2",
+      allocated_weight_grams: "50",
+      remaining_weight_grams: "186",
+      packages: [secondSourcePackage],
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [firstAllocation, secondAllocation],
+      packages: [firstSourcePackage, secondSourcePackage],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(createPackagingTestState({ operation }).fetch),
+    );
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 3" });
+
+    const activeSection = screen.getByRole("region", { name: "Saved bags" });
+    expect(
+      within(activeSection).getByRole("listitem", { name: /Bag 2/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(activeSection).queryByRole("listitem", { name: /Bag 1/ }),
+    ).not.toBeInTheDocument();
+
+    const otherSection = screen.getByRole("group", {
+      name: "Other saved bags this session",
+    });
+    expect(otherSection).not.toHaveAttribute("open");
+    expect(
+      within(otherSection).getByText("Other saved bags this session (1)"),
+    ).toBeInTheDocument();
+    expect(
+      within(otherSection).getByRole("listitem", { name: /Bag 1/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(otherSection).queryByRole("listitem", { name: /Bag 2/ }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Bag 3" })).toBeInTheDocument();
+    const activeSectionPosition = activeSection.compareDocumentPosition(
+      screen.getByRole("heading", { name: "Bag 3" }),
+    );
+    expect(
+      activeSectionPosition & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const bagFormPosition = screen
+      .getByRole("heading", { name: "Bag 3" })
+      .compareDocumentPosition(otherSection);
+    expect(bagFormPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("keeps multiple source pools independent and blocks Review when one is overallocated", async () => {
-    const user = userEvent.setup();
     const trays = defaultWorksheet()[0].eligible_trays;
     const operation = createPackagingOperation("batch-1", {
       allocations: [
@@ -792,11 +910,9 @@ describe("PackagingPage", () => {
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
 
     expect(await screen.findByText("5 g overallocated")).toBeInTheDocument();
-    const sourceSelector = screen.getByRole("combobox", {
-      name: "Product source",
-    });
-    await user.click(sourceSelector);
-    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(
+      screen.queryByRole("combobox", { name: "Product source" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "No more bags — Review" }),
     ).toBeDisabled();
@@ -1000,6 +1116,78 @@ describe("PackagingPage", () => {
       expect(batchSelect).toHaveTextContent("Batch 006");
       expect(currentPackagingUrl()).toBe("/packaging?batch=batch-2");
     });
+  });
+
+  it("labels each Batch's packaging status in the batch picker", async () => {
+    const user = userEvent.setup();
+    const worksheet = defaultWorksheet();
+    const readyItem = worksheet[0];
+    const inProgressItem = worksheet[1];
+    const operation = createPackagingOperation("batch-2", {
+      status: "Open",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [readyItem, inProgressItem],
+      productionBatches: [
+        readyItem.production_batch,
+        inProgressItem.production_batch,
+      ],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage();
+
+    const batchSelect = await screen.findByLabelText("Production Batch");
+    await user.click(batchSelect);
+    expect(
+      screen.getByRole("option", { name: /Batch 005.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", {
+        name: /Batch 006.*Packaging in progress/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("drops a completed Batch from the picker once it's no longer active", async () => {
+    const user = userEvent.setup();
+    const worksheet = defaultWorksheet();
+    const readyItemOne = worksheet[0];
+    const readyItemTwo = worksheet[1];
+    const completedBatch = createProductionBatch({
+      id: "batch-3",
+      batch_number: "Batch 007",
+      status: "Completed",
+    });
+    const operation = createPackagingOperation("batch-3", {
+      status: "Completed",
+      completed_at: "2026-07-08T02:00:00.000Z",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [readyItemOne, readyItemTwo],
+      productionBatches: [
+        readyItemOne.production_batch,
+        readyItemTwo.production_batch,
+        completedBatch,
+      ],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1");
+
+    const batchSelect = await screen.findByLabelText("Production Batch");
+    await user.click(batchSelect);
+    expect(
+      screen.getByRole("option", { name: /Batch 005.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Batch 006.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Batch 007/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("starts exactly one Packaging Operation for the selected Production Batch", async () => {
@@ -1376,14 +1564,8 @@ describe("PackagingPage", () => {
       reviewSummary.getByText("Product Sources").parentElement,
     ).toHaveTextContent("2");
     expect(
-      reviewSummary.getByText("Package PKG-2026-000042"),
-    ).toBeInTheDocument();
-    expect(
-      reviewSummary.getByText(/Sealed Package Weight 207.5 g/),
-    ).toBeInTheDocument();
-    expect(
-      reviewSummary.getByText(/Pantry · Oxygen absorber 300cc/),
-    ).toBeInTheDocument();
+      reviewSummary.getByText("Bags Saved").parentElement,
+    ).toHaveTextContent("1");
     expect(
       screen.queryByLabelText("Prepare Packaging Allocation"),
     ).not.toBeInTheDocument();
@@ -2312,7 +2494,7 @@ describe("PackagingPage", () => {
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
 
     const recordedPackageSummary = within(
-      (await screen.findByRole("heading", { name: "Bag 1" })).closest(
+      (await screen.findByRole("heading", { name: "Bag 1 of 1" })).closest(
         "article",
       )!,
     );
@@ -2451,7 +2633,7 @@ describe("PackagingPage", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Packaging is already Completed. This historical workspace is not an actionable completion candidate.",
+        `Packaging completion was recorded at ${new Date("2026-07-08T02:00:00.000Z").toLocaleString()}.`,
       ),
     ).toBeInTheDocument();
     expect(
@@ -2465,6 +2647,43 @@ describe("PackagingPage", () => {
     expect(
       screen.queryByRole("heading", { name: "Create Package Type" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers next steps after Packaging completes, including a link to batches still drying", async () => {
+    const user = userEvent.setup();
+    const batch = createProductionBatch({ id: "batch-1", status: "Completed" });
+    const dryingBatch = createProductionBatch({
+      id: "batch-2",
+      batch_number: "Batch 006",
+      status: "Running",
+    });
+    const operation = createPackagingOperation(batch.id, {
+      status: "Completed",
+      completed_at: "2026-07-08T02:00:00.000Z",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [],
+      productionBatches: [batch, dryingBatch],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage(`/packaging?batch=${batch.id}&workspace=1`);
+
+    await screen.findByRole("heading", { name: "Packaging complete" });
+    expect(
+      screen.getByRole("link", { name: "View inventory" }),
+    ).toHaveAttribute("href", "/inventory");
+    expect(
+      screen.getByRole("link", { name: "1 batch currently drying" }),
+    ).toHaveAttribute("href", "/production");
+
+    await user.click(
+      screen.getByRole("button", { name: "Package another batch" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Choose a batch" }),
+    ).toBeInTheDocument();
   });
 
   it("shows an unavailable state for an invalid URL Batch without selecting another Batch", async () => {
@@ -3365,6 +3584,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3481,6 +3701,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3560,6 +3781,8 @@ describe("PackagingPage", () => {
 
     cleanup();
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const resumedPreview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3650,6 +3873,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -5456,12 +5680,25 @@ async function showWorkflowStage(
     | "Review & labels"
     | "Finish",
 ) {
-  if (screen.queryByRole("heading", { name: stageName })) return;
+  const headingName =
+    stageName === "Review & labels"
+      ? /Review & labels|Let's approve the bags/
+      : stageName;
+  if (screen.queryByRole("heading", { name: headingName })) return;
   const stageButton = await screen.findByRole("button", {
     name: new RegExp(`^${stageName}`),
   });
   await user.click(stageButton);
-  await screen.findByRole("heading", { name: stageName });
+  await screen.findByRole("heading", { name: headingName });
+}
+
+async function skipBagReviewToSummary(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  const skipButton = screen.queryByRole("button", { name: "Skip to summary" });
+  if (!skipButton) return;
+  await user.click(skipButton);
+  await screen.findByLabelText("Bag review complete");
 }
 
 function latestPackagePost() {

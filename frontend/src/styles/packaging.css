@@ -705,6 +705,81 @@
   right: 0;
 }
 
+.packaging-bag-progress {
+  align-items: center;
+  display: flex;
+  gap: var(--ff-space-3);
+  justify-content: space-between;
+  margin-bottom: var(--ff-space-3);
+}
+
+.packaging-bag-progress__label {
+  color: var(--ff-color-text-secondary);
+  font-size: var(--ff-font-size-supporting);
+  margin: 0;
+}
+
+.packaging-bag-progress__dots {
+  display: flex;
+  gap: var(--ff-space-1);
+}
+
+.packaging-bag-progress__dot {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  font-size: 0.6875rem;
+  font-weight: var(--ff-font-weight-medium);
+  height: 1.25rem;
+  justify-content: center;
+  width: 1.25rem;
+}
+
+.packaging-bag-progress__dot--done {
+  background: var(--ff-color-action-primary);
+  color: white;
+}
+
+.packaging-bag-progress__dot--current {
+  background: var(--ff-color-active-background);
+  border: 2px solid var(--ff-color-action-primary);
+  color: var(--ff-color-action-primary);
+}
+
+.packaging-bag-progress__dot--upcoming {
+  background: var(--ff-color-surface-subtle);
+  color: var(--ff-color-text-muted);
+}
+
+.packaging-bag-review {
+  background: var(--ff-color-surface);
+  border: 2px solid var(--ff-color-action-primary);
+  border-radius: var(--ff-radius-large);
+  padding: var(--ff-space-5);
+}
+
+.packaging-bag-review__header {
+  align-items: center;
+  display: flex;
+  gap: var(--ff-space-2);
+  justify-content: space-between;
+}
+
+.packaging-bag-review__heading {
+  font-size: var(--ff-font-size-section-title);
+  font-weight: var(--ff-font-weight-medium);
+  margin: 0;
+}
+
+.packaging-bag-review__source-badge {
+  background: var(--ff-color-active-background);
+  border-radius: var(--ff-radius-small);
+  color: var(--ff-color-active-text);
+  font-size: var(--ff-font-size-caption);
+  padding: 0.125rem 0.625rem;
+  white-space: nowrap;
+}
+
 .saved-bag-summary {
   display: grid;
   gap: var(--ff-space-3);
