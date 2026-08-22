@@ -4,7 +4,15 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Dispatch,
+  FormEvent,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router";
 
 import {
@@ -457,6 +465,12 @@ export function PackagingPage() {
       setSearchParams({ batch: batchId, workspace: "1" });
       return;
     }
+    if (startingBatchIdRef.current !== null) return;
+    startingBatchIdRef.current = batchId;
+    startPackagingOperation.mutate(batchId);
+  }
+
+  function startNewPackagingRound(batchId: string) {
     if (startingBatchIdRef.current !== null) return;
     startingBatchIdRef.current = batchId;
     startPackagingOperation.mutate(batchId);
@@ -952,22 +966,42 @@ export function PackagingPage() {
                           : "Packaging in progress"}
                       </p>
                     ) : (
-                      <button
-                        className="primary-action"
-                        disabled={
-                          startPackagingOperation.isPending ||
-                          activeOperationQuery?.isLoading ||
-                          activeOperationQuery?.isError
-                        }
-                        type="button"
-                        onClick={() =>
-                          advanceFromBatch(activeBatch.id, activeOperation)
-                        }
-                      >
-                        {activeOperation?.status === "Completed"
-                          ? "Next — View history"
-                          : "Next — Choose trays"}
-                      </button>
+                      <>
+                        <button
+                          className="primary-action"
+                          disabled={
+                            startPackagingOperation.isPending ||
+                            activeOperationQuery?.isLoading ||
+                            activeOperationQuery?.isError
+                          }
+                          type="button"
+                          onClick={() =>
+                            advanceFromBatch(activeBatch.id, activeOperation)
+                          }
+                        >
+                          {activeOperation?.status === "Completed"
+                            ? "Next — View history"
+                            : "Next — Choose trays"}
+                        </button>
+                        {activeOperation?.status === "Completed" &&
+                        (activeWorksheetItem?.eligible_trays.length ?? 0) >
+                          0 ? (
+                          <button
+                            className="secondary-action"
+                            disabled={
+                              startPackagingOperation.isPending ||
+                              activeOperationQuery?.isLoading ||
+                              activeOperationQuery?.isError
+                            }
+                            type="button"
+                            onClick={() =>
+                              startNewPackagingRound(activeBatch.id)
+                            }
+                          >
+                            Start Packaging the remaining Trays
+                          </button>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 </div>
@@ -2157,7 +2191,23 @@ function PackagingOperationWorkspace({
           title="Review & labels"
         >
           <PackagingReviewSummary operation={operation} />
-          {recordedPackageCount > 0 ? (
+          {operation.status === "Open" ? (
+            recordedPackageCount > 0 ? (
+              <PackageReviewWalkthrough
+                formatError={formatError}
+                onRefreshLabel={(packageId) =>
+                  onRefreshPackageLabel(
+                    operation.production_batch_id,
+                    packageId,
+                  )
+                }
+                onSaveLabel={(packageId, body) =>
+                  onSavePackageLabel(packageId, body)
+                }
+                operation={operation}
+              />
+            ) : null
+          ) : recordedPackageCount > 0 ? (
             <section
               aria-label="Package and Label details"
               className="space-y-2"
@@ -2181,7 +2231,7 @@ function PackagingOperationWorkspace({
                     {recordedPackage.label?.status ?? "Label unavailable"}
                   </summary>
                   <RecordedPackageSummary
-                    editable={operation.status === "Open"}
+                    editable={false}
                     formatError={formatError}
                     onRefreshLabel={() =>
                       onRefreshPackageLabel(
@@ -2261,6 +2311,22 @@ function PackagingOperationWorkspace({
                 </ul>
               </div>
             )}
+            {operation.status !== "Completed" && availableTrays.length > 0 ? (
+              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-semibold">
+                  {availableTrays.length} completed Tray
+                  {availableTrays.length === 1 ? "" : "s"} for this Batch{" "}
+                  {availableTrays.length === 1 ? "hasn't" : "haven't"} been
+                  added to a Packaging Allocation.
+                </p>
+                <p className="mt-1">
+                  Completing this Packaging Operation won&rsquo;t include{" "}
+                  {availableTrays.length === 1 ? "it" : "them"}. A new Packaging
+                  Operation will be needed to package{" "}
+                  {availableTrays.length === 1 ? "it" : "them"} later.
+                </p>
+              </div>
+            ) : null}
             <PackagingCompletionAction
               eligible={appearsEligible}
               formatError={formatError}
@@ -3911,6 +3977,251 @@ export function PlannedPackageSummary({
   );
 }
 
+function PackageReviewWalkthrough({
+  formatError,
+  onRefreshLabel,
+  onSaveLabel,
+  operation,
+}: {
+  formatError: (error: unknown) => string;
+  onRefreshLabel: (packageId: string) => Promise<PackageLabel>;
+  onSaveLabel: (packageId: string, body: PackageLabelUpdate) => Promise<void>;
+  operation: PackagingOperation;
+}) {
+  const packages = operation.packages;
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(() => new Set());
+  const [editingIds, setEditingIds] = useState<Set<string>>(
+    () =>
+      new Set(
+        packages
+          .filter(
+            (recordedPackage) =>
+              !recordedPackage.label ||
+              recordedPackage.label.status === "Draft",
+          )
+          .map((recordedPackage) => recordedPackage.id),
+      ),
+  );
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(() => new Set());
+
+  if (packages.length === 0) return null;
+
+  if (currentIndex >= packages.length) {
+    return (
+      <div
+        aria-label="Bag review complete"
+        className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-700"
+      >
+        <p>
+          You&rsquo;ve reviewed all {packages.length} Bag
+          {packages.length === 1 ? "" : "s"}. Continue to labels and printing
+          below, or look back at a Bag.
+        </p>
+        <button
+          className="quiet-action mt-2"
+          type="button"
+          onClick={() => setCurrentIndex(Math.max(packages.length - 1, 0))}
+        >
+          Review Bags again
+        </button>
+      </div>
+    );
+  }
+
+  const recordedPackage = packages[currentIndex];
+  const bagNumber = currentIndex + 1;
+  const isApproved = approvedIds.has(recordedPackage.id);
+  const isEditing = editingIds.has(recordedPackage.id);
+  const isDirty = dirtyIds.has(recordedPackage.id);
+  const label = recordedPackage.label as PackageLabel | null | undefined;
+  const allocationIndex = operation.allocations.findIndex((allocation) =>
+    allocation.packages.some(
+      (candidate) => candidate.id === recordedPackage.id,
+    ),
+  );
+
+  function setMembership(
+    setState: Dispatch<SetStateAction<Set<string>>>,
+    id: string,
+    included: boolean,
+  ) {
+    setState((current) => {
+      if (current.has(id) === included) return current;
+      const next = new Set(current);
+      if (included) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  return (
+    <article
+      aria-label={`Bag ${bagNumber} review`}
+      className="packaging-bag-review rounded-md border border-slate-200 bg-white p-4"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h6 className="text-base font-semibold">
+          {isApproved ? "✓ " : ""}
+          Bag {bagNumber}
+        </h6>
+        <p className="text-sm text-slate-600">
+          {bagNumber} of {packages.length}
+          {allocationIndex >= 0 ? ` · Source ${allocationIndex + 1}` : ""}
+        </p>
+      </div>
+      <p className="text-xs text-slate-500">
+        {recordedPackage.package_identifier}
+      </p>
+
+      {!label ? (
+        <p className="mt-3 text-sm text-slate-600">
+          No Package Label is recorded for this Package.
+        </p>
+      ) : (
+        <>
+          {isEditing ? (
+            <PackageLabelEditor
+              formatError={formatError}
+              key={recordedPackage.id}
+              label={label}
+              onDirtyChange={(dirty) =>
+                setMembership(setDirtyIds, recordedPackage.id, dirty)
+              }
+              onRefresh={() => onRefreshLabel(recordedPackage.id)}
+              onSave={(body) => onSaveLabel(recordedPackage.id, body)}
+              packageIdentifier={recordedPackage.package_identifier}
+            />
+          ) : (
+            <BagLabelPreview label={label} recordedPackage={recordedPackage} />
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!isEditing ? (
+              <button
+                className="secondary-action"
+                type="button"
+                onClick={() =>
+                  setMembership(setEditingIds, recordedPackage.id, true)
+                }
+              >
+                Edit
+              </button>
+            ) : null}
+            <button
+              className="primary-action"
+              disabled={isDirty}
+              type="button"
+              onClick={() => {
+                setMembership(setApprovedIds, recordedPackage.id, true);
+                setCurrentIndex((index) => index + 1);
+              }}
+            >
+              Approve and next
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between text-sm">
+            {currentIndex > 0 ? (
+              <button
+                className="quiet-action"
+                type="button"
+                onClick={() =>
+                  setCurrentIndex((index) => Math.max(index - 1, 0))
+                }
+              >
+                &larr; Bag {bagNumber - 1}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              className="quiet-action"
+              type="button"
+              onClick={() => setCurrentIndex(packages.length)}
+            >
+              Skip to summary
+            </button>
+            {currentIndex < packages.length - 1 ? (
+              <button
+                className="quiet-action"
+                type="button"
+                onClick={() =>
+                  setCurrentIndex((index) =>
+                    Math.min(index + 1, packages.length - 1),
+                  )
+                }
+              >
+                Bag {bagNumber + 1} &rarr;
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
+
+function BagLabelPreview({
+  label,
+  recordedPackage,
+}: {
+  label: PackageLabel;
+  recordedPackage: Package;
+}) {
+  const summary =
+    label.ingredients_summary ||
+    label.preparation_summary ||
+    label.description ||
+    "No ingredients or preparation summary";
+  return (
+    <div className="mt-3 space-y-3">
+      <div>
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Will print on the label
+        </p>
+        <div className="mt-1 rounded-md border border-slate-200 p-3">
+          <p className="text-base font-semibold">{label.display_name}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-800">
+            {label.net_weight_display ||
+              (recordedPackage.finished_product_weight_grams === null
+                ? "Finished Product Weight unavailable"
+                : formatGrams(
+                    String(recordedPackage.finished_product_weight_grams),
+                  ))}
+            {label.fresh_equivalent_display
+              ? ` · ${label.fresh_equivalent_display}`
+              : " · Fresh equivalent unavailable"}
+          </p>
+          <p className="mt-2 text-sm text-slate-700">{summary}</p>
+          <p className="mt-2 text-xs text-slate-600">
+            {new Date(recordedPackage.packaged_at).toLocaleDateString()}
+            {" · "}
+            {recordedPackage.package_type?.name ?? "Package Type unavailable"}
+            {" · Oxygen absorber: "}
+            {recordedPackage.oxygen_absorber || "None"}
+          </p>
+          <p className="mt-2 text-xs font-semibold uppercase text-slate-500">
+            {recordedPackage.package_identifier}
+          </p>
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase text-slate-500">
+          Not on the label
+        </p>
+        <p className="mt-1 text-sm text-slate-700">
+          Storage:{" "}
+          {recordedPackage.storage_location?.name ??
+            "Storage Location unavailable"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function RecordedPackageSummary({
   editable,
   formatError,
@@ -3945,46 +4256,16 @@ function RecordedPackageSummary({
         </p>
       </div>
 
-      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-        <WorkspaceDetail
-          label="Package Type"
-          value={
-            recordedPackage.package_type?.name ?? "Package Type unavailable"
-          }
-        />
-        <WorkspaceDetail
-          label="Finished Product Weight"
-          value={
-            recordedPackage.finished_product_weight_grams === null
-              ? "Not specified"
-              : formatGrams(
-                  String(recordedPackage.finished_product_weight_grams),
-                )
-          }
-        />
-        <WorkspaceDetail
-          label="Sealed Package Weight"
-          value={formatGrams(String(recordedPackage.package_weight_grams))}
-        />
-        <WorkspaceDetail
-          label="Oxygen Absorber"
-          value={recordedPackage.oxygen_absorber || "Not specified"}
-        />
-        <WorkspaceDetail
-          label="Storage Location"
-          value={
-            recordedPackage.storage_location?.name ??
-            "Storage Location unavailable"
-          }
-        />
-        <WorkspaceDetail
-          label="Notes"
-          value={recordedPackage.notes || "No notes"}
-        />
-      </dl>
-
       {label ? (
-        <>
+        editable ? (
+          <PackageLabelEditor
+            formatError={formatError}
+            label={label}
+            onRefresh={onRefreshLabel}
+            onSave={onSaveLabel}
+            packageIdentifier={recordedPackage.package_identifier}
+          />
+        ) : (
           <PackageLabelDetails
             description={label.description}
             displayName={label.display_name}
@@ -3996,16 +4277,7 @@ function RecordedPackageSummary({
             servingNotes={label.serving_notes}
             status={label.status}
           />
-          {editable ? (
-            <PackageLabelEditor
-              formatError={formatError}
-              label={label}
-              onRefresh={onRefreshLabel}
-              onSave={onSaveLabel}
-              packageIdentifier={recordedPackage.package_identifier}
-            />
-          ) : null}
-        </>
+        )
       ) : (
         <p className="mt-3 text-sm text-slate-600">
           No Package Label is recorded for this Package.
@@ -4282,11 +4554,11 @@ function PackagingReviewSummary({
       <dl className="grid gap-3 sm:grid-cols-3">
         <WorkspaceDetail label="Source Trays" value={String(sourceTrayCount)} />
         <WorkspaceDetail
-          label="Allocations in review"
+          label="Product Sources"
           value={String(operation.allocations.length)}
         />
         <WorkspaceDetail
-          label="Recorded Packages"
+          label="Bags Saved"
           value={String(recordedPackages.length)}
         />
       </dl>

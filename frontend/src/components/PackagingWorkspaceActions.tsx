@@ -174,12 +174,14 @@ export function PlannedPackageRecordAction({
 export function PackageLabelEditor({
   formatError,
   label,
+  onDirtyChange,
   onRefresh,
   onSave,
   packageIdentifier,
 }: {
   formatError: (error: unknown) => string;
   label: PackageLabel;
+  onDirtyChange?: (dirty: boolean) => void;
   onRefresh: () => Promise<PackageLabel>;
   onSave: (body: PackageLabelUpdate) => Promise<void>;
   packageIdentifier: string;
@@ -203,6 +205,10 @@ export function PackageLabelEditor({
     status === "saving" ||
     status === "refreshing" ||
     status === "refresh-failed";
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const nextVersion = authoritativeLabelFingerprint(label);
@@ -282,6 +288,11 @@ export function PackageLabelEditor({
           <p className="mt-1 text-sm text-slate-600">
             Label status: <strong>{authoritativeStatus}</strong>. The backend
             determines Ready and Needs Reprint when this label is saved.
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Fresh Equivalent:{" "}
+            <strong>{label.fresh_equivalent_display ?? "Not available"}</strong>
+            . Calculated automatically from source Tray weights.
           </p>
         </div>
         <p className="text-sm text-slate-600">
