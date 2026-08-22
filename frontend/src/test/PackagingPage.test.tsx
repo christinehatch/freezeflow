@@ -451,6 +451,53 @@ describe("PackagingPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("expands a saved Bag to preview and edit its label without leaving Stage 3", async () => {
+    const user = userEvent.setup();
+    const tray = defaultWorksheet()[0].eligible_trays[0];
+    const recordedPackage = createPackage({
+      finished_product_weight_grams: "100",
+    });
+    const allocation = createPackagingAllocation([tray], {
+      allocated_weight_grams: "100",
+      packages: [recordedPackage],
+      remaining_weight_grams: "138.1",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [allocation],
+      packages: [recordedPackage],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 2" });
+
+    const savedBag = screen.getByRole("listitem", { name: /Bag 1/ });
+    expect(within(savedBag).getByText("Taco Chicken")).toBeInTheDocument();
+    expect(
+      within(savedBag).queryByLabelText("PKG-2026-000001 Package Label editor"),
+    ).not.toBeInTheDocument();
+
+    await user.click(within(savedBag).getByText("Bag 1"));
+
+    await user.click(within(savedBag).getByRole("button", { name: "Edit" }));
+    const editor = within(
+      within(savedBag).getByLabelText("PKG-2026-000001 Package Label editor"),
+    );
+    const displayName = editor.getByLabelText(
+      "PKG-2026-000001 Label Display Name",
+    );
+    await user.clear(displayName);
+    await user.type(displayName, "Taco Chicken Updated");
+    await user.click(
+      editor.getByRole("button", { name: "Save Package Label" }),
+    );
+    expect(await editor.findByText("Package Label saved")).toBeInTheDocument();
+    expect(packageLabelPatchRequests()).toHaveLength(1);
+
+    expect(screen.getByRole("heading", { name: "Bag 2" })).toBeInTheDocument();
+  });
+
   it("only collects a Detail for reason Other and rejects it otherwise", async () => {
     const user = userEvent.setup();
     const sourceTray = createTray({
@@ -770,7 +817,6 @@ describe("PackagingPage", () => {
   });
 
   it("keeps multiple source pools independent and blocks Review when one is overallocated", async () => {
-    const user = userEvent.setup();
     const trays = defaultWorksheet()[0].eligible_trays;
     const operation = createPackagingOperation("batch-1", {
       allocations: [
@@ -792,11 +838,9 @@ describe("PackagingPage", () => {
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
 
     expect(await screen.findByText("5 g overallocated")).toBeInTheDocument();
-    const sourceSelector = screen.getByRole("combobox", {
-      name: "Product source",
-    });
-    await user.click(sourceSelector);
-    expect(screen.getAllByRole("option")).toHaveLength(2);
+    expect(
+      screen.queryByRole("combobox", { name: "Product source" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "No more bags — Review" }),
     ).toBeDisabled();

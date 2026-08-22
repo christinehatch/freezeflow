@@ -2173,7 +2173,13 @@ function PackagingOperationWorkspace({
                   plannedPackages,
                 )
               }
+              onRefreshLabel={(packageId) =>
+                onRefreshPackageLabel(operation.production_batch_id, packageId)
+              }
               onReview={() => onStageChange("review")}
+              onSaveLabel={(packageId, body) =>
+                onSavePackageLabel(packageId, body)
+              }
               operation={operation}
               packageTypes={packageTypes}
               storageLocations={storageLocations}
@@ -2548,7 +2554,9 @@ function SingleBagEntryLoop({
   onRecordBag,
   onRecordLoss,
   onAutosavePlannedPackages,
+  onRefreshLabel,
   onReview,
+  onSaveLabel,
   operation,
   packageTypes,
   storageLocations,
@@ -2567,7 +2575,9 @@ function SingleBagEntryLoop({
     allocationId: string,
     plannedPackages: PlannedPackageInput[],
   ) => Promise<PackagingAllocation>;
+  onRefreshLabel: (packageId: string) => Promise<PackageLabel>;
   onReview: () => void;
+  onSaveLabel: (packageId: string, body: PackageLabelUpdate) => Promise<void>;
   operation: PackagingOperation;
   packageTypes: PackageType[];
   storageLocations: StorageLocation[];
@@ -2621,6 +2631,9 @@ function SingleBagEntryLoop({
     activePlan ? "saved" : "idle",
   );
   const [autosaveError, setAutosaveError] = useState<string | null>(null);
+  const [editingSavedBagIds, setEditingSavedBagIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushAutosaveRef = useRef<() => void>(() => {});
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -2955,6 +2968,12 @@ function SingleBagEntryLoop({
   if (!activeAllocation) return null;
 
   const isOverallocated = activeRemaining < -ALLOCATION_TOLERANCE_GRAMS;
+  const switchableAllocations = operation.allocations.filter(
+    (allocation) =>
+      allocation.id === activeAllocation.id ||
+      Math.abs(Number(allocation.remaining_weight_grams)) >
+        ALLOCATION_TOLERANCE_GRAMS,
+  );
   const activeDisplayUnit: WeightUnit =
     phase === "recordingLoss" ? lossDraft.weightUnit : draft.finishedWeightUnit;
   const formatWorkspaceWeight = (value: number | null) =>
@@ -3028,7 +3047,7 @@ function SingleBagEntryLoop({
         </p>
       </SummaryPanel>
 
-      {operation.allocations.length > 1 ? (
+      {switchableAllocations.length > 1 ? (
         <Field
           className="single-bag-source-selector"
           htmlFor="bag-product-source"
@@ -3036,9 +3055,13 @@ function SingleBagEntryLoop({
         >
           <Select
             id="bag-product-source"
-            options={operation.allocations.map((allocation, index) => ({
+            options={switchableAllocations.map((allocation) => ({
               value: allocation.id,
-              label: `Source ${index + 1}`,
+              label: `Source ${
+                operation.allocations.findIndex(
+                  (candidate) => candidate.id === allocation.id,
+                ) + 1
+              }`,
               description: `${formatGrams(String(allocation.remaining_weight_grams), 3)} remaining`,
             }))}
             value={activeAllocation.id}
@@ -3051,34 +3074,83 @@ function SingleBagEntryLoop({
         <section className="saved-bag-summary" aria-label="Saved bags">
           <h5>Saved bags</h5>
           <div className="saved-bag-summary__rows" role="list">
-            {operation.packages.map((recordedPackage, index) => (
-              <article
-                aria-label={`Bag ${index + 1}, ${recordedPackage.package_type.name}, ${formatOptionalWorkspaceWeight(
-                  finiteWeightOrNull(
-                    recordedPackage.finished_product_weight_grams,
-                  ),
-                )}, Saved`}
-                className="saved-bag-card"
-                key={recordedPackage.id}
-                role="listitem"
-              >
-                <span aria-hidden="true" className="saved-bag-card__icon">
-                  ▣
-                </span>
-                <span className="saved-bag-card__copy">
-                  <strong>Bag {index + 1}</strong>
-                  <span>{recordedPackage.package_type.name}</span>
-                </span>
-                <span className="saved-bag-card__weight">
-                  {formatOptionalWorkspaceWeight(
+            {operation.packages.map((recordedPackage, index) => {
+              const label = recordedPackage.label as
+                | PackageLabel
+                | null
+                | undefined;
+              const isEditingSavedBag = editingSavedBagIds.has(
+                recordedPackage.id,
+              );
+              return (
+                <details
+                  aria-label={`Bag ${index + 1}, ${recordedPackage.package_type.name}, ${formatOptionalWorkspaceWeight(
                     finiteWeightOrNull(
                       recordedPackage.finished_product_weight_grams,
                     ),
-                  )}
-                </span>
-                <span className="saved-bag-card__status">Saved</span>
-              </article>
-            ))}
+                  )}, Saved`}
+                  className="saved-bag-card"
+                  key={recordedPackage.id}
+                  role="listitem"
+                >
+                  <summary className="saved-bag-card__summary">
+                    <span aria-hidden="true" className="saved-bag-card__icon">
+                      ▣
+                    </span>
+                    <span className="saved-bag-card__copy">
+                      <strong>Bag {index + 1}</strong>
+                      <span>{recordedPackage.package_type.name}</span>
+                    </span>
+                    <span className="saved-bag-card__weight">
+                      {formatOptionalWorkspaceWeight(
+                        finiteWeightOrNull(
+                          recordedPackage.finished_product_weight_grams,
+                        ),
+                      )}
+                    </span>
+                    <span className="saved-bag-card__status">Saved</span>
+                  </summary>
+                  <div className="saved-bag-card__details mt-3">
+                    {!label ? (
+                      <p className="text-sm text-slate-600">
+                        No Package Label is recorded for this Package.
+                      </p>
+                    ) : isEditingSavedBag ? (
+                      <PackageLabelEditor
+                        formatError={formatError}
+                        key={recordedPackage.id}
+                        label={label}
+                        onRefresh={() => onRefreshLabel(recordedPackage.id)}
+                        onSave={(body) => onSaveLabel(recordedPackage.id, body)}
+                        packageIdentifier={recordedPackage.package_identifier}
+                      />
+                    ) : (
+                      <>
+                        <BagLabelPreview
+                          label={label}
+                          recordedPackage={recordedPackage}
+                        />
+                        <button
+                          className="secondary-action mt-3"
+                          type="button"
+                          onClick={() =>
+                            setEditingSavedBagIds((current) => {
+                              if (current.has(recordedPackage.id))
+                                return current;
+                              const next = new Set(current);
+                              next.add(recordedPackage.id);
+                              return next;
+                            })
+                          }
+                        >
+                          Edit
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
           </div>
         </section>
       ) : null}
