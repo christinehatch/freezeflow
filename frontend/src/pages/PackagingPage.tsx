@@ -856,9 +856,14 @@ export function PackagingPage() {
     >
       <PageHeader
         action={
-          <ButtonLink to="/packaging/package-types" variant="secondary">
-            Manage Package Types
-          </ButtonLink>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink to="/packaging/print-today" variant="secondary">
+              Print Today&rsquo;s Labels
+            </ButtonLink>
+            <ButtonLink to="/packaging/package-types" variant="secondary">
+              Manage Package Types
+            </ButtonLink>
+          </div>
         }
         description="Turn completed product into balanced, labeled Packages through a saved workflow you can safely resume."
         eyebrow="Production to inventory"

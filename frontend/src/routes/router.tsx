@@ -8,6 +8,7 @@ import { FreezeDryersPage } from "../pages/FreezeDryersPage";
 import { InventoryPage } from "../pages/InventoryPage";
 import { PackagingPage } from "../pages/PackagingPage";
 import { PackageTypesPage } from "../pages/PackageTypesPage";
+import { PrintTodaysLabelsPage } from "../pages/PrintTodaysLabelsPage";
 import { ProductionBatchPage } from "../pages/ProductionBatchPage";
 import { ProductionPage } from "../pages/ProductionPage";
 import { ReportsPage } from "../pages/ReportsPage";
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: "/freeze-dryers", element: <FreezeDryersPage /> },
       { path: "/packaging", element: <PackagingPage /> },
       { path: "/packaging/package-types", element: <PackageTypesPage /> },
+      { path: "/packaging/print-today", element: <PrintTodaysLabelsPage /> },
       { path: "/inventory", element: <InventoryPage /> },
       { path: "/reports", element: <ReportsPage /> },
       ...(import.meta.env.DEV

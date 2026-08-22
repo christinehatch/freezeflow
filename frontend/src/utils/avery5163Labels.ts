@@ -1,3 +1,5 @@
+import type { Package, PackageLabel } from "../api/client";
+
 export type Avery5163Label = {
   packageIdentifier: string;
   productName: string;
@@ -11,6 +13,34 @@ export type Avery5163Label = {
   oxygenAbsorber: string | null;
   packagedAt: string;
 };
+
+export function toAvery5163Label(item: {
+  label: PackageLabel;
+  recordedPackage: Package;
+}): Avery5163Label {
+  const { label, recordedPackage } = item;
+  return {
+    packageIdentifier: recordedPackage.package_identifier,
+    productName: label.display_name,
+    preparationSummary:
+      label.ingredients_summary ||
+      label.preparation_summary ||
+      label.description ||
+      "No ingredients or preparation summary",
+    netWeightDisplay: label.net_weight_display,
+    freshEquivalentDisplay: label.fresh_equivalent_display,
+    freshEquivalentGrams: null,
+    finishedProductWeightGrams:
+      recordedPackage.finished_product_weight_grams === null
+        ? null
+        : String(recordedPackage.finished_product_weight_grams),
+    packageType:
+      recordedPackage.package_type?.name ?? "Package Type unavailable",
+    batchLine: "",
+    oxygenAbsorber: recordedPackage.oxygen_absorber,
+    packagedAt: recordedPackage.packaged_at,
+  };
+}
 
 export const AVERY_5163_LABELS_PER_SHEET = 10;
 const PAGE_WIDTH = 612;

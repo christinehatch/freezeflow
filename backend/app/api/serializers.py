@@ -309,6 +309,15 @@ def package_data(package: Package) -> dict[str, object]:
     }
 
 
+def package_eligible_for_print_data(package: Package) -> dict[str, object]:
+    batch = package.packaging_allocation.packaging_operation.production_batch
+    return {
+        **package_data(package),
+        "production_batch_id": batch.id,
+        "batch_number": batch.batch_number,
+    }
+
+
 def packaging_worksheet_data(batches: list[ProductionBatch]) -> list[dict[str, object]]:
     worksheet: list[dict[str, object]] = []
     for batch in batches:
