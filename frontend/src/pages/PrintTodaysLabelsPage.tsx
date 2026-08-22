@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { packagingApi, type PackageEligibleForPrint } from "../api/client";
@@ -45,6 +45,7 @@ export function PrintTodaysLabelsPage() {
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const previewSectionRef = useRef<HTMLDivElement>(null);
 
   function toPreviewItems(labels: { id: string }[]): PreviewLabel[] {
     return labels.flatMap((label) => {
@@ -79,6 +80,11 @@ export function PrintTodaysLabelsPage() {
         package_label_ids: selectedLabelIds,
       });
       setPreviewLabels(toPreviewItems(authoritative));
+      previewSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      previewSectionRef.current?.focus();
     } catch (previewError) {
       setError(formatApiError(previewError));
     } finally {
@@ -262,7 +268,11 @@ export function PrintTodaysLabelsPage() {
         )}
       </Surface>
 
-      <Surface aria-label="Avery 5163 preview">
+      <Surface
+        aria-label="Avery 5163 preview"
+        ref={previewSectionRef}
+        tabIndex={-1}
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h6 className="text-sm font-semibold">Avery 5163 preview</h6>
