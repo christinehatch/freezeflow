@@ -2422,7 +2422,7 @@ describe("PackagingPage", () => {
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
 
     const recordedPackageSummary = within(
-      (await screen.findByRole("heading", { name: "Bag 1" })).closest(
+      (await screen.findByRole("heading", { name: "Bag 1 of 1" })).closest(
         "article",
       )!,
     );
@@ -3475,6 +3475,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3591,6 +3592,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3670,6 +3672,8 @@ describe("PackagingPage", () => {
 
     cleanup();
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const resumedPreview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -3760,6 +3764,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
+    await skipBagReviewToSummary(user);
     const preview = within(
       await screen.findByLabelText("Package Label preview"),
     );
@@ -5566,12 +5571,25 @@ async function showWorkflowStage(
     | "Review & labels"
     | "Finish",
 ) {
-  if (screen.queryByRole("heading", { name: stageName })) return;
+  const headingName =
+    stageName === "Review & labels"
+      ? /Review & labels|Let's approve the bags/
+      : stageName;
+  if (screen.queryByRole("heading", { name: headingName })) return;
   const stageButton = await screen.findByRole("button", {
     name: new RegExp(`^${stageName}`),
   });
   await user.click(stageButton);
-  await screen.findByRole("heading", { name: stageName });
+  await screen.findByRole("heading", { name: headingName });
+}
+
+async function skipBagReviewToSummary(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  const skipButton = screen.queryByRole("button", { name: "Skip to summary" });
+  if (!skipButton) return;
+  await user.click(skipButton);
+  await screen.findByLabelText("Bag review complete");
 }
 
 function latestPackagePost() {
