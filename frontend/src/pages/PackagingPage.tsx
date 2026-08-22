@@ -4276,7 +4276,7 @@ function PackageReviewWalkthrough({
               />
             )}
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
               {!isEditing ? (
                 <button
                   className="secondary-action"
@@ -4287,7 +4287,9 @@ function PackageReviewWalkthrough({
                 >
                   Edit
                 </button>
-              ) : null}
+              ) : (
+                <span />
+              )}
               <button
                 className="primary-action"
                 disabled={isDirty}
