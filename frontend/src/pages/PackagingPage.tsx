@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import {
   ApiError,
@@ -100,6 +100,12 @@ export function PackagingPage() {
     queryKey: ["production-batches"],
     queryFn: productionApi.listProductionBatches,
   });
+  const runningBatchCount = useMemo(
+    () =>
+      (batchesQuery.data ?? []).filter((batch) => batch.status === "Running")
+        .length,
+    [batchesQuery.data],
+  );
   const packageTypesQuery = useQuery({
     queryKey: ["package-types"],
     queryFn: packagingApi.listPackageTypes,
@@ -1330,6 +1336,7 @@ export function PackagingPage() {
           onStageChange={setVisibleStage}
           operation={activeOperation}
           packageTypes={packageTypes}
+          runningBatchCount={runningBatchCount}
           storageLocations={storageLocations}
         />
       ) : null}
@@ -1849,6 +1856,7 @@ function PackagingOperationWorkspace({
   onStageChange,
   operation,
   packageTypes,
+  runningBatchCount,
   storageLocations,
 }: {
   availableTrays: PackagingWorksheetItem["eligible_trays"];
@@ -1890,6 +1898,7 @@ function PackagingOperationWorkspace({
   onStageChange: (stage: PackagingStageId) => void;
   operation: PackagingOperation;
   packageTypes: PackageType[];
+  runningBatchCount: number;
   storageLocations: StorageLocation[];
 }) {
   const draftProjections: Record<string, PlannedPackageProjection> = {};
@@ -2333,13 +2342,38 @@ function PackagingOperationWorkspace({
         >
           <section aria-label="Packaging completion eligibility">
             {operation.status === "Completed" ? (
-              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-                Packaging completion was recorded
-                {operation.completed_at
-                  ? ` at ${new Date(operation.completed_at).toLocaleString()}`
-                  : ""}
-                .
-              </p>
+              <>
+                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                  Packaging completion was recorded
+                  {operation.completed_at
+                    ? ` at ${new Date(operation.completed_at).toLocaleString()}`
+                    : ""}
+                  .
+                </p>
+                <div className="mt-4">
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    What&rsquo;s next
+                  </p>
+                  <button
+                    className="primary-action mt-2 w-full"
+                    type="button"
+                    onClick={() => onStageChange("source")}
+                  >
+                    Package another batch
+                  </button>
+                  <div className="mt-3 flex flex-wrap gap-4">
+                    <Link className="text-link" to="/inventory">
+                      View inventory
+                    </Link>
+                    {runningBatchCount > 0 ? (
+                      <Link className="text-link" to="/production">
+                        {runningBatchCount} batch
+                        {runningBatchCount === 1 ? "" : "es"} currently drying
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <h5 className="text-sm font-semibold">

@@ -2577,6 +2577,43 @@ describe("PackagingPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("offers next steps after Packaging completes, including a link to batches still drying", async () => {
+    const user = userEvent.setup();
+    const batch = createProductionBatch({ id: "batch-1", status: "Completed" });
+    const dryingBatch = createProductionBatch({
+      id: "batch-2",
+      batch_number: "Batch 006",
+      status: "Running",
+    });
+    const operation = createPackagingOperation(batch.id, {
+      status: "Completed",
+      completed_at: "2026-07-08T02:00:00.000Z",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [],
+      productionBatches: [batch, dryingBatch],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage(`/packaging?batch=${batch.id}&workspace=1`);
+
+    await screen.findByRole("heading", { name: "Packaging complete" });
+    expect(
+      screen.getByRole("link", { name: "View inventory" }),
+    ).toHaveAttribute("href", "/inventory");
+    expect(
+      screen.getByRole("link", { name: "1 batch currently drying" }),
+    ).toHaveAttribute("href", "/production");
+
+    await user.click(
+      screen.getByRole("button", { name: "Package another batch" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Choose a batch" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows an unavailable state for an invalid URL Batch without selecting another Batch", async () => {
     const testState = createPackagingTestState();
     vi.stubGlobal("fetch", vi.fn(testState.fetch));
