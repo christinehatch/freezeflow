@@ -1122,16 +1122,15 @@ describe("PackagingPage", () => {
     const user = userEvent.setup();
     const worksheet = defaultWorksheet();
     const readyItem = worksheet[0];
-    const completedItem = { ...worksheet[1], eligible_trays: [] };
+    const inProgressItem = worksheet[1];
     const operation = createPackagingOperation("batch-2", {
-      status: "Completed",
-      completed_at: "2026-07-08T02:00:00.000Z",
+      status: "Open",
     });
     const testState = createPackagingTestState({
-      worksheet: [readyItem, completedItem],
+      worksheet: [readyItem, inProgressItem],
       productionBatches: [
         readyItem.production_batch,
-        completedItem.production_batch,
+        inProgressItem.production_batch,
       ],
       operation,
     });
@@ -1145,8 +1144,50 @@ describe("PackagingPage", () => {
       screen.getByRole("option", { name: /Batch 005.*Ready to package/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: /Batch 006.*Packaging complete/ }),
+      screen.getByRole("option", {
+        name: /Batch 006.*Packaging in progress/,
+      }),
     ).toBeInTheDocument();
+  });
+
+  it("drops a completed Batch from the picker once it's no longer active", async () => {
+    const user = userEvent.setup();
+    const worksheet = defaultWorksheet();
+    const readyItemOne = worksheet[0];
+    const readyItemTwo = worksheet[1];
+    const completedBatch = createProductionBatch({
+      id: "batch-3",
+      batch_number: "Batch 007",
+      status: "Completed",
+    });
+    const operation = createPackagingOperation("batch-3", {
+      status: "Completed",
+      completed_at: "2026-07-08T02:00:00.000Z",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [readyItemOne, readyItemTwo],
+      productionBatches: [
+        readyItemOne.production_batch,
+        readyItemTwo.production_batch,
+        completedBatch,
+      ],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1");
+
+    const batchSelect = await screen.findByLabelText("Production Batch");
+    await user.click(batchSelect);
+    expect(
+      screen.getByRole("option", { name: /Batch 005.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Batch 006.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Batch 007/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("starts exactly one Packaging Operation for the selected Production Batch", async () => {

@@ -188,12 +188,12 @@ export function PackagingPage() {
   );
   const discoverableBatches = useMemo(
     () =>
-      completedBatches.filter(
-        (batch) =>
-          worksheetByBatch.has(batch.id) ||
-          operationsByBatch.get(batch.id) !== null,
-      ),
-    [completedBatches, operationsByBatch, worksheetByBatch],
+      completedBatches.filter((batch) => {
+        if (batch.id === activeBatchId) return true;
+        if (worksheetByBatch.has(batch.id)) return true;
+        return operationsByBatch.get(batch.id)?.status === "Open";
+      }),
+    [activeBatchId, completedBatches, operationsByBatch, worksheetByBatch],
   );
   const activeBatch =
     completedBatches.find((batch) => batch.id === activeBatchId) ?? null;
