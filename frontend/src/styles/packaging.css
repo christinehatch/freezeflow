@@ -710,11 +710,6 @@
   gap: var(--ff-space-3);
 }
 
-.saved-bag-summary--other {
-  border-top: 1px dashed var(--ff-color-border);
-  padding-top: var(--ff-space-4);
-}
-
 .saved-bag-summary h5,
 .saved-bag-summary p,
 .single-bag-form h5,

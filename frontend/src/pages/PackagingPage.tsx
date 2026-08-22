@@ -2981,6 +2981,96 @@ function SingleBagEntryLoop({
       ? "Unavailable"
       : formatWeightInUnit(value, activeDisplayUnit, 3);
 
+  const activeSourcePackages: Array<{
+    recordedPackage: (typeof operation.packages)[number];
+    index: number;
+  }> = [];
+  const otherSourcePackages: Array<{
+    recordedPackage: (typeof operation.packages)[number];
+    index: number;
+  }> = [];
+  operation.packages.forEach((recordedPackage, index) => {
+    const bucket =
+      recordedPackage.packaging_allocation_id === activeAllocation.id
+        ? activeSourcePackages
+        : otherSourcePackages;
+    bucket.push({ recordedPackage, index });
+  });
+
+  const renderSavedBagCard = ({
+    recordedPackage,
+    index,
+  }: {
+    recordedPackage: (typeof operation.packages)[number];
+    index: number;
+  }) => {
+    const label = recordedPackage.label as PackageLabel | null | undefined;
+    const isEditingSavedBag = editingSavedBagIds.has(recordedPackage.id);
+    return (
+      <details
+        aria-label={`Bag ${index + 1}, ${recordedPackage.package_type.name}, ${formatOptionalWorkspaceWeight(
+          finiteWeightOrNull(recordedPackage.finished_product_weight_grams),
+        )}, Saved`}
+        className="saved-bag-card"
+        key={recordedPackage.id}
+        role="listitem"
+      >
+        <summary className="saved-bag-card__summary">
+          <span aria-hidden="true" className="saved-bag-card__icon">
+            ▣
+          </span>
+          <span className="saved-bag-card__copy">
+            <strong>Bag {index + 1}</strong>
+            <span>{recordedPackage.package_type.name}</span>
+          </span>
+          <span className="saved-bag-card__weight">
+            {formatOptionalWorkspaceWeight(
+              finiteWeightOrNull(recordedPackage.finished_product_weight_grams),
+            )}
+          </span>
+          <span className="saved-bag-card__status">Saved</span>
+        </summary>
+        <div className="saved-bag-card__details mt-3">
+          {!label ? (
+            <p className="text-sm text-slate-600">
+              No Package Label is recorded for this Package.
+            </p>
+          ) : isEditingSavedBag ? (
+            <PackageLabelEditor
+              formatError={formatError}
+              key={recordedPackage.id}
+              label={label}
+              onRefresh={() => onRefreshLabel(recordedPackage.id)}
+              onSave={(body) => onSaveLabel(recordedPackage.id, body)}
+              packageIdentifier={recordedPackage.package_identifier}
+            />
+          ) : (
+            <>
+              <BagLabelPreview
+                label={label}
+                recordedPackage={recordedPackage}
+              />
+              <button
+                className="secondary-action mt-3"
+                type="button"
+                onClick={() =>
+                  setEditingSavedBagIds((current) => {
+                    if (current.has(recordedPackage.id)) return current;
+                    const next = new Set(current);
+                    next.add(recordedPackage.id);
+                    return next;
+                  })
+                }
+              >
+                Edit
+              </button>
+            </>
+          )}
+        </div>
+      </details>
+    );
+  };
+
   return (
     <div className="single-bag-loop">
       <section
@@ -3070,140 +3160,14 @@ function SingleBagEntryLoop({
         </Field>
       ) : null}
 
-      {operation.packages.length > 0
-        ? (() => {
-            const activeSourcePackages: Array<{
-              recordedPackage: (typeof operation.packages)[number];
-              index: number;
-            }> = [];
-            const otherSourcePackages: Array<{
-              recordedPackage: (typeof operation.packages)[number];
-              index: number;
-            }> = [];
-            operation.packages.forEach((recordedPackage, index) => {
-              const bucket =
-                recordedPackage.packaging_allocation_id === activeAllocation.id
-                  ? activeSourcePackages
-                  : otherSourcePackages;
-              bucket.push({ recordedPackage, index });
-            });
-
-            const renderSavedBagCard = ({
-              recordedPackage,
-              index,
-            }: {
-              recordedPackage: (typeof operation.packages)[number];
-              index: number;
-            }) => {
-              const label = recordedPackage.label as
-                | PackageLabel
-                | null
-                | undefined;
-              const isEditingSavedBag = editingSavedBagIds.has(
-                recordedPackage.id,
-              );
-              return (
-                <details
-                  aria-label={`Bag ${index + 1}, ${recordedPackage.package_type.name}, ${formatOptionalWorkspaceWeight(
-                    finiteWeightOrNull(
-                      recordedPackage.finished_product_weight_grams,
-                    ),
-                  )}, Saved`}
-                  className="saved-bag-card"
-                  key={recordedPackage.id}
-                  role="listitem"
-                >
-                  <summary className="saved-bag-card__summary">
-                    <span aria-hidden="true" className="saved-bag-card__icon">
-                      ▣
-                    </span>
-                    <span className="saved-bag-card__copy">
-                      <strong>Bag {index + 1}</strong>
-                      <span>{recordedPackage.package_type.name}</span>
-                    </span>
-                    <span className="saved-bag-card__weight">
-                      {formatOptionalWorkspaceWeight(
-                        finiteWeightOrNull(
-                          recordedPackage.finished_product_weight_grams,
-                        ),
-                      )}
-                    </span>
-                    <span className="saved-bag-card__status">Saved</span>
-                  </summary>
-                  <div className="saved-bag-card__details mt-3">
-                    {!label ? (
-                      <p className="text-sm text-slate-600">
-                        No Package Label is recorded for this Package.
-                      </p>
-                    ) : isEditingSavedBag ? (
-                      <PackageLabelEditor
-                        formatError={formatError}
-                        key={recordedPackage.id}
-                        label={label}
-                        onRefresh={() => onRefreshLabel(recordedPackage.id)}
-                        onSave={(body) => onSaveLabel(recordedPackage.id, body)}
-                        packageIdentifier={recordedPackage.package_identifier}
-                      />
-                    ) : (
-                      <>
-                        <BagLabelPreview
-                          label={label}
-                          recordedPackage={recordedPackage}
-                        />
-                        <button
-                          className="secondary-action mt-3"
-                          type="button"
-                          onClick={() =>
-                            setEditingSavedBagIds((current) => {
-                              if (current.has(recordedPackage.id))
-                                return current;
-                              const next = new Set(current);
-                              next.add(recordedPackage.id);
-                              return next;
-                            })
-                          }
-                        >
-                          Edit
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </details>
-              );
-            };
-
-            return (
-              <>
-                {activeSourcePackages.length > 0 ? (
-                  <section
-                    className="saved-bag-summary"
-                    aria-label="Saved bags"
-                  >
-                    <h5>Saved bags</h5>
-                    <div className="saved-bag-summary__rows" role="list">
-                      {activeSourcePackages.map(renderSavedBagCard)}
-                    </div>
-                  </section>
-                ) : null}
-                {otherSourcePackages.length > 0 ? (
-                  <section
-                    className="saved-bag-summary saved-bag-summary--other"
-                    aria-label="Other saved bags this session"
-                  >
-                    <h5>Other saved bags this session</h5>
-                    <p className="text-sm text-slate-600">
-                      Saved from a different Product Source earlier in this
-                      Packaging Operation.
-                    </p>
-                    <div className="saved-bag-summary__rows" role="list">
-                      {otherSourcePackages.map(renderSavedBagCard)}
-                    </div>
-                  </section>
-                ) : null}
-              </>
-            );
-          })()
-        : null}
+      {activeSourcePackages.length > 0 ? (
+        <section className="saved-bag-summary" aria-label="Saved bags">
+          <h5>Saved bags</h5>
+          <div className="saved-bag-summary__rows" role="list">
+            {activeSourcePackages.map(renderSavedBagCard)}
+          </div>
+        </section>
+      ) : null}
 
       <p className="sr-only" aria-live="polite" role="status">
         {lastSaved
@@ -3526,6 +3490,26 @@ function SingleBagEntryLoop({
           </button>
         </section>
       )}
+
+      {otherSourcePackages.length > 0 ? (
+        <details
+          aria-label="Other saved bags this session"
+          className="single-bag-history"
+        >
+          <summary>
+            Other saved bags this session ({otherSourcePackages.length})
+          </summary>
+          <div className="single-bag-history__content">
+            <p>
+              Saved from a different Product Source earlier in this Packaging
+              Operation.
+            </p>
+            <div className="saved-bag-summary__rows" role="list">
+              {otherSourcePackages.map(renderSavedBagCard)}
+            </div>
+          </div>
+        </details>
+      ) : null}
 
       <details className="single-bag-history">
         <summary>Allocation history</summary>

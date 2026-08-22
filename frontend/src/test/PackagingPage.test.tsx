@@ -861,15 +861,31 @@ describe("PackagingPage", () => {
       within(activeSection).queryByRole("listitem", { name: /Bag 1/ }),
     ).not.toBeInTheDocument();
 
-    const otherSection = screen.getByRole("region", {
+    const otherSection = screen.getByRole("group", {
       name: "Other saved bags this session",
     });
+    expect(otherSection).not.toHaveAttribute("open");
+    expect(
+      within(otherSection).getByText("Other saved bags this session (1)"),
+    ).toBeInTheDocument();
     expect(
       within(otherSection).getByRole("listitem", { name: /Bag 1/ }),
     ).toBeInTheDocument();
     expect(
       within(otherSection).queryByRole("listitem", { name: /Bag 2/ }),
     ).not.toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Bag 3" })).toBeInTheDocument();
+    const activeSectionPosition = activeSection.compareDocumentPosition(
+      screen.getByRole("heading", { name: "Bag 3" }),
+    );
+    expect(
+      activeSectionPosition & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const bagFormPosition = screen
+      .getByRole("heading", { name: "Bag 3" })
+      .compareDocumentPosition(otherSection);
+    expect(bagFormPosition & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("keeps multiple source pools independent and blocks Review when one is overallocated", async () => {
