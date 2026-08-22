@@ -6,6 +6,8 @@ import {
   expectPrintPdfText,
   goToPackagingStage,
   printWindowState,
+  REVIEW_STAGE_NAME,
+  skipBagReviewToSummary,
   stubPrintWindow,
 } from "./support/packagingWorkflow";
 import { mockFreezeflowApi } from "./support/mockApi";
@@ -37,7 +39,8 @@ test("reserves output before persistence and navigates it to a valid Avery PDF",
   });
 
   await page.goto(`/packaging?batch=${batch.id}&workspace=1`);
-  await goToPackagingStage(page, "Review & labels");
+  await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
+  await skipBagReviewToSummary(page);
   const preview = page.getByLabel("Package Label preview");
   await preview
     .getByLabel(`Select ${recordedPackage.package_identifier} Package Label`)
@@ -75,7 +78,8 @@ test("popup blocking prevents persistence and explains that nothing was recorded
   await stubPrintWindow(page, PRINT_OUTPUT_URL, { blockOpen: true });
 
   await page.goto(`/packaging?batch=${batch.id}&workspace=1`);
-  await goToPackagingStage(page, "Review & labels");
+  await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
+  await skipBagReviewToSummary(page);
   const preview = page.getByLabel("Package Label preview");
   await preview
     .getByLabel(`Select ${recordedPackage.package_identifier} Package Label`)
@@ -108,7 +112,8 @@ test("print persistence failure closes the reservation without success state", a
   });
 
   await page.goto(`/packaging?batch=${batch.id}&workspace=1`);
-  await goToPackagingStage(page, "Review & labels");
+  await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
+  await skipBagReviewToSummary(page);
   const preview = page.getByLabel("Package Label preview");
   await preview
     .getByLabel(`Select ${recordedPackage.package_identifier} Package Label`)
@@ -137,7 +142,8 @@ test("output delivery recovery does not append a Print Event, while deliberate r
   await stubPrintWindow(page, PRINT_OUTPUT_URL, { failNavigationTimes: 1 });
 
   await page.goto(`/packaging?batch=${batch.id}&workspace=1`);
-  await goToPackagingStage(page, "Review & labels");
+  await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
+  await skipBagReviewToSummary(page);
   const preview = page.getByLabel("Package Label preview");
   await preview
     .getByLabel(`Select ${recordedPackage.package_identifier} Package Label`)

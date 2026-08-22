@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+export const REVIEW_STAGE_NAME = /^(Review & labels|Let's approve the bags)$/;
+
 export type PlannedPackageValues = {
   packageTypeId?: string;
   finishedWeight: string;
@@ -66,8 +68,15 @@ export function plannedPackageSummary(page: Page, rowNumber: number) {
     .locator("xpath=ancestor::article[1]");
 }
 
-export async function goToPackagingStage(page: Page, stageName: string) {
-  const heading = page.getByRole("heading", { name: stageName, exact: true });
+export async function goToPackagingStage(
+  page: Page,
+  stageName: string,
+  headingName: string | RegExp = stageName,
+) {
+  const heading = page.getByRole("heading", {
+    name: headingName,
+    exact: typeof headingName === "string",
+  });
   if (await heading.isVisible().catch(() => false)) return;
   try {
     await page
@@ -77,6 +86,13 @@ export async function goToPackagingStage(page: Page, stageName: string) {
     if (!(await heading.isVisible().catch(() => false))) throw error;
   }
   await expect(heading).toBeVisible();
+}
+
+export async function skipBagReviewToSummary(page: Page) {
+  const skipButton = page.getByRole("button", { name: "Skip to summary" });
+  if (!(await skipButton.isVisible().catch(() => false))) return;
+  await skipButton.click();
+  await expect(page.getByLabel("Bag review complete")).toBeVisible();
 }
 
 export async function revealRecordedPackages(

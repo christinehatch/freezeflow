@@ -10,6 +10,7 @@ import {
   goToPackagingStage,
   plannedPackageSummary,
   revealRecordedPackages,
+  REVIEW_STAGE_NAME,
   stubPrintWindow,
 } from "./support/packagingWorkflow";
 import { mockFreezeflowApi } from "./support/mockApi";
@@ -237,7 +238,7 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
       fakeBackend.packagingOperations[0].allocations[0].packages;
     expect(recordedPackages).toHaveLength(2);
     await page.getByRole("button", { name: "Next — Review" }).click();
-    const reviewStage = page.getByRole("region", { name: "Review & labels" });
+    const reviewStage = page.getByRole("region", { name: REVIEW_STAGE_NAME });
     for (const recordedPackage of recordedPackages) {
       await expect(
         reviewStage.getByText(recordedPackage.package_identifier, {
@@ -247,9 +248,9 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
     }
 
     await page.reload();
-    await goToPackagingStage(page, "Review & labels");
+    await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
     await expect(
-      page.getByRole("heading", { name: "Review & labels" }),
+      page.getByRole("heading", { name: REVIEW_STAGE_NAME }),
     ).toBeVisible();
     for (const recordedPackage of recordedPackages) {
       await expect(
@@ -279,7 +280,7 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
         .getByLabel(`${recordedPackage.package_identifier} Label Serving Notes`)
         .fill("Serves two");
       await editor.getByRole("button", { name: "Save Package Label" }).click();
-      await goToPackagingStage(page, "Review & labels");
+      await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
       await expect(
         page.getByText(`${recordedPackage.package_identifier} · Ready`, {
           exact: true,
@@ -288,7 +289,7 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
     }
 
     await page.reload();
-    await goToPackagingStage(page, "Review & labels");
+    await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
     await expect(
       page.getByLabel(
         `${recordedPackages[0].package_identifier} Label Display Name`,
@@ -329,9 +330,9 @@ test.skip("completes and resumes the core Packaging workflow as read-only histor
     }
 
     await page.reload();
-    await goToPackagingStage(page, "Review & labels");
+    await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
     await expect(
-      page.getByRole("heading", { name: "Review & labels" }),
+      page.getByRole("heading", { name: REVIEW_STAGE_NAME }),
     ).toBeVisible();
     const restoredPreview = page.getByLabel("Package Label preview");
     for (const recordedPackage of recordedPackages) {
@@ -508,7 +509,7 @@ test("records physical bags one at a time and blocks early Review", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "No more bags — Review" }).click();
   await expect(
-    page.getByRole("heading", { name: "Review & labels" }),
+    page.getByRole("heading", { name: REVIEW_STAGE_NAME }),
   ).toBeVisible();
   expect(fakeBackend.packageRecordBodies).toHaveLength(2);
 });

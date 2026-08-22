@@ -10,6 +10,8 @@ import {
   fillPlannedPackage,
   goToPackagingStage,
   plannedPackageFinishedWeight,
+  REVIEW_STAGE_NAME,
+  skipBagReviewToSummary,
   stubPrintWindow,
 } from "./support/packagingWorkflow";
 import { mockFreezeflowApi } from "./support/mockApi";
@@ -121,7 +123,7 @@ test.skip("recovers persisted plans, Packages, labels, and Print Events after fa
     await page.getByRole("button", { name: "Next — Review" }).click();
     await expect(
       page
-        .getByRole("region", { name: "Review & labels" })
+        .getByRole("region", { name: REVIEW_STAGE_NAME })
         .getByText(recordedPackage.package_identifier, {
           exact: true,
         }),
@@ -167,6 +169,7 @@ test.skip("recovers persisted plans, Packages, labels, and Print Events after fa
       ),
     ).toHaveValue("Recovered Taco Dinner");
 
+    await skipBagReviewToSummary(page);
     const preview = page.getByLabel("Package Label preview");
     await preview
       .getByLabel(`Select ${recordedPackage.package_identifier} Package Label`)
@@ -209,9 +212,9 @@ test.skip("recovers persisted plans, Packages, labels, and Print Events after fa
 
     await page.goto(`/production/${batch.id}`);
     await page.getByRole("link", { name: "Continue Packaging" }).click();
-    await goToPackagingStage(page, "Review & labels");
+    await goToPackagingStage(page, "Review & labels", REVIEW_STAGE_NAME);
     await expect(
-      page.getByRole("region", { name: "Review & labels" }),
+      page.getByRole("region", { name: REVIEW_STAGE_NAME }),
     ).toContainText("Recovered Taco Dinner");
     await expect(page.getByText("Initial Print")).toBeVisible();
     expect(fakeBackend.packagingOperations).toHaveLength(1);
