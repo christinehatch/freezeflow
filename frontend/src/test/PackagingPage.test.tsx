@@ -1118,6 +1118,37 @@ describe("PackagingPage", () => {
     });
   });
 
+  it("labels each Batch's packaging status in the batch picker", async () => {
+    const user = userEvent.setup();
+    const worksheet = defaultWorksheet();
+    const readyItem = worksheet[0];
+    const completedItem = { ...worksheet[1], eligible_trays: [] };
+    const operation = createPackagingOperation("batch-2", {
+      status: "Completed",
+      completed_at: "2026-07-08T02:00:00.000Z",
+    });
+    const testState = createPackagingTestState({
+      worksheet: [readyItem, completedItem],
+      productionBatches: [
+        readyItem.production_batch,
+        completedItem.production_batch,
+      ],
+      operation,
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage();
+
+    const batchSelect = await screen.findByLabelText("Production Batch");
+    await user.click(batchSelect);
+    expect(
+      screen.getByRole("option", { name: /Batch 005.*Ready to package/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Batch 006.*Packaging complete/ }),
+    ).toBeInTheDocument();
+  });
+
   it("starts exactly one Packaging Operation for the selected Production Batch", async () => {
     const user = userEvent.setup();
     const testState = createPackagingTestState();

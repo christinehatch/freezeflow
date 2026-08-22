@@ -921,7 +921,10 @@ export function PackagingPage() {
                   options={discoverableBatches.map((batch) => ({
                     value: batch.id,
                     label: batch.batch_number,
-                    description: batch.freeze_dryer.name,
+                    description: `${batch.freeze_dryer.name} · ${packagingBatchStatusLabel(
+                      worksheetByBatch.get(batch.id),
+                      operationsByBatch.get(batch.id) ?? null,
+                    )}`,
                   }))}
                   placeholder="Choose a batch"
                   value={
@@ -4031,6 +4034,20 @@ function formatOptionalWorkspaceWeight(value: number | null) {
   return value === null || !Number.isFinite(value)
     ? "Unavailable"
     : formatGrams(String(value), 3);
+}
+
+function packagingBatchStatusLabel(
+  worksheetItem: PackagingWorksheetItem | undefined,
+  operation: PackagingOperation | null,
+) {
+  const hasEligibleTrays = (worksheetItem?.eligible_trays.length ?? 0) > 0;
+  if (operation?.status === "Open") return "Packaging in progress";
+  if (operation?.status === "Completed") {
+    return hasEligibleTrays
+      ? "More Trays ready to package"
+      : "Packaging complete";
+  }
+  return hasEligibleTrays ? "Ready to package" : "No eligible Trays";
 }
 
 export function PlannedPackageSummary({
