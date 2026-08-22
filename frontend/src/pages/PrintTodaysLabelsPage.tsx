@@ -227,35 +227,34 @@ export function PrintTodaysLabelsPage() {
 
             <ul className="mt-3 space-y-2" role="list">
               {packages.map((item) => (
-                <li
-                  className="flex items-start gap-3 rounded-md border border-slate-200 p-3"
-                  key={item.id}
-                >
-                  <input
-                    aria-label={`Select ${item.package_identifier} Package Label`}
-                    checked={selectedLabelIds.includes(item.label.id)}
-                    type="checkbox"
-                    onChange={() => toggleLabel(item.label.id)}
-                  />
-                  <div>
-                    <p className="font-semibold">
-                      {item.label.display_name}{" "}
-                      <span className="font-normal text-slate-600">
-                        · {item.batch_number}
-                      </span>
-                    </p>
-                    <p className="text-sm text-slate-700">
-                      {item.package_identifier} · {item.package_type.name} ·{" "}
-                      {formatGrams(
-                        item.finished_product_weight_grams === null
-                          ? null
-                          : String(item.finished_product_weight_grams),
-                      )}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Label status: {item.label.status}
-                    </p>
-                  </div>
+                <li key={item.id}>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 hover:border-slate-300">
+                    <input
+                      aria-label={`Select ${item.package_identifier} Package Label`}
+                      checked={selectedLabelIds.includes(item.label.id)}
+                      type="checkbox"
+                      onChange={() => toggleLabel(item.label.id)}
+                    />
+                    <div>
+                      <p className="font-semibold">
+                        {item.label.display_name}{" "}
+                        <span className="font-normal text-slate-600">
+                          · {item.batch_number}
+                        </span>
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        {item.package_identifier} · {item.package_type.name} ·{" "}
+                        {formatGrams(
+                          item.finished_product_weight_grams === null
+                            ? null
+                            : String(item.finished_product_weight_grams),
+                        )}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        Label status: {item.label.status}
+                      </p>
+                    </div>
+                  </label>
                 </li>
               ))}
             </ul>
