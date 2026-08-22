@@ -415,7 +415,7 @@ export function PackageLabelPreview({
                         {label?.display_name || "Package Label unavailable"}
                       </span>
                       <span className="mt-1 block text-sm text-slate-600">
-                        {recordedPackage.package_identifier} · Allocation{" "}
+                        {recordedPackage.package_identifier} · Source{" "}
                         {allocationNumber}
                         {" · "}
                         {recordedPackage.package_type?.name ??

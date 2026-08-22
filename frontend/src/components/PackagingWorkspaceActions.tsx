@@ -174,12 +174,14 @@ export function PlannedPackageRecordAction({
 export function PackageLabelEditor({
   formatError,
   label,
+  onDirtyChange,
   onRefresh,
   onSave,
   packageIdentifier,
 }: {
   formatError: (error: unknown) => string;
   label: PackageLabel;
+  onDirtyChange?: (dirty: boolean) => void;
   onRefresh: () => Promise<PackageLabel>;
   onSave: (body: PackageLabelUpdate) => Promise<void>;
   packageIdentifier: string;
@@ -203,6 +205,10 @@ export function PackageLabelEditor({
     status === "saving" ||
     status === "refreshing" ||
     status === "refresh-failed";
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const nextVersion = authoritativeLabelFingerprint(label);

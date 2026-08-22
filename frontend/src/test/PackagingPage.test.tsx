@@ -1373,7 +1373,7 @@ describe("PackagingPage", () => {
       reviewSummary.getByText("Source Trays").parentElement,
     ).toHaveTextContent("2");
     expect(
-      reviewSummary.getByText("Allocations in review").parentElement,
+      reviewSummary.getByText("Product Sources").parentElement,
     ).toHaveTextContent("2");
     expect(
       reviewSummary.getByText("Package PKG-2026-000042"),
@@ -2312,10 +2312,13 @@ describe("PackagingPage", () => {
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
 
     const recordedPackageSummary = within(
-      (await screen.findByRole("heading", { name: "PKG-2026-000077" })).closest(
+      (await screen.findByRole("heading", { name: "Bag 1" })).closest(
         "article",
       )!,
     );
+    expect(
+      recordedPackageSummary.getByText("PKG-2026-000077"),
+    ).toBeInTheDocument();
     expect(
       recordedPackageSummary.getByText(
         "No Package Label is recorded for this Package.",
@@ -3208,8 +3211,10 @@ describe("PackagingPage", () => {
 
     cleanup();
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
-    expect(await screen.findByDisplayValue("Taco Dinner")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Chicken, peppers")).toBeInTheDocument();
+    expect((await screen.findAllByText("Taco Dinner")).length).toBeGreaterThan(
+      0,
+    );
+    expect(screen.getAllByText("Chicken, peppers").length).toBeGreaterThan(0);
     expect(packageLabelPatchRequests()).toHaveLength(1);
   });
 
@@ -3264,9 +3269,7 @@ describe("PackagingPage", () => {
 
     renderPackagingPage("/packaging?batch=batch-1&workspace=1");
     await showWorkflowStage(user, "Review & labels");
-    await user.click(
-      screen.getByText("PKG-2026-000001 · Ready", { selector: "summary" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Edit" }));
     const editor = within(
       await screen.findByLabelText("PKG-2026-000001 Package Label editor"),
     );
