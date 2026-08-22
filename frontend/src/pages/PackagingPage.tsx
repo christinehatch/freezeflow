@@ -4650,14 +4650,15 @@ function PackagingReviewSummary({
     (total, allocation) => total + allocation.source_trays.length,
     0,
   );
-  const recordedPackages = operation.allocations.flatMap(
-    (allocation) => allocation.packages,
+  const recordedPackageCount = operation.allocations.reduce(
+    (total, allocation) => total + allocation.packages.length,
+    0,
   );
 
   return (
-    <section aria-label="Packaging review summary" className="mb-5 space-y-3">
+    <section aria-label="Packaging review summary" className="mb-5">
       <h5 className="text-sm font-semibold">Packaging review summary</h5>
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <dl className="mt-3 grid gap-3 sm:grid-cols-3">
         <WorkspaceDetail label="Source Trays" value={String(sourceTrayCount)} />
         <WorkspaceDetail
           label="Product Sources"
@@ -4665,49 +4666,9 @@ function PackagingReviewSummary({
         />
         <WorkspaceDetail
           label="Bags Saved"
-          value={String(recordedPackages.length)}
+          value={String(recordedPackageCount)}
         />
       </dl>
-      {recordedPackages.length === 0 ? (
-        <p className="text-sm text-slate-600">
-          No Packages have been recorded for review yet.
-        </p>
-      ) : (
-        <ul className="grid gap-2 lg:grid-cols-2">
-          {recordedPackages.map((recordedPackage) => (
-            <li
-              className="rounded-md border border-slate-200 p-3"
-              key={recordedPackage.id}
-            >
-              <p className="font-semibold">
-                Package {recordedPackage.package_identifier}
-              </p>
-              <p className="text-sm text-slate-700">
-                {recordedPackage.package_type.name} · Finished Product Weight{" "}
-                {recordedPackage.finished_product_weight_grams === null
-                  ? "Unavailable"
-                  : formatGrams(
-                      String(recordedPackage.finished_product_weight_grams),
-                    )}
-                {" · "}Sealed Package Weight{" "}
-                {formatGrams(String(recordedPackage.package_weight_grams))}
-              </p>
-              <p className="text-sm text-slate-600">
-                {recordedPackage.storage_location.name} · Oxygen absorber{" "}
-                {recordedPackage.oxygen_absorber || "Not recorded"} · Packaged{" "}
-                <time dateTime={recordedPackage.packaged_at}>
-                  {new Date(recordedPackage.packaged_at).toLocaleString()}
-                </time>
-              </p>
-              {recordedPackage.notes ? (
-                <p className="text-sm text-slate-600">
-                  {recordedPackage.notes}
-                </p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

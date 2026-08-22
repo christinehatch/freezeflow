@@ -1492,14 +1492,8 @@ describe("PackagingPage", () => {
       reviewSummary.getByText("Product Sources").parentElement,
     ).toHaveTextContent("2");
     expect(
-      reviewSummary.getByText("Package PKG-2026-000042"),
-    ).toBeInTheDocument();
-    expect(
-      reviewSummary.getByText(/Sealed Package Weight 207.5 g/),
-    ).toBeInTheDocument();
-    expect(
-      reviewSummary.getByText(/Pantry · Oxygen absorber 300cc/),
-    ).toBeInTheDocument();
+      reviewSummary.getByText("Bags Saved").parentElement,
+    ).toHaveTextContent("1");
     expect(
       screen.queryByLabelText("Prepare Packaging Allocation"),
     ).not.toBeInTheDocument();
