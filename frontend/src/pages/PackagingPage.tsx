@@ -3070,11 +3070,31 @@ function SingleBagEntryLoop({
         </Field>
       ) : null}
 
-      {operation.packages.length > 0 ? (
-        <section className="saved-bag-summary" aria-label="Saved bags">
-          <h5>Saved bags</h5>
-          <div className="saved-bag-summary__rows" role="list">
-            {operation.packages.map((recordedPackage, index) => {
+      {operation.packages.length > 0
+        ? (() => {
+            const activeSourcePackages: Array<{
+              recordedPackage: (typeof operation.packages)[number];
+              index: number;
+            }> = [];
+            const otherSourcePackages: Array<{
+              recordedPackage: (typeof operation.packages)[number];
+              index: number;
+            }> = [];
+            operation.packages.forEach((recordedPackage, index) => {
+              const bucket =
+                recordedPackage.packaging_allocation_id === activeAllocation.id
+                  ? activeSourcePackages
+                  : otherSourcePackages;
+              bucket.push({ recordedPackage, index });
+            });
+
+            const renderSavedBagCard = ({
+              recordedPackage,
+              index,
+            }: {
+              recordedPackage: (typeof operation.packages)[number];
+              index: number;
+            }) => {
               const label = recordedPackage.label as
                 | PackageLabel
                 | null
@@ -3150,10 +3170,40 @@ function SingleBagEntryLoop({
                   </div>
                 </details>
               );
-            })}
-          </div>
-        </section>
-      ) : null}
+            };
+
+            return (
+              <>
+                {activeSourcePackages.length > 0 ? (
+                  <section
+                    className="saved-bag-summary"
+                    aria-label="Saved bags"
+                  >
+                    <h5>Saved bags</h5>
+                    <div className="saved-bag-summary__rows" role="list">
+                      {activeSourcePackages.map(renderSavedBagCard)}
+                    </div>
+                  </section>
+                ) : null}
+                {otherSourcePackages.length > 0 ? (
+                  <section
+                    className="saved-bag-summary saved-bag-summary--other"
+                    aria-label="Other saved bags this session"
+                  >
+                    <h5>Other saved bags this session</h5>
+                    <p className="text-sm text-slate-600">
+                      Saved from a different Product Source earlier in this
+                      Packaging Operation.
+                    </p>
+                    <div className="saved-bag-summary__rows" role="list">
+                      {otherSourcePackages.map(renderSavedBagCard)}
+                    </div>
+                  </section>
+                ) : null}
+              </>
+            );
+          })()
+        : null}
 
       <p className="sr-only" aria-live="polite" role="status">
         {lastSaved

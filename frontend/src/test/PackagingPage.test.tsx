@@ -816,6 +816,62 @@ describe("PackagingPage", () => {
     expect(screen.queryByText("Autosave failed")).not.toBeInTheDocument();
   });
 
+  it("splits Saved bags by active Source, keeping Bag numbering global", async () => {
+    const trays = defaultWorksheet()[0].eligible_trays;
+    const firstSourcePackage = createPackage({
+      id: "package-source-1",
+      packaging_allocation_id: "packaging-allocation-1",
+      finished_product_weight_grams: "199.1",
+    });
+    const secondSourcePackage = createPackage({
+      id: "package-source-2",
+      packaging_allocation_id: "packaging-allocation-2",
+      package_identifier: "PKG-2026-000002",
+      finished_product_weight_grams: "50",
+    });
+    const firstAllocation = createPackagingAllocation([trays[0]], {
+      id: "packaging-allocation-1",
+      allocated_weight_grams: "199.1",
+      remaining_weight_grams: "0",
+      packages: [firstSourcePackage],
+    });
+    const secondAllocation = createPackagingAllocation([trays[1]], {
+      id: "packaging-allocation-2",
+      allocated_weight_grams: "50",
+      remaining_weight_grams: "186",
+      packages: [secondSourcePackage],
+    });
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [firstAllocation, secondAllocation],
+      packages: [firstSourcePackage, secondSourcePackage],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(createPackagingTestState({ operation }).fetch),
+    );
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 3" });
+
+    const activeSection = screen.getByRole("region", { name: "Saved bags" });
+    expect(
+      within(activeSection).getByRole("listitem", { name: /Bag 2/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(activeSection).queryByRole("listitem", { name: /Bag 1/ }),
+    ).not.toBeInTheDocument();
+
+    const otherSection = screen.getByRole("region", {
+      name: "Other saved bags this session",
+    });
+    expect(
+      within(otherSection).getByRole("listitem", { name: /Bag 1/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(otherSection).queryByRole("listitem", { name: /Bag 2/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps multiple source pools independent and blocks Review when one is overallocated", async () => {
     const trays = defaultWorksheet()[0].eligible_trays;
     const operation = createPackagingOperation("batch-1", {
