@@ -2320,55 +2320,72 @@ function PackagingOperationWorkspace({
       <div hidden={visibleStage !== "finish"}>
         <WorkflowStage
           className="packaging-finish-stage"
-          description="Resolve every blocker, then explicitly complete Packaging and preserve the workspace as read-only history."
+          description={
+            operation.status === "Completed"
+              ? "This Packaging Operation is complete and preserved as read-only history."
+              : "Resolve every blocker, then explicitly complete Packaging and preserve the workspace as read-only history."
+          }
           stage={5}
           status="current"
-          title="Finish"
+          title={
+            operation.status === "Completed" ? "Packaging complete" : "Finish"
+          }
         >
           <section aria-label="Packaging completion eligibility">
-            <h5 className="text-sm font-semibold">Completion eligibility</h5>
             {operation.status === "Completed" ? (
-              <p className="mt-1 text-sm text-slate-700">
-                Packaging is already Completed. This historical workspace is not
-                an actionable completion candidate.
+              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                Packaging completion was recorded
+                {operation.completed_at
+                  ? ` at ${new Date(operation.completed_at).toLocaleString()}`
+                  : ""}
+                .
               </p>
-            ) : appearsEligible ? (
-              <div className="mt-1 text-sm text-slate-700">
-                <p className="font-semibold">Appears eligible for completion</p>
-                <p>
-                  Every Allocation is independently balanced and the visible
-                  saved Package and Label requirements are satisfied. Backend
-                  validation remains authoritative.
-                </p>
-              </div>
             ) : (
-              <div className="mt-1">
-                <p className="text-sm font-semibold text-amber-950">
-                  Not yet eligible for completion
-                </p>
-                <ul className="mt-1 space-y-1 text-sm text-amber-900">
-                  {completionBlockers.map((blocker) => (
-                    <li key={blocker}>{blocker}</li>
-                  ))}
-                </ul>
-              </div>
+              <>
+                <h5 className="text-sm font-semibold">
+                  Completion eligibility
+                </h5>
+                {appearsEligible ? (
+                  <div className="mt-1 text-sm text-slate-700">
+                    <p className="font-semibold">
+                      Appears eligible for completion
+                    </p>
+                    <p>
+                      Every Allocation is independently balanced and the visible
+                      saved Package and Label requirements are satisfied.
+                      Backend validation remains authoritative.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    <p className="text-sm font-semibold text-amber-950">
+                      Not yet eligible for completion
+                    </p>
+                    <ul className="mt-1 space-y-1 text-sm text-amber-900">
+                      {completionBlockers.map((blocker) => (
+                        <li key={blocker}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {availableTrays.length > 0 ? (
+                  <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p className="font-semibold">
+                      {availableTrays.length} completed Tray
+                      {availableTrays.length === 1 ? "" : "s"} for this Batch{" "}
+                      {availableTrays.length === 1 ? "hasn't" : "haven't"} been
+                      added to a Packaging Allocation.
+                    </p>
+                    <p className="mt-1">
+                      Completing this Packaging Operation won&rsquo;t include{" "}
+                      {availableTrays.length === 1 ? "it" : "them"}. A new
+                      Packaging Operation will be needed to package{" "}
+                      {availableTrays.length === 1 ? "it" : "them"} later.
+                    </p>
+                  </div>
+                ) : null}
+              </>
             )}
-            {operation.status !== "Completed" && availableTrays.length > 0 ? (
-              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                <p className="font-semibold">
-                  {availableTrays.length} completed Tray
-                  {availableTrays.length === 1 ? "" : "s"} for this Batch{" "}
-                  {availableTrays.length === 1 ? "hasn't" : "haven't"} been
-                  added to a Packaging Allocation.
-                </p>
-                <p className="mt-1">
-                  Completing this Packaging Operation won&rsquo;t include{" "}
-                  {availableTrays.length === 1 ? "it" : "them"}. A new Packaging
-                  Operation will be needed to package{" "}
-                  {availableTrays.length === 1 ? "it" : "them"} later.
-                </p>
-              </div>
-            ) : null}
             <PackagingCompletionAction
               eligible={appearsEligible}
               formatError={formatError}
@@ -2407,9 +2424,6 @@ function PackagingCompletionAction({
   const [completing, setCompleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
-  const [completionConfirmation, setCompletionConfirmation] = useState<
-    string | null
-  >(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   async function completeOperation() {
@@ -2423,17 +2437,9 @@ function PackagingCompletionAction({
     completingInFlight.current = true;
     setCompleting(true);
     setCompletionError(null);
-    setCompletionConfirmation(null);
     setRefreshError(null);
     try {
-      const completedOperation = await onComplete();
-      setCompletionConfirmation(
-        `Packaging completion was recorded${
-          completedOperation.completed_at
-            ? ` at ${new Date(completedOperation.completed_at).toLocaleString()}`
-            : ""
-        }.`,
-      );
+      await onComplete();
       try {
         await onRefresh();
       } catch (refreshFailure) {
@@ -2488,11 +2494,6 @@ function PackagingCompletionAction({
       {completionError ? (
         <p className="error-banner mt-3" role="alert">
           Packaging was not completed. {completionError}
-        </p>
-      ) : null}
-      {completionConfirmation ? (
-        <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-          {completionConfirmation}
         </p>
       ) : null}
       {refreshError ? (

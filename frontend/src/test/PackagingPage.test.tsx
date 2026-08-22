@@ -2561,7 +2561,7 @@ describe("PackagingPage", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Packaging is already Completed. This historical workspace is not an actionable completion candidate.",
+        `Packaging completion was recorded at ${new Date("2026-07-08T02:00:00.000Z").toLocaleString()}.`,
       ),
     ).toBeInTheDocument();
     expect(
