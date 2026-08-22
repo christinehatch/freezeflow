@@ -462,6 +462,12 @@ export function PackagingPage() {
     startPackagingOperation.mutate(batchId);
   }
 
+  function startNewPackagingRound(batchId: string) {
+    if (startingBatchIdRef.current !== null) return;
+    startingBatchIdRef.current = batchId;
+    startPackagingOperation.mutate(batchId);
+  }
+
   function advanceFromBatch(
     batchId: string,
     operation: PackagingOperation | null,
@@ -952,22 +958,42 @@ export function PackagingPage() {
                           : "Packaging in progress"}
                       </p>
                     ) : (
-                      <button
-                        className="primary-action"
-                        disabled={
-                          startPackagingOperation.isPending ||
-                          activeOperationQuery?.isLoading ||
-                          activeOperationQuery?.isError
-                        }
-                        type="button"
-                        onClick={() =>
-                          advanceFromBatch(activeBatch.id, activeOperation)
-                        }
-                      >
-                        {activeOperation?.status === "Completed"
-                          ? "Next — View history"
-                          : "Next — Choose trays"}
-                      </button>
+                      <>
+                        <button
+                          className="primary-action"
+                          disabled={
+                            startPackagingOperation.isPending ||
+                            activeOperationQuery?.isLoading ||
+                            activeOperationQuery?.isError
+                          }
+                          type="button"
+                          onClick={() =>
+                            advanceFromBatch(activeBatch.id, activeOperation)
+                          }
+                        >
+                          {activeOperation?.status === "Completed"
+                            ? "Next — View history"
+                            : "Next — Choose trays"}
+                        </button>
+                        {activeOperation?.status === "Completed" &&
+                        (activeWorksheetItem?.eligible_trays.length ?? 0) >
+                          0 ? (
+                          <button
+                            className="secondary-action"
+                            disabled={
+                              startPackagingOperation.isPending ||
+                              activeOperationQuery?.isLoading ||
+                              activeOperationQuery?.isError
+                            }
+                            type="button"
+                            onClick={() =>
+                              startNewPackagingRound(activeBatch.id)
+                            }
+                          >
+                            Start Packaging the remaining Trays
+                          </button>
+                        ) : null}
+                      </>
                     )}
                   </div>
                 </div>

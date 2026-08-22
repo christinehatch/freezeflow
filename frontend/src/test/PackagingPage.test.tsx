@@ -1140,6 +1140,57 @@ describe("PackagingPage", () => {
     expect(currentPackagingUrl()).toBe("/packaging?batch=batch-2&workspace=1");
   });
 
+  it("starts a new Packaging Operation for remaining eligible Trays after the prior one completed", async () => {
+    const user = userEvent.setup();
+    const tacoTray = defaultWorksheet()[0].eligible_trays[0];
+    const recordedPackage = createPackage({
+      finished_product_weight_grams: "238.1",
+    });
+    const allocation = createPackagingAllocation([tacoTray], {
+      id: "packaging-allocation-completed-1",
+      allocated_weight_grams: "238.1",
+      packages: [recordedPackage],
+      remaining_weight_grams: "0",
+      selected_weight_grams: "238.1",
+    });
+    const operation = createPackagingOperation("batch-1", {
+      id: "packaging-operation-completed-1",
+      status: "Completed",
+      completed_at: "2026-07-09T00:00:00.000Z",
+      allocations: [allocation],
+      packages: [recordedPackage],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1");
+
+    expect(
+      await screen.findByRole("button", { name: "Next — View history" }),
+    ).toBeInTheDocument();
+    const startNewRound = screen.getByRole("button", {
+      name: "Start Packaging the remaining Trays",
+    });
+    expect(startNewRound).toBeInTheDocument();
+
+    await user.click(startNewRound);
+
+    expect(
+      await screen.findByRole("heading", { name: "Choose trays" }),
+    ).toBeInTheDocument();
+    expect(currentPackagingUrl()).toBe("/packaging?batch=batch-1&workspace=1");
+    const appleTrayName = defaultWorksheet()[0].eligible_trays[1].product_name;
+    expect(screen.getByText(appleTrayName)).toBeInTheDocument();
+
+    const startRequests = fetchMock().mock.calls.filter(
+      ([input, init]) =>
+        String(input).endsWith(
+          "/api/v1/production-batches/batch-1/packaging-operation",
+        ) && init?.method === "POST",
+    );
+    expect(startRequests).toHaveLength(1);
+  });
+
   it("keeps Package Type administration secondary to active Packaging work", async () => {
     const testState = createPackagingTestState();
     vi.stubGlobal("fetch", vi.fn(testState.fetch));
@@ -4333,7 +4384,7 @@ function createPackagingTestState(
     }
     if (operationForBatch && method === "POST") {
       const body = parseBody(init);
-      if (!state.operation) {
+      if (!state.operation || state.operation.status !== "Open") {
         state.operation = createPackagingOperation(operationForBatch[1], {
           notes: body.notes === undefined ? null : String(body.notes),
         });
