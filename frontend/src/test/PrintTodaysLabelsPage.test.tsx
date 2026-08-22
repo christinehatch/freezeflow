@@ -101,6 +101,14 @@ describe("PrintTodaysLabelsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Clear Selection" }));
     expect(screen.getByText("0 labels selected")).toBeVisible();
+
+    await user.click(screen.getAllByText("Pork Shoulder")[0]);
+    expect(screen.getByText("1 label selected")).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Select PKG-2026-000001 Package Label",
+      }),
+    ).toBeChecked();
   });
 });
 

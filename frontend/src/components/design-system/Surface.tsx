@@ -1,8 +1,10 @@
-import type { HTMLAttributes } from "react";
+import { forwardRef, type HTMLAttributes } from "react";
 
-export function Surface({
-  className = "",
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
-  return <div className={`ds-surface ${className}`.trim()} {...props} />;
-}
+export const Surface = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(function Surface({ className = "", ...props }, ref) {
+  return (
+    <div className={`ds-surface ${className}`.trim()} ref={ref} {...props} />
+  );
+});

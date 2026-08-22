@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { packagingApi, type PackageEligibleForPrint } from "../api/client";
@@ -45,6 +45,7 @@ export function PrintTodaysLabelsPage() {
   const [printing, setPrinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const previewSectionRef = useRef<HTMLDivElement>(null);
 
   function toPreviewItems(labels: { id: string }[]): PreviewLabel[] {
     return labels.flatMap((label) => {
@@ -79,6 +80,11 @@ export function PrintTodaysLabelsPage() {
         package_label_ids: selectedLabelIds,
       });
       setPreviewLabels(toPreviewItems(authoritative));
+      previewSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      previewSectionRef.current?.focus();
     } catch (previewError) {
       setError(formatApiError(previewError));
     } finally {
@@ -227,35 +233,34 @@ export function PrintTodaysLabelsPage() {
 
             <ul className="mt-3 space-y-2" role="list">
               {packages.map((item) => (
-                <li
-                  className="flex items-start gap-3 rounded-md border border-slate-200 p-3"
-                  key={item.id}
-                >
-                  <input
-                    aria-label={`Select ${item.package_identifier} Package Label`}
-                    checked={selectedLabelIds.includes(item.label.id)}
-                    type="checkbox"
-                    onChange={() => toggleLabel(item.label.id)}
-                  />
-                  <div>
-                    <p className="font-semibold">
-                      {item.label.display_name}{" "}
-                      <span className="font-normal text-slate-600">
-                        · {item.batch_number}
-                      </span>
-                    </p>
-                    <p className="text-sm text-slate-700">
-                      {item.package_identifier} · {item.package_type.name} ·{" "}
-                      {formatGrams(
-                        item.finished_product_weight_grams === null
-                          ? null
-                          : String(item.finished_product_weight_grams),
-                      )}
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Label status: {item.label.status}
-                    </p>
-                  </div>
+                <li key={item.id}>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 hover:border-slate-300">
+                    <input
+                      aria-label={`Select ${item.package_identifier} Package Label`}
+                      checked={selectedLabelIds.includes(item.label.id)}
+                      type="checkbox"
+                      onChange={() => toggleLabel(item.label.id)}
+                    />
+                    <div>
+                      <p className="font-semibold">
+                        {item.label.display_name}{" "}
+                        <span className="font-normal text-slate-600">
+                          · {item.batch_number}
+                        </span>
+                      </p>
+                      <p className="text-sm text-slate-700">
+                        {item.package_identifier} · {item.package_type.name} ·{" "}
+                        {formatGrams(
+                          item.finished_product_weight_grams === null
+                            ? null
+                            : String(item.finished_product_weight_grams),
+                        )}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        Label status: {item.label.status}
+                      </p>
+                    </div>
+                  </label>
                 </li>
               ))}
             </ul>
@@ -263,7 +268,11 @@ export function PrintTodaysLabelsPage() {
         )}
       </Surface>
 
-      <Surface aria-label="Avery 5163 preview">
+      <Surface
+        aria-label="Avery 5163 preview"
+        ref={previewSectionRef}
+        tabIndex={-1}
+      >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h6 className="text-sm font-semibold">Avery 5163 preview</h6>
