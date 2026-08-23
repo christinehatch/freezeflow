@@ -12,6 +12,7 @@ import { PrintTodaysLabelsPage } from "../pages/PrintTodaysLabelsPage";
 import { ProductionBatchPage } from "../pages/ProductionBatchPage";
 import { ProductionPage } from "../pages/ProductionPage";
 import { ReportsPage } from "../pages/ReportsPage";
+import { StorageLocationsPage } from "../pages/StorageLocationsPage";
 import { TrayDetailsPage } from "../pages/TrayDetailsPage";
 
 export const router = createBrowserRouter([
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       { path: "/packaging/package-types", element: <PackageTypesPage /> },
       { path: "/packaging/print-today", element: <PrintTodaysLabelsPage /> },
       { path: "/inventory", element: <InventoryPage /> },
+      {
+        path: "/inventory/storage-locations",
+        element: <StorageLocationsPage />,
+      },
       { path: "/reports", element: <ReportsPage /> },
       ...(import.meta.env.DEV
         ? [
