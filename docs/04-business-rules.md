@@ -624,6 +624,26 @@ A Storage Location may contain any number of Packages.
 
 ---
 
+## ST-004
+
+A Storage Location name must be trimmed of leading and trailing whitespace and must not be blank.
+
+---
+
+## ST-005
+
+Storage Location names are case-insensitively unique across both active and archived Storage Locations. "Bin A", "bin a", and " BIN A " are the same name.
+
+Reusing the name of an archived Storage Location requires restoring it rather than creating a new one.
+
+---
+
+## ST-006
+
+The name "Unassigned" is reserved for the system-provided Storage Location. It cannot be used when creating or renaming a user-managed Storage Location, and Unassigned itself cannot be renamed, archived, or restored.
+
+---
+
 # Inventory Rules
 
 ## IN-001
@@ -701,6 +721,34 @@ Notes provide context without creating Recipient, Gift, Consumption, or Disposal
 Correction is not an Inventory Status.
 
 Incorrect lifecycle actions follow the correction and audit policy and never silently overwrite Package Status History.
+
+---
+
+## IN-011
+
+Inventory search performs case-insensitive partial matching on a free-text query. A query matches a Package when it partially matches any of: Product name, Package identifier, Package Label Display Name, Package notes, immutable Preparation Metadata preparation summary, Storage Location name, or Package Type name. Leading and trailing whitespace is trimmed before matching.
+
+A free-text query and structured filters (Storage Location, Inventory Status, Product, Package Type) combine with AND: a result must match the query, if provided, and every supplied filter.
+
+---
+
+## IN-012
+
+Inventory search defaults to Inventory Status In Storage and sorts results by Product name ascending, then by Packaging Date oldest first within each Product, so the Package an operator should use first is easiest to find.
+
+---
+
+## IN-013
+
+Package notes are visible and searchable in Inventory but are not editable through Milestone 5. Editing Package notes and preserving prior values as correction history are introduced in Milestone 8 (ADR-0005).
+
+---
+
+## IN-014
+
+The default Inventory presentation groups Packages by Product (ADR-0018). Product identity for grouping is the historical Product name captured on the source Tray's Preparation Metadata snapshot, never the editable Package Label Display Name, so relabeling a Package cannot silently create or merge Inventory groups.
+
+By default, group counts and oldest/newest Package Date reflect only In Storage Packages. Given Away and Depleted Packages are excluded from default group totals but remain reachable through historical Inventory search. Product grouping is a derived presentation and must never be persisted as an independent Inventory aggregate.
 
 ---
 

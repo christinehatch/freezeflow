@@ -142,6 +142,24 @@ Storage Locations are organizational records and are not part of the production 
 
 ---
 
+SL-007
+
+A Storage Location name is trimmed of leading and trailing whitespace and must not be blank after trimming.
+
+---
+
+SL-008
+
+Storage Location names are case-insensitively unique across both active and archived Storage Locations. Reusing an archived location's name requires restoring it.
+
+---
+
+SL-009
+
+The name "Unassigned" is reserved. It cannot be assigned to a user-created or renamed Storage Location.
+
+---
+
 # Notes
 
 Storage Locations organize inventory.

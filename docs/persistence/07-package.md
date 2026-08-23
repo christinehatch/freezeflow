@@ -25,10 +25,14 @@ Packages preserve the connection between inventory and historical production thr
 | packageWeightGrams | Yes | Yes* | Total sealed package weight |
 | finishedProductWeightGrams | No** | Yes* | Freeze-dried food placed in the Package |
 | oxygenAbsorber | No | Yes | Optional oxygen absorber information |
-| notes | No | Yes | Optional package notes |
+| notes | No | Yes*** | Optional package notes |
 | status | Yes | System | Inventory lifecycle state |
 
 \* Corrections follow the Audit History model defined in ADR-0005.
+
+\*** Editable in principle under ADR-0005, but Milestone 5 does not ship a
+notes-editing endpoint or UI. Package notes are read-only in Inventory through
+Milestone 5; editing and correction history follow in Milestone 8.
 
 \** Nullable for historical Packages; required by the current Packaging workflow.
 
@@ -123,7 +127,8 @@ Users answer one question:
 
 > "Do I still have this Package?"
 
-Package-level inventory is defined in ADR-0007.
+Package-level inventory is defined in ADR-0007. The default Inventory browsing
+view presents Packages grouped by Product; see ADR-0018.
 
 ---
 
@@ -225,6 +230,12 @@ PA-015
 Every Package owns exactly one editable Package Label.
 
 Package Label edits and reprints never rewrite Production History, Package Identifier, Packaging Date, Package weights, or Inventory History.
+
+---
+
+PA-016
+
+Package notes are read-only through Milestone 5. Editing Package notes and preserving prior values as append-only correction history are introduced in Milestone 8 (ADR-0005).
 
 ---
 
