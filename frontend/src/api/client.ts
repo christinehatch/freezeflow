@@ -129,6 +129,14 @@ export type StorageLocation = {
   archived: boolean;
 };
 
+export type ProductGroup = {
+  product_name: string;
+  available_package_count: number;
+  storage_locations: string[];
+  oldest_packaged_at: string;
+  newest_packaged_at: string;
+};
+
 export type Package = {
   id: string;
   packaging_allocation_id: string;
@@ -801,6 +809,24 @@ export const inventoryApi = {
     apiPost<StorageLocation>(`/storage-locations/${id}/archive`),
   restoreStorageLocation: (id: string) =>
     apiPost<StorageLocation>(`/storage-locations/${id}/restore`),
+  listProductGroups: () => apiGet<ProductGroup[]>("/inventory/products"),
+  searchInventory: (params: {
+    query?: string;
+    status?: string;
+    storageLocationId?: string;
+    productName?: string;
+    limit?: number;
+  }) => {
+    const search = new URLSearchParams();
+    if (params.query) search.set("query", params.query);
+    if (params.status) search.set("status", params.status);
+    if (params.storageLocationId) {
+      search.set("storage_location_id", params.storageLocationId);
+    }
+    if (params.productName) search.set("product_name", params.productName);
+    search.set("limit", String(params.limit ?? 100));
+    return apiGet<Package[]>(`/inventory?${search.toString()}`);
+  },
 };
 
 async function packageTraysThroughWorkflow(
