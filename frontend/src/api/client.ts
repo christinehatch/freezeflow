@@ -784,6 +784,25 @@ export const packagingApi = {
   }) => labelsForRecordedPackages(body),
 };
 
+export const inventoryApi = {
+  listStorageLocations: ({
+    includeArchived,
+  }: { includeArchived?: boolean } = {}) =>
+    apiGet<StorageLocation[]>(
+      `/storage-locations${includeArchived ? "?include_archived=true" : ""}`,
+    ),
+  createStorageLocation: (body: { name: string; notes?: string | null }) =>
+    apiPost<StorageLocation>("/storage-locations", body),
+  updateStorageLocation: (
+    id: string,
+    body: { name?: string; notes?: string | null },
+  ) => apiPatch<StorageLocation>(`/storage-locations/${id}`, body),
+  archiveStorageLocation: (id: string) =>
+    apiPost<StorageLocation>(`/storage-locations/${id}/archive`),
+  restoreStorageLocation: (id: string) =>
+    apiPost<StorageLocation>(`/storage-locations/${id}/restore`),
+};
+
 async function packageTraysThroughWorkflow(
   body: LegacyPackageTraysRequest,
 ): Promise<PackagingResult> {
