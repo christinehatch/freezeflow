@@ -41,7 +41,13 @@ def _create_physical_tray(client: TestClient, label: str) -> dict:
     return _data(response)
 
 
-def _create_completed_batch(client: TestClient, batch_number: str) -> dict:
+def _create_completed_batch(
+    client: TestClient,
+    batch_number: str,
+    *,
+    product_name: str = "Taco Chicken",
+    preparation: str = "Cubed and seasoned.",
+) -> dict:
     freeze_dryer = _create_freeze_dryer(client, f"{batch_number} Dryer")
     physical_tray = _create_physical_tray(client, f"{batch_number} Tray")
     batch_response = client.post(
@@ -56,8 +62,8 @@ def _create_completed_batch(client: TestClient, batch_number: str) -> dict:
         json={
             "tray_slot_id": freeze_dryer["tray_slots"][0]["id"],
             "physical_tray_id": physical_tray["id"],
-            "product_name": "Taco Chicken",
-            "preparation": "Cubed and seasoned.",
+            "product_name": product_name,
+            "preparation": preparation,
             "starting_weight_grams": "907.000",
         },
     )
@@ -93,20 +99,27 @@ def _create_completed_batch(client: TestClient, batch_number: str) -> dict:
     return _data(complete_batch_response)
 
 
-def _create_package_type(client: TestClient) -> dict:
+def _create_package_type(client: TestClient, name: str = "Quart Mylar") -> dict:
     response = client.post(
         "/api/v1/package-types",
-        json={"name": "Quart Mylar", "default_oxygen_absorber": "500cc"},
+        json={"name": name, "default_oxygen_absorber": "500cc"},
     )
     assert response.status_code == 201
     return _data(response)
 
 
 def _create_package(
-    client: TestClient, *, batch_number: str, storage_location_id: str | None = None
+    client: TestClient,
+    *,
+    batch_number: str,
+    product_name: str = "Taco Chicken",
+    package_type_name: str = "Quart Mylar",
+    storage_location_id: str | None = None,
+    notes: str | None = None,
+    packaged_at: str | None = None,
 ) -> dict:
-    batch = _create_completed_batch(client, batch_number)
-    package_type = _create_package_type(client)
+    batch = _create_completed_batch(client, batch_number, product_name=product_name)
+    package_type = _create_package_type(client, package_type_name)
     operation_response = client.post(
         f"/api/v1/production-batches/{batch['id']}/packaging-operation",
         json={},
@@ -129,6 +142,10 @@ def _create_package(
     }
     if storage_location_id is not None:
         package_line["storage_location_id"] = storage_location_id
+    if notes is not None:
+        package_line["notes"] = notes
+    if packaged_at is not None:
+        package_line["packaged_at"] = packaged_at
     record_response = client.post(
         f"/api/v1/packaging-operations/{operation['id']}/allocations/"
         f"{allocation['id']}/packages",
@@ -442,3 +459,184 @@ def test_terminal_packages_reject_move_give_away_and_deplete(
     _assert_business_error(
         deplete_response, "Only an In Storage Package can be depleted."
     )
+
+
+def _meta(response) -> dict:
+    return response.json()["meta"]
+
+
+def _product_groups(client: TestClient) -> list[dict]:
+    response = client.get("/api/v1/inventory/products")
+    assert response.status_code == 200
+    return _data(response)
+
+
+def test_product_groups_aggregate_by_historical_product_name(
+    client: TestClient,
+) -> None:
+    bin_a = _create_storage_location(client, "Bin A")
+    bin_c = _create_storage_location(client, "Bin C")
+    _create_package(
+        client,
+        batch_number="Chicken batch 1",
+        product_name="Chicken",
+        storage_location_id=bin_a["id"],
+        packaged_at="2026-05-03T00:00:00Z",
+    )
+    _create_package(
+        client,
+        batch_number="Chicken batch 2",
+        product_name="Chicken",
+        storage_location_id=bin_c["id"],
+        packaged_at="2026-07-18T00:00:00Z",
+    )
+    _create_package(
+        client, batch_number="Strawberries batch", product_name="Strawberries"
+    )
+
+    groups = {group["product_name"]: group for group in _product_groups(client)}
+    assert set(groups) == {"Chicken", "Strawberries"}
+
+    chicken = groups["Chicken"]
+    assert chicken["available_package_count"] == 2
+    assert chicken["storage_locations"] == ["Bin A", "Bin C"]
+    assert chicken["oldest_packaged_at"].startswith("2026-05-03T00:00:00")
+    assert chicken["newest_packaged_at"].startswith("2026-07-18T00:00:00")
+
+
+def test_product_groups_exclude_given_away_and_depleted_packages(
+    client: TestClient,
+) -> None:
+    kept = _create_package(client, batch_number="Kept batch", product_name="Chicken")
+    given_away = _create_package(
+        client, batch_number="Given away batch", product_name="Chicken"
+    )
+    client.post(f"/api/v1/packages/{given_away['id']}/give-away", json={})
+
+    groups = {group["product_name"]: group for group in _product_groups(client)}
+    assert groups["Chicken"]["available_package_count"] == 1
+
+    only_depleted = _create_package(
+        client, batch_number="Only depleted batch", product_name="Skittles"
+    )
+    client.post(f"/api/v1/packages/{only_depleted['id']}/deplete", json={})
+    groups = {group["product_name"]: group for group in _product_groups(client)}
+    assert "Skittles" not in groups
+    assert kept["id"]
+
+
+def test_relabeling_a_package_does_not_split_or_merge_its_product_group(
+    client: TestClient,
+) -> None:
+    package = _create_package(client, batch_number="Relabel batch", product_name="Taco")
+    client.patch(
+        f"/api/v1/packages/{package['id']}/label",
+        json={"display_name": "Hudson's Taco"},
+    )
+
+    groups = {group["product_name"]: group for group in _product_groups(client)}
+    assert "Taco" in groups
+    assert groups["Taco"]["available_package_count"] == 1
+    assert "Hudson's Taco" not in groups
+
+
+def test_search_matches_product_name_and_defaults_to_in_storage_sorted_by_product(
+    client: TestClient,
+) -> None:
+    _create_package(
+        client,
+        batch_number="Search chicken",
+        product_name="Chicken",
+        packaged_at="2026-05-03T00:00:00Z",
+    )
+    _create_package(
+        client,
+        batch_number="Search strawberries",
+        product_name="Strawberries",
+        packaged_at="2026-06-01T00:00:00Z",
+    )
+    given_away = _create_package(
+        client, batch_number="Search given away", product_name="Apples"
+    )
+    client.post(f"/api/v1/packages/{given_away['id']}/give-away", json={})
+
+    all_response = client.get("/api/v1/inventory")
+    assert all_response.status_code == 200
+    all_results = _data(all_response)
+    assert _meta(all_response)["total"] == 2
+    display_names = [result["label"]["display_name"] for result in all_results]
+    assert display_names == ["Chicken", "Strawberries"]
+    assert all(result["status"] == "In Storage" for result in all_results)
+
+    filtered_response = client.get("/api/v1/inventory", params={"query": "Chicken"})
+    filtered_results = _data(filtered_response)
+    assert len(filtered_results) == 1
+    assert filtered_results[0]["label"]["display_name"] == "Chicken"
+
+
+def test_search_matches_notes_label_name_storage_location_and_package_type(
+    client: TestClient,
+) -> None:
+    location = _create_storage_location(client, "Garage Freezer")
+    package = _create_package(
+        client,
+        batch_number="Match fields batch",
+        product_name="Beef Jerky",
+        package_type_name="Gallon Mylar",
+        storage_location_id=location["id"],
+        notes="For the camping trip",
+    )
+    client.patch(
+        f"/api/v1/packages/{package['id']}/label",
+        json={"display_name": "Trail Jerky"},
+    )
+
+    for term in [
+        "camping",
+        "Trail Jerky",
+        "Garage Freezer",
+        "Gallon Mylar",
+        package["package_identifier"],
+    ]:
+        response = client.get("/api/v1/inventory", params={"query": term})
+        results = _data(response)
+        assert any(result["id"] == package["id"] for result in results), term
+
+
+def test_search_query_and_filters_combine_with_and(client: TestClient) -> None:
+    other_location = _create_storage_location(client, "Other Bin")
+    _create_package(client, batch_number="And filter batch", product_name="Chicken")
+
+    response = client.get(
+        "/api/v1/inventory",
+        params={"query": "Chicken", "storage_location_id": other_location["id"]},
+    )
+    assert response.status_code == 200
+    assert _data(response) == []
+
+
+def test_search_pagination_limit_and_offset(client: TestClient) -> None:
+    for index in range(3):
+        _create_package(
+            client,
+            batch_number=f"Page batch {index}",
+            product_name="Chicken",
+            packaged_at=f"2026-0{index + 1}-01T00:00:00Z",
+        )
+
+    first_page = client.get(
+        "/api/v1/inventory", params={"product_name": "Chicken", "limit": 2, "offset": 0}
+    )
+    assert len(_data(first_page)) == 2
+    assert _meta(first_page)["total"] == 3
+
+    second_page = client.get(
+        "/api/v1/inventory", params={"product_name": "Chicken", "limit": 2, "offset": 2}
+    )
+    assert len(_data(second_page)) == 1
+
+
+def test_search_limit_is_capped_at_one_hundred(client: TestClient) -> None:
+    response = client.get("/api/v1/inventory", params={"limit": 500})
+    assert response.status_code == 200
+    assert _meta(response)["limit"] == 100

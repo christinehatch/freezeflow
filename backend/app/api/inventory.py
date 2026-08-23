@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.responses import raise_api_error, success
@@ -12,6 +12,7 @@ from app.api.serializers import (
     storage_location_history_data,
 )
 from app.database.session import get_db
+from app.models import InventoryStatus
 from app.schemas import (
     PackageDeplete,
     PackageGiveAway,
@@ -28,9 +29,11 @@ from app.services.inventory import (
     get_package_storage_history,
     get_storage_location,
     give_away_package,
+    list_product_groups,
     list_storage_locations,
     move_package,
     restore_storage_location,
+    search_inventory,
     update_storage_location,
 )
 
@@ -169,3 +172,42 @@ def get_package_status_history_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success([package_status_history_data(entry) for entry in history])
+
+
+@router.get("/inventory")
+def search_inventory_endpoint(
+    db: DBSession,
+    query: str | None = None,
+    status: Annotated[list[InventoryStatus] | None, Query()] = None,
+    storage_location_id: UUID | None = None,
+    product_name: str | None = None,
+    package_type_id: UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, object]:
+    try:
+        result = search_inventory(
+            db,
+            query=query,
+            statuses=status,
+            storage_location_id=storage_location_id,
+            product_name=product_name,
+            package_type_id=package_type_id,
+            limit=limit,
+            offset=offset,
+        )
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(
+        [package_data(package) for package in result["packages"]],
+        meta={
+            "total": result["total"],
+            "limit": result["limit"],
+            "offset": result["offset"],
+        },
+    )
+
+
+@router.get("/inventory/products")
+def list_product_groups_endpoint(db: DBSession) -> dict[str, object]:
+    return success(list_product_groups(db))
