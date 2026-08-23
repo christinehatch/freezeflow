@@ -113,6 +113,8 @@ Package C
 
 Each Package remains independently traceable.
 
+This is the search result shape. The default *browsing* presentation before a search begins groups these same Packages by Product; see ADR-0018 for how that grouping is derived without changing the granularity defined here.
+
 ---
 
 # Historical Integrity

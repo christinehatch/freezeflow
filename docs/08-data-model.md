@@ -448,8 +448,34 @@ Unassigned is a system-provided Storage Location used when no specific Storage L
 | id          | UUID     |
 | name        | String   |
 | description | Text     |
+| archived    | Boolean  |
 | createdAt   | DateTime |
 | updatedAt   | DateTime |
+
+Storage Location names are trimmed and case-insensitively unique across active
+and archived locations. `Unassigned` is reserved and cannot be renamed,
+archived, or restored (ADR business rules ST-004 through ST-006).
+
+---
+
+# Storage Location History
+
+Represents one append-only movement of a Package between Storage Locations.
+
+## Fields
+
+| Field                     | Type              |
+| ------------------------- | ----------------- |
+| id                        | UUID              |
+| packageId                 | UUID              |
+| previousStorageLocationId | UUID, nullable    |
+| currentStorageLocationId  | UUID              |
+| movedAt                   | DateTime          |
+| notes                     | Text, nullable    |
+
+Creating a Package automatically creates its initial Storage Location History
+record with a null `previousStorageLocationId`. Every later move appends a new
+record; existing records are never edited or deleted (ADR-0006).
 
 ---
 

@@ -2,17 +2,35 @@
 
 ## Status
 
-Planned - Documentation blockers remain.
+Planned - Ready for implementation.
 
-Milestone 5 is not ready for implementation until the blocking Open Decisions in this document are resolved in the authoritative architecture and persistence documentation.
+All Open Decisions below have been resolved in the authoritative architecture, business-rules, persistence, and API documentation. See each decision's entry under Open Decisions for where its resolution now lives.
 
 ---
 
 # Goal
 
-Build the Inventory workflow for locating, reviewing, moving, and retiring finished Packages while preserving complete production and storage history.
+Build the day-to-day Inventory experience for locating, reviewing, storing, moving, and retiring finished Packages while preserving complete Production, Packaging, and storage history.
 
-Milestone 5 begins after Packaging has created Packages. It allows the user to answer where a Package is now, how it reached that Storage Location, and whether it remains available.
+Milestone 5 begins after Packaging has created Packages.
+
+At this point, the operator's primary questions change from:
+
+- What am I producing?
+- Is this food finished drying?
+- How should I package it?
+
+to practical Inventory questions such as:
+
+- Do I already have this product?
+- Where did I put it?
+- How many Packages are still available?
+- Which Package should I use first?
+- Has this Package already been used or given away?
+
+Inventory should feel like managing a well-organized pantry rather than operating an administrative system.
+
+The primary goal is retrieval: helping the operator find stored food quickly while preserving complete historical traceability when deeper information is needed.
 
 ---
 
@@ -20,15 +38,18 @@ Milestone 5 begins after Packaging has created Packages. It allows the user to a
 
 Implement:
 
+* fast, product-focused Inventory browsing
+* fast Inventory search and filtering
 * Storage Location setup and lifecycle management
-* Package-level Inventory browsing
-* Inventory search and filtering
-* Package Details with production and Packaging traceability
+* Package Details with complete Production, Packaging, storage, and status traceability
 * Package movement between Storage Locations
 * append-only Storage Location History
-* Package Status History and Inventory Status changes to Given Away or Depleted
+* Package Status History
+* Inventory Status changes to Given Away or Depleted
 * historical visibility for terminal Packages
 * clear handling of the system-provided Unassigned Storage Location
+
+The Inventory workflow should prioritize finding and using stored food over managing Package records.
 
 ---
 
@@ -37,7 +58,9 @@ Implement:
 Milestone 5 includes:
 
 * creating, viewing, editing, archiving, and restoring user-managed Storage Locations
-* browsing Packages as Inventory
+* browsing completed Packages as Inventory
+* presenting Inventory in a product-focused way where appropriate
+* grouping Packages by Product where useful for discovery
 * searching and filtering Packages using documented Inventory information
 * viewing current Package location and Inventory Status
 * viewing Package, Package Label, Packaging, Tray, Production Batch, Freeze Dryer, Preparation Metadata, and Weight Check history when available
@@ -48,7 +71,11 @@ Milestone 5 includes:
 * excluding Given Away and Depleted Packages from the default active Inventory view
 * retaining Given Away and Depleted Packages in historical search and Package Details
 
-Inventory remains Package-based. Milestone 5 does not introduce remaining-quantity accounting inside a Package.
+Inventory remains Package-based for persistence and traceability.
+
+Product grouping is a presentation and discovery mechanism over Packages. It does not create aggregate Inventory records or replace Package-level history.
+
+Milestone 5 does not introduce remaining-quantity accounting inside a Package.
 
 ---
 
@@ -59,7 +86,7 @@ Do not include:
 * partial Package consumption
 * splitting or merging existing Packages
 * reopening Given Away or Depleted Packages
-* deleting Packages or production history
+* deleting Packages or Production history
 * Preparation Preset CRUD
 * recipe archive or restore
 * production reports or Inventory analytics
@@ -70,29 +97,79 @@ Do not include:
 * Package movement in bulk unless separately documented
 * sales, recipients, transfer destinations, or customer management for Given Away Packages
 
-Preparation Preset management belongs to Milestone 6. Reports belong to Milestone 7. Corrections and Audit History belong to Milestone 8.
+Preparation Preset management belongs to Milestone 6.
+
+Reports belong to Milestone 7.
+
+Corrections and Audit History belong to Milestone 8.
 
 ---
 
 # Workflow Summary
 
-1. The user opens Inventory.
-2. The application displays Packages currently In Storage by default.
-3. The user searches or filters Inventory to locate a Package.
-4. The user opens Package Details to review its current state and complete traceability.
-5. For an In Storage Package, the user may:
+1. Packaging creates one or more Packages.
+2. Packages enter Inventory with an Inventory Status and current Storage Location.
+3. The operator stores Packages in physical locations.
+4. Later, the operator opens Inventory to find food.
+5. The application defaults to food that is currently available.
+6. The operator may browse by Product, search, or filter Inventory.
+7. The operator opens a Product group or individual Package when more detail is needed.
+8. For an In Storage Package, the operator may:
    * move it to a different active Storage Location
-   * edit mutable Package notes where permitted by the documented lifecycle
    * mark it Given Away
    * mark it Depleted
-6. A move atomically updates the Package's current Storage Location and appends a Storage Location History record.
-7. Given Away and Depleted Packages leave the default active view but remain available in historical search and Package Details.
+
+   Package notes are visible and searchable but read-only in Milestone 5; editing follows in Milestone 8 (ADR-0005).
+9. A move atomically updates the Package's current Storage Location and appends a Storage Location History record.
+10. Given Away and Depleted Packages leave the default active view but remain available in historical search and Package Details.
+
+Inventory never modifies Production or Packaging history.
+
+---
+
+# Inventory Philosophy
+
+Inventory is the operator's daily workspace after Production and Packaging are complete.
+
+Unlike Production and Packaging, Inventory is primarily a retrieval workflow rather than a creation workflow.
+
+Operators naturally think in terms of food and products rather than Package identifiers.
+
+An operator is more likely to think:
+
+> "Where is my taco chicken?"
+
+than:
+
+> "Where is Package PKG-2026-000184?"
+
+The Inventory experience should therefore make it easy to answer:
+
+* Do I already have this Product?
+* Where is it stored?
+* How many Packages are still available?
+* Which Package is oldest?
+* Which Package should I grab?
+
+Package identifiers remain essential for traceability but are secondary to finding food.
+
+Internal implementation concepts such as Packaging Operations, Packaging Allocations, Planned Package Rows, and persistence relationships should not dominate everyday Inventory workflows.
+
+Those concepts remain available when the operator intentionally reviews historical traceability.
+
+Inventory Status affects availability, not history.
+
+No Package disappears from Freezeflow simply because it is no longer active Inventory.
 
 ---
 
 # Storage Locations
 
-Storage Locations represent real places where Packages are stored, such as a bin, shelf, pantry, or cabinet.
+Storage Locations represent real physical places where food is stored, such as a bin, shelf, pantry, cabinet, or other storage area.
+
+Their primary purpose is to help the operator answer:
+
+> "Where did I put this?"
 
 Milestone 5 should support:
 
@@ -112,35 +189,79 @@ An archived Storage Location:
 * cannot receive new Packages
 * must allow an In Storage Package to be moved out to an active Storage Location
 
-Renaming a Storage Location changes its displayed name throughout the application. It does not represent Package movement and must not create a Storage Location History record.
+Renaming a Storage Location changes its displayed name throughout the application.
 
-Storage Location naming, uniqueness, and case-sensitivity rules require clarification before implementation.
+Renaming does not represent Package movement and must not create a Storage Location History record.
+
+Storage Location names are trimmed and non-blank, and are case-insensitively unique across both active and archived locations. `Unassigned` is reserved and cannot be created, renamed, archived, or restored by the user. See business rules ST-004 through ST-006 and `docs/persistence/08-storage-location.md` (SL-007 through SL-009).
 
 ---
 
 # Inventory Browsing
 
-Inventory is a Package search and discovery experience, not a Production workspace.
+Inventory is a product-focused search and discovery experience, not a Production workspace or Package administration screen.
 
 The default Inventory view should:
 
-* return Packages, not Trays or aggregate product quantities
-* show only Packages with Inventory Status In Storage
-* show the current Storage Location
-* make Product, Package identifier, Package Type, Package weight, Packaging date, and current status scannable
-* provide a direct path to Package Details
-* provide a clear empty state and load-failure state
+* show currently available Inventory first
+* default to Packages with Inventory Status In Storage
+* make Product names the primary visual identifier
+* make current Storage Location easy to scan
+* make available Package count easy to understand
+* make Package identifier available but visually secondary
+* make Package Type, relevant Package weight, Packaging date, and current status available when useful
+* provide a direct path to individual Package Details
+* provide a clear loading state
+* provide a useful empty state
+* provide a clear load-failure state
 
-Given Away and Depleted Packages should not appear in default active Inventory counts or results. Users must be able to include them when searching historical Inventory.
+Given Away and Depleted Packages should not appear in default active Inventory counts or results.
+
+Users must be able to intentionally include terminal Packages when searching historical Inventory.
+
+---
+
+# Product Groups
+
+Inventory may group Packages by Product to improve browsing and retrieval.
+
+Product grouping exists for the operator's convenience. It does not replace Package-level Inventory records.
+
+A Product group may summarize:
+
+* Product name
+* available Package count
+* Given Away Package count when historical information is requested
+* Depleted Package count when historical information is requested
+* current Storage Locations containing available Packages
+* oldest available Package
+* newest available Package
+
+Operators should be able to expand or open a Product group to see its individual Packages.
+
+Each individual Package remains independently:
+
+* identifiable
+* stored
+* movable
+* depletable
+* historically traceable
+
+Product grouping must never obscure Package-level history or imply that quantities from multiple Packages have been merged.
 
 ---
 
 # Search and Filtering
 
+Searching Inventory should be one of the fastest workflows in the application.
+
+An operator should be able to begin typing a Product name and quickly answer whether that food exists and where it is stored.
+
 Inventory search should support documented Package information, including:
 
-* Package identifier
 * Product
+* Package identifier
+* Package Label presentation fields used for identification
 * preparation information
 * immutable Preparation Metadata snapshot information
 * Package notes
@@ -148,57 +269,102 @@ Inventory search should support documented Package information, including:
 * Inventory Status
 * Package Type where available
 
-Filters should allow users to narrow results by current Storage Location and Inventory Status. The default status filter is In Storage.
+Filters should allow users to narrow results by:
 
-The documentation does not yet define:
+* current Storage Location
+* Inventory Status
+* Product where useful
+* Package Type where useful
 
-* matching semantics, including partial and case-insensitive matching
-* default sort order
-* pagination or result limits
-* how multiple search fields and filters combine
-* whether archived Storage Locations appear as selectable filters by default
-* the Preparation Metadata and Package Label fields used by Inventory search before Preparation Preset management is implemented
+The default Inventory Status filter is In Storage.
 
-These behaviors must be documented before implementation rather than inferred in code.
+The search contract is fully defined in business rules IN-011 and IN-012 and in `09-api-design.md`'s Search Inventory endpoint:
+
+* matching is case-insensitive and partial, against Product name, Package identifier, Package Label Display Name, Package notes, immutable Preparation Metadata preparation summary, Storage Location name, and Package Type name
+* a free-text query and structured filters combine with AND
+* default sort is Product name ascending, then Packaging Date oldest first within each Product
+* pagination uses `limit` (default 50, max 100) and `offset` (default 0)
+* archived Storage Locations are not offered as move destinations but may still be used as a search filter to find historically stored Packages
+* the searchable Preparation Metadata and Package Label fields before Milestone 6 are the immutable Tray preparation summary and the current Package Label Display Name; a future Preparation Preset library is not searched (see business rule IN-011 and ADR-0013)
+
+---
+
+# Package Selection and Oldest-First Use
+
+Inventory should make it easy to understand which available Package is oldest.
+
+This supports a natural oldest-first usage pattern without introducing expiration management or automatic recommendations.
+
+Where multiple Packages of the same Product are available, the UI should make Packaging date readily visible and should not make the operator inspect individual Production history merely to identify the oldest Package.
+
+Default sorting is Product name ascending, then Packaging Date oldest first within each Product (business rule IN-012), so the oldest available Package of a Product surfaces first without the operator needing to inspect Production history.
 
 ---
 
 # Package Details
 
-Package Details should organize information by purpose so presentation data is not confused with immutable production history.
+Package Details are the complete historical view of one Package.
 
-It should contain these sections:
+They should organize information around operator questions rather than persistence entities.
+
+Package Details should answer:
+
+* What is this?
+* Where did it come from?
+* How was it packaged?
+* Where is it now?
+* Where has it been?
+* Is it still available?
+* What has happened to it?
+
+Package Details should contain these conceptual sections:
 
 1. Package
 2. Package Label
-3. Production History
+3. Production
 4. Packaging
-5. Inventory History
+5. Storage
+6. History
 
-The Package Label section should show the editable human-facing label owned by the Package. Package Label editing and reprinting remain Milestone 4 behavior. Inventory may display Package Label fields for identification, but it must not use label edits to rewrite Production History.
+The Package Label section should show the editable human-facing label owned by the Package.
 
-Across those sections, Package Details should show:
+Package Label editing and reprinting remain Milestone 4 behavior.
+
+Inventory may display Package Label fields for identification, but it must never use label edits to rewrite Production History.
+
+Across these sections, Package Details should show:
 
 * Package identifier
 * Product and preparation snapshot
 * Package Type
 * Finished Product Weight
 * Sealed Package Weight
-* Packaging date and Package notes
-* Oxygen absorber information
+* derived Fresh Equivalent when available
+* Packaging date
+* Package notes
+* oxygen absorber information
 * current Inventory Status
 * current Storage Location
 * source Packaging Operation
+* source Packaging Allocation when needed for traceability
 * source Tray or Trays
-* Production Batch and Freeze Dryer
-* Starting Weight, Weight Checks, Final Dry Weight, and drying history
+* Production Batch
+* Freeze Dryer
+* Starting Weight
+* Weight Checks
+* Final Dry Weight
+* drying history
 * Preparation Preset reference when one was used
 * Storage Location History
 * Package Status History
 
-For an In Storage Package, Package Details should expose the permitted Inventory actions. Given Away and Depleted Packages are historical and must not expose actions that reopen or move them.
+For an In Storage Package, Package Details should expose permitted Inventory actions.
 
-The preservation behavior for edits to mutable Package notes is not yet fully documented and is listed as an Open Decision.
+Given Away and Depleted Packages are historical and must not expose actions that reopen or move them.
+
+Package identifiers exist primarily for traceability rather than everyday navigation.
+
+Package notes display as read-only in Milestone 5. Editing Package notes with append-only correction history is introduced in Milestone 8 (ADR-0005, business rule PA-016).
 
 ---
 
@@ -219,9 +385,18 @@ A movement must:
 
 A movement to the Package's current Storage Location must be rejected and must not create history.
 
-An archived Storage Location cannot receive a Package. An In Storage Package already assigned to an archived Storage Location may be moved out to an active location.
+An archived Storage Location cannot receive a Package.
 
-Movement never changes Package production traceability or Inventory Status.
+An In Storage Package already assigned to an archived Storage Location may be moved out to an active location.
+
+Movement never changes:
+
+* Production history
+* Packaging traceability
+* Package identity
+* Inventory Status
+
+Package movement is expected to be less common than finding Inventory. The UI should support movement clearly without allowing movement controls to dominate the primary retrieval experience.
 
 ---
 
@@ -229,13 +404,25 @@ Movement never changes Package production traceability or Inventory Status.
 
 Storage Location History is append-only.
 
-Every Package receives an initial Storage Location History record when Packaging creates it. The first record has no previous Storage Location and identifies the selected location or Unassigned as the current Storage Location.
+Every Package receives an initial Storage Location History record when Packaging creates it.
 
-Every later movement appends a new record. Existing history records are never edited or deleted.
+The first record:
+
+* has no previous Storage Location
+* identifies the selected location or Unassigned as the current Storage Location
+
+Every later movement appends a new record.
+
+Existing history records are never edited or deleted.
 
 The Package's current Storage Location must always match the current Storage Location on its latest history record.
 
-Package Details should display the movement timeline in chronological order with previous location, new location, movement time, and notes when present.
+Package Details should display the movement timeline in chronological order with:
+
+* previous location
+* new location
+* movement time
+* notes when present
 
 ---
 
@@ -243,7 +430,12 @@ Package Details should display the movement timeline in chronological order with
 
 Package Status History is the append-only lifecycle record defined by ADR-0012 and `docs/persistence/15-package-status-history.md`.
 
-Creating a Package automatically creates its initial In Storage Package Status History record. Every later transition atomically updates the Package's current Inventory Status and appends one history record.
+Creating a Package automatically creates its initial In Storage Package Status History record.
+
+Every later transition atomically:
+
+* updates the Package's current Inventory Status
+* appends one Package Status History record
 
 Each record preserves:
 
@@ -253,7 +445,9 @@ Each record preserves:
 * system-assigned Recorded Time
 * optional Notes
 
-Package Status History is never edited or deleted. Correction is not an Inventory Status and follows ADR-0005.
+Package Status History is never edited or deleted.
+
+Correction is not an Inventory Status and follows ADR-0005.
 
 ---
 
@@ -268,10 +462,15 @@ Rules:
 * the entire Package becomes unavailable
 * the Package is excluded from default active Inventory counts and results
 * the Package remains searchable when historical statuses are included
-* Package Details and all production traceability remain available
-* the Package cannot be moved, depleted, returned to In Storage, or deleted
+* Package Details and all Production traceability remain available
+* the Package cannot be moved
+* the Package cannot be depleted
+* the Package cannot return to In Storage
+* the Package cannot be deleted
 
-Milestone 5 records the status and historical transition. It does not manage recipients or transfers as separate domain entities.
+Milestone 5 records the status and historical transition.
+
+It does not manage recipients, transfers, sales, or destinations as separate domain entities.
 
 ---
 
@@ -286,8 +485,11 @@ Rules:
 * the entire Package becomes unavailable
 * the Package is excluded from default active Inventory counts and results
 * the Package remains searchable when historical statuses are included
-* Package Details and all production traceability remain available
-* the Package cannot be moved, given away, returned to In Storage, or deleted
+* Package Details and all Production traceability remain available
+* the Package cannot be moved
+* the Package cannot be Given Away
+* the Package cannot return to In Storage
+* the Package cannot be deleted
 
 Milestone 5 does not track partial Package consumption.
 
@@ -295,18 +497,24 @@ Milestone 5 does not track partial Package consumption.
 
 # Historical Visibility
 
-Terminal Inventory states affect availability, not history.
+Inventory Status affects availability, never history.
 
-Given Away and Depleted Packages must remain:
+Given Away and Depleted Packages remain part of the permanent Production record.
+
+Terminal Packages must remain:
 
 * persisted
 * addressable by Package identifier
 * searchable through an explicit historical-status filter
 * visible in Package Details
+* linked to Package Status History
 * linked to Storage Location History
-* linked to Packaging and Production history
+* linked to Packaging history
+* linked to Production history
 
 Archiving a Storage Location must not hide or break Package movement history.
+
+Search should make historical Packages available intentionally without allowing terminal Packages to clutter the default active Inventory experience.
 
 ---
 
@@ -314,37 +522,66 @@ Archiving a Storage Location must not hide or break Package movement history.
 
 Every Inventory Package must remain traceable to:
 
-* its Package identifier and Package Type
+* its Package identifier
+* its Package Type
 * its Packaging Operation
+* its Packaging Allocation when needed to preserve exact source relationships
 * its source Tray or Trays
 * its Production Batch
 * its Freeze Dryer
 * Preparation Metadata and Preparation Preset information when available
-* Starting Weight, Weight Checks, and Final Dry Weight
-* current and historical Storage Locations
-* current Inventory Status and Package Status History
+* Starting Weight
+* Weight Checks
+* Final Dry Weight
+* current Storage Location
+* historical Storage Locations
+* current Inventory Status
+* Package Status History
 
 Inventory actions must never rewrite Packaging or Production history.
+
+Everyday Inventory browsing should not require the operator to navigate through this entire chain.
+
+Traceability should remain available when requested rather than dominating the primary Inventory experience.
 
 ---
 
 # UI Expectations
 
+The Inventory interface should optimize for finding food rather than managing database records.
+
+Operators should spend minimal time navigating and maximum time finding what they need.
+
+Historical information should always be available without overwhelming everyday workflows.
+
 The Inventory UI should:
 
 * open as a focused search and browsing screen
-* default to currently available Packages
-* keep search and common filters immediately accessible
+* default to currently available food
+* make Product names prominent
+* support product-focused grouping where documented
+* keep search immediately accessible
+* keep common filters immediately accessible
+* make available Package counts understandable
+* make current Storage Locations easy to scan
+* make Packaging dates available so older Packages can be identified
+* keep Package identifiers available but secondary
 * show active, Given Away, and Depleted states clearly
-* make the current Storage Location easy to scan
 * preserve search context when returning from Package Details where practical
 * use explicit confirmation for terminal status changes
 * explain that Given Away and Depleted Packages remain in history
 * prevent move controls from offering archived destinations
 * display Storage Location History and Package Status History timelines on Package Details
-* provide loading, empty, validation, confirmation, success, and failure states
+* provide loading states
+* provide empty states
+* provide validation states
+* provide confirmation states
+* provide success states
+* provide failure states
 
-Storage Location setup should be available without turning the Inventory screen into an administrative dashboard.
+Storage Location setup should be available without turning Inventory into an administrative dashboard.
+
+Internal implementation concepts should not appear in primary Inventory UI unless they are necessary to explain traceability or a validation failure.
 
 The final placement of Storage Location management and the exact responsive result layout should follow the wireframes and established navigation patterns.
 
@@ -360,6 +597,7 @@ Milestone 5 requires workflow-oriented API capabilities for:
 * archiving a Storage Location
 * restoring a Storage Location
 * searching and filtering Inventory Packages
+* supporting Product-focused Inventory projections where documented
 * retrieving Package Details with traceability
 * retrieving Storage Location History
 * retrieving Package Status History
@@ -367,26 +605,55 @@ Milestone 5 requires workflow-oriented API capabilities for:
 * marking an In Storage Package Given Away
 * marking an In Storage Package Depleted
 
-Commands must enforce lifecycle and Storage Location rules in backend business logic. The client must not be the only enforcement layer.
+Commands must enforce lifecycle and Storage Location rules in backend business logic.
 
-The existing API documentation describes list, move, search, Depleted, and Given Away capabilities, but it does not fully define Storage Location management, history retrieval, search contracts, or consistent versioned endpoint paths. Exact routes, request schemas, response schemas, validation errors, and pagination behavior must be documented before implementation.
+The client must not be the only enforcement layer.
+
+`09-api-design.md` fully defines the versioned `/api/v1` routes, request and
+response schemas, and validation behavior for Storage Location management
+(list, create, get, update, archive, restore), Inventory search and Product
+Groups, Package storage and status history retrieval, and Package move, Given
+Away, and Depleted actions. Storage Location archive/restore and Package
+move/Given-Away/Depleted use explicit action endpoints rather than generic
+field PATCH because each represents a domain transition, not an ordinary edit.
 
 ---
 
 # Persistence Expectations
 
-Use the authoritative persistence model:
+Use the authoritative persistence model.
 
-* Package stores one current Storage Location
-* Package stores one current Inventory Status
-* Package Status History records initial In Storage state and every later transition
-* Package Status History is append-only
-* Storage Location stores its current name, notes, and archive state
-* Storage Location History records initial placement and every later move
-* Storage Location History is append-only
-* Unassigned is a protected system Storage Location
+Package stores:
 
-Moving a Package must occur in one transaction that updates the Package's current Storage Location and inserts its new Storage Location History record.
+* one current Storage Location
+* one current Inventory Status
+
+Package Status History:
+
+* records initial In Storage state
+* records every later transition
+* is append-only
+
+Storage Location stores:
+
+* current name
+* notes
+* archive state
+
+Storage Location History:
+
+* records initial placement
+* records every later move
+* is append-only
+
+Unassigned is a protected system Storage Location.
+
+Product groups are derived Inventory views over Packages and are not independently persisted Inventory aggregates.
+
+Moving a Package must occur in one transaction that:
+
+1. updates the Package's current Storage Location
+2. inserts the new Storage Location History record
 
 Terminal Inventory transitions must preserve the Package and all relationships.
 
@@ -399,6 +666,7 @@ Database constraints and indexes must enforce or support:
 * latest Storage Location History consistency
 * protected Unassigned behavior
 * active destination validation
+* common Product search access paths
 * common Inventory search and filter access paths
 
 Package creation and terminal status commands must update current state and append required history records atomically.
@@ -425,9 +693,11 @@ Backend business logic must enforce:
 * renaming a Storage Location creates no Package movement history
 * Storage Locations are archived rather than deleted
 * Unassigned cannot be renamed, archived, or deleted
-* Inventory actions never delete or alter production traceability
-
-Storage Location name validation and Inventory search validation require the Open Decisions to be resolved.
+* Inventory actions never delete or alter Production traceability
+* Product grouping never replaces Package-level persistence or history
+* Storage Location names are trimmed, non-blank, and case-insensitively unique across active and archived locations (ST-004, ST-005)
+* `Unassigned` cannot be created, renamed, archived, or restored by the user (ST-006)
+* Inventory search combines a free-text query and structured filters with AND (IN-011)
 
 ---
 
@@ -441,6 +711,9 @@ Add tests for:
 * protected Unassigned behavior
 * assigning Packages to Unassigned during Packaging when no location is selected
 * default Inventory results including only In Storage Packages
+* Product grouping behavior where implemented
+* available Package counts by Product
+* oldest and newest Package projection where implemented
 * historical searches including Given Away and Depleted Packages
 * documented search fields and filters
 * Package Details traceability
@@ -468,21 +741,30 @@ Add tests for:
 Add component tests for:
 
 * default active Inventory view
+* Product-focused browsing
+* Product-group display where implemented
+* fast Product search workflow
 * search and filters
 * historical-status inclusion
-* Inventory load, empty, and error states
+* Inventory load state
+* Inventory empty state
+* Inventory error state
 * Storage Location setup and archive states
 * Package Details traceability and timelines
 * move validation and confirmation
 * Given Away confirmation and resulting historical state
 * Depleted confirmation and resulting historical state
 * terminal Package read-only behavior
+* Package identifiers remaining secondary to Product discovery
 
 ## Browser E2E
 
 Extend the reusable Playwright mock API and add user-flow tests for:
 
-* locating a Package through Inventory search
+* locating food by Product through Inventory search
+* opening a Product group and locating an individual Package
+* identifying where an available Product is stored
+* identifying the oldest available Package where applicable
 * moving a Package and seeing its updated location and history
 * marking a Package Given Away
 * marking a Package Depleted
@@ -503,11 +785,18 @@ Milestone 5 deliverables are:
 * Package Status History persistence documentation
 * updated Package persistence documentation
 * completed versioned Inventory API contracts
-* Storage Location backend workflows and frontend setup UI
-* Inventory search and browsing API and page
+* documented Inventory search contract
+* documented Product-focused Inventory projection where used
+* Storage Location backend workflows
+* Storage Location frontend setup UI
+* Product-focused Inventory browsing experience
+* fast Inventory search experience
+* Inventory search and browsing API
+* Inventory page
 * Package Details Inventory actions and history timelines
 * Package movement with append-only Storage Location History
-* Given Away and Depleted workflows
+* Given Away workflow
+* Depleted workflow
 * backend business-rule tests
 * frontend component tests
 * Playwright Inventory workflow tests
@@ -518,34 +807,101 @@ Milestone 5 deliverables are:
 
 # Open Decisions
 
-## Blocking
+Every decision below is resolved. Each entry keeps its original question for
+context and records where the resolution now lives in the authoritative
+documentation.
 
-### 1. Inventory and Storage Location API contracts
+## Previously Blocking
 
-The API documentation does not fully define versioned routes, request and response schemas, validation errors, history retrieval, or Storage Location create/edit/archive/restore behavior.
+### 1. Inventory and Storage Location API contracts — Resolved
 
-### 2. Inventory search contract
+Resolved in `09-api-design.md`: versioned `/api/v1` routes, request and
+response schemas, and validation for Storage Location list, create, get,
+update, archive, and restore; and for Inventory search, Product Groups,
+Package storage history, and Package move. Errors use the project's existing
+common error envelope; business-rule violations (archived destination,
+terminal Package, duplicate name, same-location move) return descriptive
+error codes and messages through that same envelope. Storage Location
+archive/restore and Package move/Given-Away/Depleted use explicit action
+endpoints because they are domain transitions, not field edits; `PATCH
+/storage-locations/{id}` is limited to descriptive fields (name, notes).
 
-Matching behavior, field combination, default sorting, pagination, result limits, and archived-location filtering are not defined.
+### 2. Inventory Search Contract — Resolved
 
-## Clarification Required
+Resolved in business rules IN-011 and IN-012 and in `09-api-design.md`'s
+Search Inventory endpoint: case-insensitive partial matching, trimmed
+whitespace, AND-combination between a free-text query and structured filters,
+default status `In Storage`, default sort Product name ascending then
+Packaging Date oldest first, and `limit`/`offset` pagination (default 50, max
+100). See Decision 5 for which Preparation and Package Label fields are
+searchable before Milestone 6.
 
-### 3. Storage Location naming rules
+---
 
-The documentation must define blank-name rejection, uniqueness, whitespace normalization, and case sensitivity.
+## Previously Needing Clarification
 
-### 4. Package notes corrections
+### 3. Storage Location Naming Rules — Resolved
 
-The lifecycle documentation permits editing notes for In Storage Packages, but it does not define whether prior note values require append-only correction history before Milestone 8.
+Resolved in business rules ST-004 through ST-006 and
+`docs/persistence/08-storage-location.md` (SL-007 through SL-009): names are
+trimmed and must not be blank; names are case-insensitively unique across
+both active and archived locations, so reusing a name requires restoring the
+archived location rather than creating a new one; `Unassigned` is reserved
+and cannot be created, renamed, archived, or restored by the user.
 
-### 5. Preparation information in Inventory search
+---
 
-Inventory search includes immutable Preparation Metadata and Package Label
-presentation fields. Preparation Preset management begins in Milestone 6.
+### 4. Package Notes Corrections — Resolved
 
-### 6. Wireframe consistency
+Resolved: Package notes are read-only in Milestone 5's Inventory. Milestone 5
+does not invent correction semantics or ship a notes-editing endpoint.
+Editing Package notes with append-only correction history follows in
+Milestone 8, consistent with ADR-0005. See business rule IN-013,
+`docs/persistence/07-package.md` (PA-016), and the Workflow Summary and
+Package Details sections above, which have been updated to reflect this.
 
-The Package Details wireframe both requires Storage Location history and lists the storage movement timeline as future work. It also needs consistent Given Away action placement. The stale language should be corrected before implementation.
+---
+
+### 5. Preparation Information in Inventory Search — Resolved
+
+Resolved in business rule IN-011: Inventory search uses the immutable
+Preparation Metadata preparation summary captured on the source Tray (ADR-0013)
+and the current Package Label Display Name and ingredients/preparation
+summary. It does not search a future Preparation Preset library; Preset
+search and management remain Milestone 6.
+
+---
+
+### 6. Wireframe Consistency — Verified, no stale language found
+
+`docs/wireframes/06-package-details.md` was re-reviewed against this
+description. Its current Screen Layout already shows an Inventory History
+timeline with movement entries (not listed as future work), its States
+section already gates Move/Given Away/Depleted to In Storage only, and Given
+Away/Depleted states are already documented as read-only history. No edit was
+required there.
+
+`docs/wireframes/05-inventory.md` did need an update: its Screen Layout,
+Search, and Empty Search sections showed a flat Package list as the default
+view, which contradicted Decision 7 below once Product grouping became the
+default presentation. It has been updated to show Product groups by default,
+with search or opening a group returning individual Packages, and its
+searchable-fields list now matches business rule IN-011.
+
+---
+
+### 7. Product Grouping Contract — Resolved
+
+Resolved in ADR-0018 (Inventory Product Grouping) and business rule IN-014:
+Product grouping is the default Inventory presentation, exposed through the
+derived read projection `GET /api/v1/inventory/products` (see
+`09-api-design.md`). Product identity for grouping is the historical Product
+name from the source Tray's Preparation Metadata snapshot, never the editable
+Package Label Display Name, so relabeling a Package cannot silently create or
+merge groups. Group counts and oldest/newest Packaging Date reflect only In
+Storage Packages by default; Given Away and Depleted Packages are reachable
+through historical Inventory search instead of a separate grouped historical
+projection. No `InventoryProduct` or similar aggregate entity is persisted.
 
 ---
 
@@ -554,6 +910,11 @@ The Package Details wireframe both requires Storage Location history and lists t
 Milestone 5 is complete when:
 
 * all blocking Open Decisions have been resolved in authoritative documentation
+* operators can quickly determine whether a Product exists in Inventory
+* operators can quickly determine where available food is stored
+* operators can identify individual Packages within a Product
+* Inventory is organized around finding and using food rather than administering records
+* Product names are the primary discovery mechanism while Package identifiers remain available for traceability
 * Package Status History is implemented without overwriting prior transitions
 * Package creation automatically records initial In Storage status history
 * status transitions preserve Effective Time, Recorded Time, and optional Notes
@@ -561,6 +922,7 @@ Milestone 5 is complete when:
 * Unassigned remains protected
 * Inventory defaults to In Storage Packages
 * users can search and filter active and historical Packages according to a documented contract
+* Product grouping behaves according to the documented presentation contract
 * Package Details preserves complete Packaging, Production, storage, and status traceability
 * In Storage Packages can be moved with atomic current-location and append-only history updates
 * same-location and archived-destination moves are rejected without corrupting history
@@ -572,4 +934,4 @@ Milestone 5 is complete when:
 * a real-backend Inventory smoke test passes
 * no Milestone 6 or later functionality has been introduced
 
-Until the blocking Open Decisions are resolved, Milestone 5 cannot be implemented without inventing architecture.
+All Open Decisions are resolved as of this revision; see the Open Decisions section above for where each resolution is authoritatively documented.

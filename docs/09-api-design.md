@@ -799,45 +799,211 @@ Returns:
 
 ---
 
-# Storage Endpoints
+# Storage Location Endpoints
+
+Storage Location management uses explicit CRUD-style endpoints for descriptive
+fields plus explicit action endpoints for the archive/restore lifecycle
+transitions, consistent with how Packaging Operation lifecycle transitions are
+modeled.
 
 ## List Storage Locations
 
 ```http
-GET /api/storage-locations
+GET /api/v1/storage-locations
 ```
 
-Returns all storage locations.
+Returns active and archived Storage Locations. Supports an `includeArchived`
+query flag; omitted or `false` returns only active locations.
 
----
-
-## Move Package
+## Create Storage Location
 
 ```http
-POST /api/packages/{id}/move
+POST /api/v1/storage-locations
 ```
 
-Moves a Package to a different storage location.
+```json
+{
+  "name": "Bin A",
+  "notes": "Top shelf, garage freezer"
+}
+```
+
+### Validation
+
+* `name` is required, is trimmed, and must not be blank after trimming.
+* `name` must be case-insensitively unique across active and archived Storage
+  Locations.
+* `name` must not be `Unassigned`.
+
+### Response
+
+Returns the created Storage Location.
+
+## Get Storage Location
+
+```http
+GET /api/v1/storage-locations/{id}
+```
+
+Returns Storage Location details, including whether it is archived.
+
+## Update Storage Location
+
+```http
+PATCH /api/v1/storage-locations/{id}
+```
+
+Updates the Storage Location's mutable descriptive fields: `name` and `notes`.
+It does not archive, restore, or otherwise change lifecycle state.
+
+### Validation
+
+* Same `name` rules as Create.
+* `Unassigned` cannot be renamed.
+* Renaming does not create a Storage Location History record (ADR-0006).
+
+## Archive Storage Location
+
+```http
+POST /api/v1/storage-locations/{id}/archive
+```
+
+Transitions an active, user-managed Storage Location to archived. Archived
+locations remain visible in historical records and cannot receive new
+Packages, but Packages already assigned to them are unaffected until moved.
+
+### Validation
+
+* `Unassigned` cannot be archived.
+* An already-archived Storage Location cannot be archived again.
+
+## Restore Storage Location
+
+```http
+POST /api/v1/storage-locations/{id}/restore
+```
+
+Transitions an archived Storage Location back to active, making it eligible to
+receive Packages again.
+
+### Validation
+
+* Only archived Storage Locations may be restored.
+* Restoring is rejected if another active or archived Storage Location now
+  shares the same case-insensitive name.
 
 ---
 
 # Inventory Endpoints
 
+Inventory endpoints are read-heavy and Package-centric. Storage and status
+transitions use explicit action endpoints, matching the Packaging Operation
+pattern rather than generic field-level PATCH semantics, because moving,
+giving away, or depleting a Package is a domain transition rather than an
+ordinary edit.
+
 ## Search Inventory
 
 ```http
-GET /api/inventory
+GET /api/v1/inventory
 ```
 
-Supports searching by:
+Query parameters:
 
-* product
-* product or Preparation Metadata
-* package
-* storage location
-* status
+* `query` — free-text search. Case-insensitive partial match against Product
+  name, Package identifier, Package Label Display Name, Package notes,
+  immutable Preparation Metadata preparation summary, Storage Location name,
+  and Package Type name. Leading and trailing whitespace is trimmed before
+  matching.
+* `status` — Inventory Status filter (`In Storage`, `Given Away`, `Depleted`).
+  Defaults to `In Storage`. Pass an explicit historical status, or omit the
+  default by requesting multiple values, to include terminal Packages.
+* `storageLocationId` — restrict to one Storage Location, active or archived.
+* `productName` — restrict to one Product's historical name.
+* `packageTypeId` — restrict to one Package Type.
+* `limit` — page size. Defaults to 50, maximum 100.
+* `offset` — pagination offset. Defaults to 0.
 
----
+`query` and every supplied filter combine with AND: a query match narrows
+within the filtered set, it does not substitute for a missing filter.
+
+### Response
+
+Returns a page of Packages (the same shape as `GET /api/v1/packages/{id}`)
+plus `meta.total`, `meta.limit`, and `meta.offset`.
+
+### Default Behavior
+
+With no parameters, returns In Storage Packages sorted by Product name
+ascending, then by Packaging Date oldest first within each Product, so the
+Package an operator should use first sorts first.
+
+## Product Groups
+
+```http
+GET /api/v1/inventory/products
+```
+
+Returns the default Product-grouped Inventory presentation (ADR-0018). One
+entry per Product:
+
+```json
+{
+  "productName": "Chicken",
+  "availablePackageCount": 8,
+  "storageLocations": ["Bin A", "Bin C"],
+  "oldestPackagedAt": "2026-05-03T00:00:00Z",
+  "newestPackagedAt": "2026-07-18T00:00:00Z"
+}
+```
+
+Product identity is the historical Product name from source Tray Preparation
+Metadata, never the editable Package Label Display Name. Counts and dates
+reflect only In Storage Packages by default; Given Away and Depleted Packages
+are reachable through `GET /api/v1/inventory?status=...` instead of a separate
+grouped historical projection. This is a derived read projection; no
+`InventoryProduct` entity is persisted.
+
+## Get Package Storage History
+
+```http
+GET /api/v1/packages/{id}/storage-history
+```
+
+Returns the Package's append-only Storage Location History (ADR-0006) ordered
+by `movedAt`. Each item includes the previous Storage Location (null for the
+initial placement), the new Storage Location, the movement time, and optional
+notes.
+
+## Move Package
+
+```http
+POST /api/v1/packages/{id}/move
+```
+
+```json
+{
+  "storageLocationId": "storage-location-2",
+  "movedAt": "2026-07-21T10:42:00Z",
+  "notes": "Consolidated into the garage freezer"
+}
+```
+
+`movedAt` is optional and defaults to the current time. `notes` is optional.
+
+### Behavior
+
+Atomically updates the Package's current Storage Location and appends one
+Storage Location History record in the same transaction.
+
+### Validation
+
+* Only an In Storage Package may move.
+* The destination Storage Location must be active (not archived).
+* The destination must differ from the Package's current Storage Location; a
+  same-location request is rejected and creates no history record.
+* A Package already assigned to an archived Storage Location may move out to
+  an active destination.
 
 ## Mark Package Depleted
 

@@ -21,6 +21,7 @@ Searching should be significantly faster than browsing.
 
 A user should be able to:
 
+* Browse Inventory by Product without searching first.
 * Find a Package in seconds.
 * Search by Package Label Display Name or product name.
 * Search by preparation.
@@ -34,6 +35,7 @@ A user should be able to:
 
 # Primary Actions
 
+* Browse Product groups
 * Search Inventory
 * Filter Inventory
 * Open Package Details
@@ -44,6 +46,8 @@ A user should be able to:
 ---
 
 # Screen Layout
+
+Opening Inventory with no search shows Product groups, the default presentation defined by ADR-0018.
 
 ```text
 +====================================================================================+
@@ -64,13 +68,22 @@ Storage Location
 
 [ All v ]
 
-Product
-
-[ All v ]
-
 ------------------------------------------------------------------------------
 
-Search Results
+Chicken
+8 Packages · Bin A, Bin C · Oldest May 3
+
+Strawberries
+4 Packages · Bin B · Oldest June 18
+
+Skittles
+1 Package · Bin C · Oldest May 14
+```
+
+Opening a Product group, or entering a search, shows the matching individual Packages:
+
+```text
+Chicken > 8 Packages
 
 Package      Product             Weight     Location      Packaged
 
@@ -78,14 +91,12 @@ PKG-104      Taco Chicken        10.8 oz    Bin A         Apr 27
 
 PKG-105      Taco Chicken        10.9 oz    Bin A         Apr 27
 
-PKG-201      Strawberries         5.2 oz    Pantry        May 02
-
-PKG-320      Skittles            11.3 oz    Bin C         May 14
-
 ------------------------------------------------------------------------------
 
-Showing 4 Packages
+Showing 8 Packages
 ```
+
+Each result remains traceable to its Product group; nothing about a Package's identity, storage, or history changes because of how it is grouped or displayed.
 
 ---
 
@@ -95,15 +106,19 @@ Search should be the primary interaction.
 
 The search box should always remain visible.
 
-Search should match:
+Search performs case-insensitive partial matching and updates results as the user types. It matches:
 
-* Product Name
-* Preparation
-* Preparation Preset, if applicable
-* Notes
-* Storage Location
+* Product name
+* Package identifier
+* Package Label Display Name
+* Package notes
+* immutable Preparation Metadata preparation summary
+* Storage Location name
+* Package Type name
 
-Search should update results as the user types.
+A search query and any active filters combine with AND.
+
+Entering a search replaces the default Product-grouped view with matching individual Packages, sorted by Product name ascending, then Packaging Date oldest first within each Product.
 
 ---
 
@@ -157,7 +172,7 @@ Users may choose to include depleted or Given Away Packages.
 
 # Empty Search
 
-If no search text has been entered, display all Packages currently in storage.
+If no search text has been entered, display Product groups summarizing Packages currently In Storage (ADR-0018), not a flat Package list.
 
 Users should not be required to search before browsing.
 
