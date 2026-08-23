@@ -1,14 +1,18 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Subquery, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
     InventoryStatus,
     Package,
+    PackageLabel,
     PackageStatusHistory,
+    PackageType,
+    PackagingAllocationSourceTray,
     StorageLocation,
     StorageLocationHistory,
+    Tray,
 )
 from app.models.mixins import utc_now
 from app.repositories import (
@@ -26,6 +30,8 @@ from app.schemas import (
 from app.services.errors import BusinessRuleError
 
 UNASSIGNED_STORAGE_LOCATION_NAME = "Unassigned"
+DEFAULT_SEARCH_LIMIT = 50
+MAX_SEARCH_LIMIT = 100
 
 
 def list_storage_locations(
@@ -173,6 +179,134 @@ def get_package_status_history(
                 PackageStatusHistory.effective_at, PackageStatusHistory.recorded_at
             )
         ).all()
+    )
+
+
+def search_inventory(
+    db: Session,
+    *,
+    query: str | None = None,
+    statuses: list[InventoryStatus] | None = None,
+    storage_location_id: UUID | None = None,
+    product_name: str | None = None,
+    package_type_id: UUID | None = None,
+    limit: int = DEFAULT_SEARCH_LIMIT,
+    offset: int = 0,
+) -> dict[str, object]:
+    limit = min(max(limit, 1), MAX_SEARCH_LIMIT)
+    offset = max(offset, 0)
+
+    product_name_subquery = _product_name_subquery()
+    product_name_column = product_name_subquery.c.product_name
+
+    statement = (
+        select(Package)
+        .join(PackageLabel, PackageLabel.package_id == Package.id)
+        .join(StorageLocation, StorageLocation.id == Package.storage_location_id)
+        .join(PackageType, PackageType.id == Package.package_type_id)
+        .join(
+            product_name_subquery,
+            product_name_subquery.c.packaging_allocation_id
+            == Package.packaging_allocation_id,
+        )
+        .where(Package.status.in_(statuses or [InventoryStatus.IN_STORAGE]))
+    )
+
+    if storage_location_id is not None:
+        statement = statement.where(Package.storage_location_id == storage_location_id)
+    if product_name is not None:
+        statement = statement.where(
+            func.lower(product_name_column) == product_name.strip().lower()
+        )
+    if package_type_id is not None:
+        statement = statement.where(Package.package_type_id == package_type_id)
+
+    trimmed_query = (query or "").strip()
+    if trimmed_query:
+        pattern = f"%{trimmed_query}%"
+        statement = statement.where(
+            or_(
+                product_name_column.ilike(pattern),
+                Package.package_identifier.ilike(pattern),
+                PackageLabel.display_name.ilike(pattern),
+                Package.notes.ilike(pattern),
+                PackageLabel.preparation_summary.ilike(pattern),
+                StorageLocation.name.ilike(pattern),
+                PackageType.name.ilike(pattern),
+            )
+        )
+
+    total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
+    page_statement = (
+        statement.order_by(product_name_column, Package.packaged_at)
+        .limit(limit)
+        .offset(offset)
+    )
+    packages = list(db.scalars(page_statement).all())
+    return {"packages": packages, "total": total, "limit": limit, "offset": offset}
+
+
+def list_product_groups(db: Session) -> list[dict[str, object]]:
+    product_name_subquery = _product_name_subquery()
+    product_name_column = product_name_subquery.c.product_name
+
+    aggregate_statement = (
+        select(
+            product_name_column,
+            func.count(Package.id).label("available_package_count"),
+            func.min(Package.packaged_at).label("oldest_packaged_at"),
+            func.max(Package.packaged_at).label("newest_packaged_at"),
+        )
+        .join(
+            product_name_subquery,
+            product_name_subquery.c.packaging_allocation_id
+            == Package.packaging_allocation_id,
+        )
+        .where(Package.status == InventoryStatus.IN_STORAGE)
+        .group_by(product_name_column)
+        .order_by(product_name_column)
+    )
+    rows = db.execute(aggregate_statement).all()
+
+    locations_subquery = _product_name_subquery()
+    locations_statement = (
+        select(locations_subquery.c.product_name, StorageLocation.name)
+        .join(
+            Package,
+            Package.packaging_allocation_id
+            == locations_subquery.c.packaging_allocation_id,
+        )
+        .join(StorageLocation, StorageLocation.id == Package.storage_location_id)
+        .where(Package.status == InventoryStatus.IN_STORAGE)
+        .distinct()
+    )
+    locations_by_product: dict[str, list[str]] = {}
+    for row_product_name, location_name in db.execute(locations_statement).all():
+        locations_by_product.setdefault(row_product_name, []).append(location_name)
+
+    return [
+        {
+            "product_name": row.product_name,
+            "available_package_count": row.available_package_count,
+            "storage_locations": sorted(locations_by_product.get(row.product_name, [])),
+            "oldest_packaged_at": row.oldest_packaged_at,
+            "newest_packaged_at": row.newest_packaged_at,
+        }
+        for row in rows
+    ]
+
+
+def _product_name_subquery() -> Subquery:
+    return (
+        select(
+            PackagingAllocationSourceTray.packaging_allocation_id.label(
+                "packaging_allocation_id"
+            ),
+            func.min(Tray.product_name).label("product_name"),
+        )
+        .join(Tray, Tray.id == PackagingAllocationSourceTray.tray_id)
+        .group_by(PackagingAllocationSourceTray.packaging_allocation_id)
+        .subquery()
     )
 
 
