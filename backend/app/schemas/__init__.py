@@ -12,6 +12,7 @@ from app.schemas.freeze_dryer import (
     FreezeDryerRead,
     FreezeDryerUpdate,
 )
+from app.schemas.inventory import PackageDeplete, PackageGiveAway, PackageMove
 from app.schemas.package import PackageCreate, PackageRead, PackageUpdate
 from app.schemas.package_label import (
     PackageLabelCreate,
@@ -105,6 +106,9 @@ __all__ = [
     "FreezeDryerCreate",
     "FreezeDryerRead",
     "FreezeDryerUpdate",
+    "PackageDeplete",
+    "PackageGiveAway",
+    "PackageMove",
     "PackageCreate",
     "PackageLabelCreate",
     "PackageLabelRead",
