@@ -51,7 +51,6 @@ from app.schemas import (
 )
 from app.services.errors import BusinessRuleError
 
-UNASSIGNED_STORAGE_LOCATION_NAME = "Unassigned"
 ALLOCATION_TOLERANCE_GRAMS = Decimal("0.001")
 
 
@@ -98,18 +97,6 @@ def update_package_type(
     updated = package_type_repository.update(db, package_type, values)
     db.commit()
     return updated
-
-
-def list_storage_locations(db: Session) -> list[StorageLocation]:
-    _get_or_create_unassigned_storage_location(db)
-    db.commit()
-    return list(
-        db.scalars(
-            select(StorageLocation)
-            .where(StorageLocation.archived.is_(False))
-            .order_by(StorageLocation.name)
-        ).all()
-    )
 
 
 def get_packaging_worksheet(db: Session) -> list[ProductionBatch]:
@@ -781,23 +768,6 @@ def _get_storage_location(db: Session, storage_location_id: UUID) -> StorageLoca
     location = db.get(StorageLocation, storage_location_id)
     if location is None or location.archived:
         raise BusinessRuleError("Storage Location is not available.")
-    return location
-
-
-def _get_or_create_unassigned_storage_location(db: Session) -> StorageLocation:
-    location = db.scalar(
-        select(StorageLocation).where(
-            StorageLocation.name == UNASSIGNED_STORAGE_LOCATION_NAME
-        )
-    )
-    if location is None:
-        location = StorageLocation(
-            name=UNASSIGNED_STORAGE_LOCATION_NAME,
-            notes="System-provided location for Packages not yet assigned.",
-            archived=False,
-        )
-        db.add(location)
-        db.flush()
     return location
 
 

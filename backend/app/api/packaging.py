@@ -14,7 +14,6 @@ from app.api.serializers import (
     packaging_loss_data,
     packaging_operation_data,
     packaging_worksheet_data,
-    storage_location_data,
 )
 from app.database.session import get_db
 from app.schemas import (
@@ -41,7 +40,6 @@ from app.services.packaging import (
     get_packaging_worksheet,
     list_package_types,
     list_packages_eligible_for_todays_print,
-    list_storage_locations,
     preview_package_labels,
     print_package_labels,
     record_allocation_packages,
@@ -109,12 +107,6 @@ def update_package_type_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(package_type_data(package_type))
-
-
-@router.get("/storage-locations")
-def list_storage_locations_endpoint(db: DBSession) -> dict[str, object]:
-    locations = list_storage_locations(db)
-    return success([storage_location_data(location) for location in locations])
 
 
 @router.post(
