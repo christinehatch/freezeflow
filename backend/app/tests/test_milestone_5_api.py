@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,118 @@ def _create_storage_location(
     )
     assert response.status_code == 201
     return _data(response)
+
+
+def _create_freeze_dryer(client: TestClient, name: str) -> dict:
+    response = client.post(
+        "/api/v1/freeze-dryers",
+        json={"name": name, "tray_slot_count": 1},
+    )
+    assert response.status_code == 201
+    return _data(response)
+
+
+def _create_physical_tray(client: TestClient, label: str) -> dict:
+    response = client.post("/api/v1/physical-trays", json={"label": label})
+    assert response.status_code == 201
+    return _data(response)
+
+
+def _create_completed_batch(client: TestClient, batch_number: str) -> dict:
+    freeze_dryer = _create_freeze_dryer(client, f"{batch_number} Dryer")
+    physical_tray = _create_physical_tray(client, f"{batch_number} Tray")
+    batch_response = client.post(
+        "/api/v1/production-batches",
+        json={"freeze_dryer_id": freeze_dryer["id"], "batch_number": batch_number},
+    )
+    assert batch_response.status_code == 201
+    batch = _data(batch_response)
+
+    tray_response = client.post(
+        f"/api/v1/production-batches/{batch['id']}/trays",
+        json={
+            "tray_slot_id": freeze_dryer["tray_slots"][0]["id"],
+            "physical_tray_id": physical_tray["id"],
+            "product_name": "Taco Chicken",
+            "preparation": "Cubed and seasoned.",
+            "starting_weight_grams": "907.000",
+        },
+    )
+    assert tray_response.status_code == 201
+    tray = _data(tray_response)
+
+    start_response = client.post(f"/api/v1/production-batches/{batch['id']}/start")
+    assert start_response.status_code == 200
+    drying_run_id = _data(start_response)["drying_runs"][0]["id"]
+    complete_run_response = client.post(
+        f"/api/v1/drying-runs/{drying_run_id}/complete", json={}
+    )
+    assert complete_run_response.status_code == 200
+    check_response = client.post(
+        f"/api/v1/trays/{tray['id']}/weight-checks",
+        json={
+            "drying_run_id": drying_run_id,
+            "weight_grams": "250.000",
+            "observed_at": datetime.now(UTC).isoformat(),
+        },
+    )
+    assert check_response.status_code == 201
+    complete_tray_response = client.post(
+        f"/api/v1/trays/{tray['id']}/complete",
+        json={"final_dry_weight_grams": "250.000"},
+    )
+    assert complete_tray_response.status_code == 200
+
+    complete_batch_response = client.post(
+        f"/api/v1/production-batches/{batch['id']}/complete"
+    )
+    assert complete_batch_response.status_code == 200
+    return _data(complete_batch_response)
+
+
+def _create_package_type(client: TestClient) -> dict:
+    response = client.post(
+        "/api/v1/package-types",
+        json={"name": "Quart Mylar", "default_oxygen_absorber": "500cc"},
+    )
+    assert response.status_code == 201
+    return _data(response)
+
+
+def _create_package(
+    client: TestClient, *, batch_number: str, storage_location_id: str | None = None
+) -> dict:
+    batch = _create_completed_batch(client, batch_number)
+    package_type = _create_package_type(client)
+    operation_response = client.post(
+        f"/api/v1/production-batches/{batch['id']}/packaging-operation",
+        json={},
+    )
+    assert operation_response.status_code == 201
+    operation = _data(operation_response)
+
+    tray_ids = [tray["id"] for tray in batch["trays"]]
+    allocation_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/allocate-trays",
+        json={"tray_ids": tray_ids},
+    )
+    assert allocation_response.status_code == 201
+    allocation = _data(allocation_response)
+
+    package_line: dict = {
+        "package_type_id": package_type["id"],
+        "finished_product_weight_grams": "240.000",
+        "sealed_package_weight_grams": "245.000",
+    }
+    if storage_location_id is not None:
+        package_line["storage_location_id"] = storage_location_id
+    record_response = client.post(
+        f"/api/v1/packaging-operations/{operation['id']}/allocations/"
+        f"{allocation['id']}/packages",
+        json={"packages": [package_line]},
+    )
+    assert record_response.status_code == 201
+    return _data(record_response)["packages"][0]
 
 
 def test_storage_location_can_be_created_listed_and_fetched(
@@ -200,4 +314,131 @@ def test_renaming_a_storage_location_to_an_archived_name_is_rejected(
     )
     _assert_business_error(
         rename_response, 'A Storage Location named "Bin A" already exists.'
+    )
+
+
+def test_move_updates_storage_location_and_appends_history(
+    client: TestClient,
+) -> None:
+    package = _create_package(client, batch_number="Move batch")
+    destination = _create_storage_location(client, "Garage Freezer")
+
+    response = client.post(
+        f"/api/v1/packages/{package['id']}/move",
+        json={"storage_location_id": destination["id"], "notes": "Consolidated."},
+    )
+    assert response.status_code == 200
+    moved = _data(response)
+    assert moved["storage_location"]["id"] == destination["id"]
+
+    history_response = client.get(f"/api/v1/packages/{package['id']}/storage-history")
+    assert history_response.status_code == 200
+    history = _data(history_response)
+    assert len(history) == 2
+    assert history[0]["previous_storage_location_id"] is None
+    assert (
+        history[1]["previous_storage_location_id"] == package["storage_location"]["id"]
+    )
+    assert history[1]["current_storage_location_id"] == destination["id"]
+    assert history[1]["notes"] == "Consolidated."
+
+
+def test_move_to_same_location_is_rejected_and_creates_no_history(
+    client: TestClient,
+) -> None:
+    package = _create_package(client, batch_number="Same location batch")
+
+    response = client.post(
+        f"/api/v1/packages/{package['id']}/move",
+        json={"storage_location_id": package["storage_location"]["id"]},
+    )
+    _assert_business_error(response, "Package is already in that Storage Location.")
+
+    history_response = client.get(f"/api/v1/packages/{package['id']}/storage-history")
+    assert len(_data(history_response)) == 1
+
+
+def test_move_to_an_archived_location_is_rejected(client: TestClient) -> None:
+    package = _create_package(client, batch_number="Archived destination batch")
+    destination = _create_storage_location(client, "Retired Bin")
+    client.post(f"/api/v1/storage-locations/{destination['id']}/archive")
+
+    response = client.post(
+        f"/api/v1/packages/{package['id']}/move",
+        json={"storage_location_id": destination["id"]},
+    )
+    _assert_business_error(
+        response, "Archived Storage Locations cannot receive Packages."
+    )
+
+
+def test_moving_out_of_an_archived_location_succeeds(client: TestClient) -> None:
+    origin = _create_storage_location(client, "Old Chest Freezer")
+    package = _create_package(
+        client, batch_number="Origin archived batch", storage_location_id=origin["id"]
+    )
+    client.post(f"/api/v1/storage-locations/{origin['id']}/archive")
+    destination = _create_storage_location(client, "New Chest Freezer")
+
+    response = client.post(
+        f"/api/v1/packages/{package['id']}/move",
+        json={"storage_location_id": destination["id"]},
+    )
+    assert response.status_code == 200
+    assert _data(response)["storage_location"]["id"] == destination["id"]
+
+
+def test_give_away_and_deplete_update_status_and_append_status_history(
+    client: TestClient,
+) -> None:
+    given_away = _create_package(client, batch_number="Given away batch")
+    depleted = _create_package(client, batch_number="Depleted batch")
+
+    give_away_response = client.post(
+        f"/api/v1/packages/{given_away['id']}/give-away",
+        json={"notes": "Gift for Mary."},
+    )
+    assert give_away_response.status_code == 200
+    assert _data(give_away_response)["status"] == "Given Away"
+
+    deplete_response = client.post(
+        f"/api/v1/packages/{depleted['id']}/deplete",
+        json={"notes": "Made soup."},
+    )
+    assert deplete_response.status_code == 200
+    assert _data(deplete_response)["status"] == "Depleted"
+
+    history_response = client.get(f"/api/v1/packages/{given_away['id']}/status-history")
+    history = _data(history_response)
+    assert len(history) == 2
+    assert history[0]["previous_status"] is None
+    assert history[0]["current_status"] == "In Storage"
+    assert history[1]["previous_status"] == "In Storage"
+    assert history[1]["current_status"] == "Given Away"
+    assert history[1]["notes"] == "Gift for Mary."
+
+
+def test_terminal_packages_reject_move_give_away_and_deplete(
+    client: TestClient,
+) -> None:
+    package = _create_package(client, batch_number="Terminal batch")
+    client.post(f"/api/v1/packages/{package['id']}/deplete", json={})
+
+    destination = _create_storage_location(client, "Somewhere Else")
+    move_response = client.post(
+        f"/api/v1/packages/{package['id']}/move",
+        json={"storage_location_id": destination["id"]},
+    )
+    _assert_business_error(move_response, "Only an In Storage Package can be moved.")
+
+    give_away_response = client.post(
+        f"/api/v1/packages/{package['id']}/give-away", json={}
+    )
+    _assert_business_error(
+        give_away_response, "Only an In Storage Package can be given away."
+    )
+
+    deplete_response = client.post(f"/api/v1/packages/{package['id']}/deplete", json={})
+    _assert_business_error(
+        deplete_response, "Only an In Storage Package can be depleted."
     )

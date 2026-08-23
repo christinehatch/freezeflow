@@ -6,6 +6,7 @@ from app.models import (
     FreezeDryer,
     Package,
     PackageLabel,
+    PackageStatusHistory,
     PackageType,
     PackagingAllocation,
     PackagingLoss,
@@ -15,6 +16,7 @@ from app.models import (
     PrintEvent,
     ProductionBatch,
     StorageLocation,
+    StorageLocationHistory,
     Tray,
     TraySlot,
     TrayStatus,
@@ -160,6 +162,31 @@ def storage_location_data(storage_location: StorageLocation) -> dict[str, object
         "name": storage_location.name,
         "notes": storage_location.notes,
         "archived": storage_location.archived,
+    }
+
+
+def storage_location_history_data(
+    entry: StorageLocationHistory,
+) -> dict[str, object]:
+    return {
+        "id": entry.id,
+        "package_id": entry.package_id,
+        "previous_storage_location_id": entry.previous_storage_location_id,
+        "current_storage_location_id": entry.current_storage_location_id,
+        "moved_at": entry.moved_at,
+        "notes": entry.notes,
+    }
+
+
+def package_status_history_data(entry: PackageStatusHistory) -> dict[str, object]:
+    return {
+        "id": entry.id,
+        "package_id": entry.package_id,
+        "previous_status": entry.previous_status,
+        "current_status": entry.current_status,
+        "effective_at": entry.effective_at,
+        "recorded_at": entry.recorded_at,
+        "notes": entry.notes,
     }
 
 
