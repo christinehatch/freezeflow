@@ -299,20 +299,56 @@ class DeveloperDataService:
         self.db.flush()
         storage_bins = data["locations"][1:] + extra_locations
 
+        extra_recipes = [
+            Recipe(
+                name="Blanched Green Beans",
+                product_name="Green Beans",
+                preparation="Blanched and trimmed",
+            ),
+            Recipe(
+                name="Whole Blueberries",
+                product_name="Blueberries",
+                preparation="Rinsed and dried whole",
+            ),
+            Recipe(
+                name="Sweet Corn",
+                product_name="Corn",
+                preparation="Kernels cut from the cob",
+            ),
+            Recipe(
+                name="Chicken Bone Broth",
+                product_name="Chicken Broth",
+                preparation="Simmered, strained, and portioned",
+            ),
+            Recipe(
+                name="Sliced Mango",
+                product_name="Mango",
+                preparation="Peeled and sliced",
+            ),
+            Recipe(
+                name="Beef Stew",
+                product_name="Beef Stew",
+                preparation="Fully cooked and portioned",
+            ),
+        ]
+        self.db.add_all(extra_recipes)
+        self.db.flush()
+        recipes = data["recipes"] + extra_recipes
+
         package_types = data["package_types"]
-        products = [recipe.product_name for recipe in data["recipes"]]
+        products = [recipe.product_name for recipe in recipes]
 
         global_index = 0
-        batch_count = 12
+        batch_count = 20
         for batch_index in range(batch_count):
             dryer_index = batch_index % len(data["dryers"])
             dryer = data["dryers"][dryer_index]
             slots = data["slots"][dryer_index]
             product_index = batch_index % len(products)
             product = products[product_index]
-            recipe = data["recipes"][product_index]
+            recipe = recipes[product_index]
 
-            package_count = rng.randint(20, 30)
+            package_count = rng.randint(12, 22)
             package_weights = [
                 Decimal(rng.randint(60, 220)) for _ in range(package_count)
             ]
@@ -335,7 +371,7 @@ class DeveloperDataService:
                 dryer=dryer,
                 slots=slots,
                 physical_trays=[physical_tray],
-                recipes=data["recipes"],
+                recipes=recipes,
                 batch_number=f"Batch {200 + batch_index}",
                 status=ProductionBatchStatus.COMPLETED,
                 products=(product,),

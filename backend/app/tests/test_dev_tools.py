@@ -330,7 +330,7 @@ def test_large_inventory_seeds_dozens_of_bins_and_hundreds_of_packages(
     groups_response = client.get("/api/v1/inventory/products")
     assert groups_response.status_code == 200
     groups = groups_response.json()["data"]
-    assert len(groups) == 4
+    assert len(groups) == 10
     assert sum(group["available_package_count"] for group in groups) == sum(
         1 for package in packages if package.status == InventoryStatus.IN_STORAGE
     )
