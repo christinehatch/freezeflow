@@ -103,8 +103,32 @@ export function InventoryPage() {
     setSearchParams(new URLSearchParams());
   }
 
+  const backAction = productNameFilter
+    ? {
+        label: "Back to Products",
+        onClick: () => updateParams({ product: null }),
+      }
+    : storageLocationId
+      ? {
+          label: "Back to Storage Locations",
+          onClick: () => navigate("/inventory/storage-locations"),
+        }
+      : null;
+
   return (
     <div className="space-y-4">
+      {backAction ? (
+        <nav>
+          <button
+            className="quiet-action -ml-3"
+            type="button"
+            onClick={backAction.onClick}
+          >
+            &larr; {backAction.label}
+          </button>
+        </nav>
+      ) : null}
+
       <PageHeader
         action={
           <ButtonLink to="/inventory/storage-locations" variant="secondary">
@@ -170,14 +194,6 @@ export function InventoryPage() {
         />
       ) : (
         <SearchResultsView
-          onBackToProducts={
-            productNameFilter ? () => updateParams({ product: null }) : null
-          }
-          onBackToStorageLocations={
-            !productNameFilter && storageLocationId
-              ? () => navigate("/inventory/storage-locations")
-              : null
-          }
           productNameFilter={productNameFilter}
           query={searchResultsQuery}
           storageLocationName={!productNameFilter ? storageLocationName : null}
@@ -240,14 +256,10 @@ function ProductGroupsView({
 }
 
 function SearchResultsView({
-  onBackToProducts,
-  onBackToStorageLocations,
   productNameFilter,
   query,
   storageLocationName,
 }: {
-  onBackToProducts: (() => void) | null;
-  onBackToStorageLocations: (() => void) | null;
   productNameFilter: string | null;
   query: UseQueryResult<Package[]>;
   storageLocationName: string | null;
@@ -257,33 +269,13 @@ function SearchResultsView({
   return (
     <section aria-labelledby="inventory-search-results">
       {heading ? (
-        <div className="flex flex-wrap items-center gap-2">
-          {onBackToProducts ? (
-            <button
-              className="quiet-action"
-              type="button"
-              onClick={onBackToProducts}
-            >
-              &larr; Back to Products
-            </button>
-          ) : null}
-          {onBackToStorageLocations ? (
-            <button
-              className="quiet-action"
-              type="button"
-              onClick={onBackToStorageLocations}
-            >
-              &larr; Back to Storage Locations
-            </button>
-          ) : null}
-          <p
-            className="text-sm font-semibold text-slate-700"
-            id="inventory-search-results"
-          >
-            {heading} · {results.length} Package
-            {results.length === 1 ? "" : "s"}
-          </p>
-        </div>
+        <p
+          className="text-sm font-semibold text-slate-700"
+          id="inventory-search-results"
+        >
+          {heading} · {results.length} Package
+          {results.length === 1 ? "" : "s"}
+        </p>
       ) : (
         <h3 className="sr-only" id="inventory-search-results">
           Matching Packages
