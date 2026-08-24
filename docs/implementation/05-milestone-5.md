@@ -2,9 +2,17 @@
 
 ## Status
 
-Planned - Ready for implementation.
+Complete.
 
-All Open Decisions below have been resolved in the authoritative architecture, business-rules, persistence, and API documentation. See each decision's entry under Open Decisions for where its resolution now lives.
+Implemented across seven merged phases: Storage Location lifecycle
+(create, rename, archive, restore), Package Move/Given-Away/Deplete with
+atomic history recording, Inventory search and Product Groups, the
+Storage Location management UI, the Inventory browsing UI, the Package
+Details page, and Playwright E2E coverage plus a real-backend smoke
+test. All Open Decisions below were resolved in the authoritative
+architecture, business-rules, persistence, and API documentation before
+implementation began; see each decision's entry under Open Decisions for
+where its resolution lives.
 
 ---
 
