@@ -9,6 +9,7 @@ import type {
   FreezeDryer,
   PackagingOperation,
   PhysicalTray,
+  PreparationPreset,
   ProductionBatch,
   Tray,
 } from "../api/client";
@@ -50,6 +51,18 @@ const physicalTrays: PhysicalTray[] = [
     id: "physical-tray-2",
     label: "Imported Tray 2",
     tare_weight_grams: null,
+    notes: null,
+    archived: false,
+  },
+];
+
+const preparationPresets: PreparationPreset[] = [
+  {
+    id: "preset-1",
+    name: "Sliced Apples",
+    product_name: "Apples",
+    ingredients: ["Apples"],
+    preparation_methods: ["Sliced"],
     notes: null,
     archived: false,
   },
@@ -98,11 +111,12 @@ describe("ProductionBatchPage", () => {
       "physical-tray-1",
     );
     await user.type(within(slotOneRow).getAllByRole("textbox")[0], "Apples");
-    await user.type(within(slotOneRow).getAllByRole("textbox")[1], "sliced");
+    const ingredientsField = within(slotOneRow).getAllByRole("combobox")[2];
+    await user.type(ingredientsField, "sliced{Enter}");
     await user.clear(within(slotOneRow).getByRole("spinbutton"));
     await user.type(within(slotOneRow).getByRole("spinbutton"), "2.05");
     await user.selectOptions(
-      within(slotOneRow).getAllByRole("combobox")[1],
+      within(slotOneRow).getAllByRole("combobox")[4],
       "lb",
     );
     await user.click(within(slotOneRow).getByRole("button", { name: "Save" }));
@@ -122,14 +136,108 @@ describe("ProductionBatchPage", () => {
     expect(JSON.parse(String(addTrayCall?.[1]?.body))).toMatchObject({
       tray_slot_id: "slot-1",
       physical_tray_id: "physical-tray-1",
+      preparation_preset_id: null,
       product_name: "Apples",
-      preparation: "sliced",
+      ingredients: ["sliced"],
+      preparation_methods: [],
       starting_weight_grams: "929.864",
     });
 
     expect(
       screen.getByRole("button", { name: "Start Production Batch" }),
     ).toBeEnabled();
+  });
+
+  it("creates a Tray by selecting a Preparation Preset, keeping submitted edits over the Preset's own values", async () => {
+    const user = userEvent.setup();
+    const testState = createProductionTestState();
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderProductionBatchPage();
+
+    const slotOneRow = await findRow("Slot 1");
+    await user.selectOptions(
+      within(slotOneRow).getAllByRole("combobox")[0],
+      "physical-tray-1",
+    );
+    await user.selectOptions(
+      within(slotOneRow).getAllByRole("combobox")[1],
+      "preset-1",
+    );
+
+    expect(within(slotOneRow).getByDisplayValue("Apples")).toBeInTheDocument();
+    expect(within(slotOneRow).getByText("Apples")).toBeInTheDocument();
+    expect(within(slotOneRow).getByText("Sliced")).toBeInTheDocument();
+
+    const productNameInput = within(slotOneRow).getAllByRole("textbox")[0];
+    await user.clear(productNameInput);
+    await user.type(productNameInput, "Apples (extra thin)");
+    await user.clear(within(slotOneRow).getByRole("spinbutton"));
+    await user.type(within(slotOneRow).getByRole("spinbutton"), "2.05");
+    await user.click(within(slotOneRow).getByRole("button", { name: "Save" }));
+
+    await screen.findByRole("link", { name: "Apples (extra thin)" });
+
+    const addTrayCall = fetchMock().mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/api/v1/production-batches/batch-1/trays") &&
+        init?.method === "POST",
+    );
+    expect(JSON.parse(String(addTrayCall?.[1]?.body))).toMatchObject({
+      preparation_preset_id: "preset-1",
+      product_name: "Apples (extra thin)",
+      ingredients: ["Apples"],
+      preparation_methods: ["Sliced"],
+    });
+  });
+
+  it("edits an existing Draft Tray's ingredients and preparation methods", async () => {
+    const user = userEvent.setup();
+    const testState = createProductionTestState({
+      trays: [createTray({ status: "Draft" })],
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderProductionBatchPage();
+
+    await screen.findByRole("link", { name: "Apples" });
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    const row = await findRow("Imported Tray 1");
+    const ingredientsField = within(row).getAllByRole("combobox")[2];
+    await user.type(ingredientsField, "extra crisp{Enter}");
+    await user.click(within(row).getByRole("button", { name: "Save" }));
+
+    await screen.findByText("sliced, extra crisp");
+
+    const updateTrayCall = fetchMock().mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/api/v1/trays/tray-1") &&
+        init?.method === "PATCH",
+    );
+    expect(updateTrayCall).toBeDefined();
+    expect(JSON.parse(String(updateTrayCall?.[1]?.body))).toMatchObject({
+      ingredients: ["sliced", "extra crisp"],
+      preparation_methods: [],
+    });
+  });
+
+  it("falls back to the legacy preparation string for a pre-Milestone-6 Tray", async () => {
+    const testState = createProductionTestState({
+      trays: [
+        createTray({
+          status: "Draft",
+          ingredients: null,
+          preparation_methods: null,
+          preparation: "Cooked and shredded",
+        }),
+      ],
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderProductionBatchPage();
+
+    expect(await screen.findByText("Cooked and shredded")).toBeInTheDocument();
   });
 
   it("supports the Milestone 3 drying workflow from start through explicit batch completion", async () => {
@@ -391,6 +499,17 @@ function createProductionTestState(
       return jsonResponse([state.batch]);
     }
 
+    if (url.endsWith("/api/v1/preparation-presets") && method === "GET") {
+      return jsonResponse(preparationPresets);
+    }
+
+    if (
+      url.includes("/api/v1/preparation-presets/suggestions") &&
+      method === "GET"
+    ) {
+      return jsonResponse([]);
+    }
+
     if (
       url.endsWith("/api/v1/production-batches/batch-1/packaging-operation") &&
       method === "GET"
@@ -410,14 +529,50 @@ function createProductionTestState(
       method === "POST"
     ) {
       const body = parseBody(init);
+      const preset = preparationPresets.find(
+        (candidate) => candidate.id === body.preparation_preset_id,
+      );
       const tray = createTray({
         physical_tray_id: String(body.physical_tray_id),
+        preparation_preset_id: body.preparation_preset_id ?? null,
+        preparation_preset_name: preset?.name ?? null,
         product_name: String(body.product_name),
-        preparation: String(body.preparation),
+        ingredients: Array.isArray(body.ingredients) ? body.ingredients : [],
+        preparation_methods: Array.isArray(body.preparation_methods)
+          ? body.preparation_methods
+          : [],
         starting_weight_grams: String(body.starting_weight_grams),
         notes: body.notes === null ? null : String(body.notes ?? ""),
       });
       state.batch = { ...state.batch, trays: [tray] };
+      return jsonResponse(tray);
+    }
+
+    if (url.endsWith("/api/v1/trays/tray-1") && method === "PATCH") {
+      const body = parseBody(init);
+      const existingTray = state.batch.trays.find(
+        (tray) => tray.id === "tray-1",
+      );
+      if (!existingTray) {
+        return errorResponse(404, { detail: { message: "Tray not found" } });
+      }
+      const tray: Tray = {
+        ...existingTray,
+        product_name: body.product_name ?? existingTray.product_name,
+        ingredients: Array.isArray(body.ingredients)
+          ? body.ingredients
+          : existingTray.ingredients,
+        preparation_methods: Array.isArray(body.preparation_methods)
+          ? body.preparation_methods
+          : existingTray.preparation_methods,
+        notes: body.notes === null ? null : String(body.notes ?? ""),
+      };
+      state.batch = {
+        ...state.batch,
+        trays: state.batch.trays.map((current) =>
+          current.id === "tray-1" ? tray : current,
+        ),
+      };
       return jsonResponse(tray);
     }
 
@@ -563,8 +718,12 @@ function createProductionTestState(
 function createTray(
   overrides: Partial<{
     physical_tray_id: string;
+    preparation_preset_id: string | null;
+    preparation_preset_name: string | null;
     product_name: string;
-    preparation: string;
+    ingredients: string[] | null;
+    preparation_methods: string[] | null;
+    preparation: string | null;
     starting_weight_grams: string;
     notes: string | null;
     status: Tray["status"];
@@ -582,10 +741,16 @@ function createTray(
     tray_slot: freezeDryer.tray_slots[0],
     physical_tray_id: physicalTray.id,
     physical_tray: physicalTray,
-    recipe_id: null,
-    recipe_name: null,
+    preparation_preset_id: overrides.preparation_preset_id ?? null,
+    preparation_preset_name: overrides.preparation_preset_name ?? null,
     product_name: overrides.product_name ?? "Apples",
-    preparation: overrides.preparation ?? "sliced",
+    ingredients:
+      overrides.ingredients === undefined ? ["sliced"] : overrides.ingredients,
+    preparation_methods:
+      overrides.preparation_methods === undefined
+        ? []
+        : overrides.preparation_methods,
+    preparation: overrides.preparation ?? null,
     starting_weight_grams: overrides.starting_weight_grams ?? "929.864",
     final_dry_weight_grams: null,
     completed_at: null,

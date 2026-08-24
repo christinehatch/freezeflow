@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 
 import { Tray, WeightCheck, packagingApi, productionApi } from "../api/client";
 import { printAvery5163Labels } from "../utils/avery5163Labels";
+import { trayPreparationSummary } from "../utils/preparation";
 import { WEIGHT_UNIT_OPTIONS, WeightUnit, toGrams } from "../utils/weights";
 
 export function TrayDetailsPage() {
@@ -85,8 +86,8 @@ export function TrayDetailsPage() {
             </dd>
           </div>
           <div>
-            <dt className="label-text">Recipe</dt>
-            <dd>{tray.recipe_name ?? "No Recipe"}</dd>
+            <dt className="label-text">Preparation Preset</dt>
+            <dd>{tray.preparation_preset_name ?? "No Preparation Preset"}</dd>
           </div>
           <div>
             <dt className="label-text">Notes</dt>
@@ -97,9 +98,24 @@ export function TrayDetailsPage() {
 
       <section className="panel">
         <h3 className="section-title">Preparation</h3>
-        <p className="mt-3 whitespace-pre-wrap text-slate-700">
-          {tray.preparation}
-        </p>
+        {tray.ingredients && tray.ingredients.length > 0 ? (
+          <p className="mt-3 text-slate-700">
+            <span className="label-text">Ingredients: </span>
+            {tray.ingredients.join(", ")}
+          </p>
+        ) : null}
+        {tray.preparation_methods && tray.preparation_methods.length > 0 ? (
+          <p className="mt-3 text-slate-700">
+            <span className="label-text">Preparation Methods: </span>
+            {tray.preparation_methods.join(", ")}
+          </p>
+        ) : null}
+        {(!tray.ingredients || tray.ingredients.length === 0) &&
+        (!tray.preparation_methods || tray.preparation_methods.length === 0) ? (
+          <p className="mt-3 whitespace-pre-wrap text-slate-700">
+            {tray.preparation ?? "No preparation recorded."}
+          </p>
+        ) : null}
       </section>
 
       <section className="panel">
@@ -140,7 +156,8 @@ export function TrayDetailsPage() {
                   batch_number: packaging.batch_number,
                   freeze_dryer: packaging.freeze_dryer,
                   product_summary: tray.product_name,
-                  preparation_summary: tray.preparation,
+                  preparation_summary:
+                    trayPreparationSummary(tray) ?? undefined,
                   source_starting_weight_grams: tray.starting_weight_grams,
                 })
               }

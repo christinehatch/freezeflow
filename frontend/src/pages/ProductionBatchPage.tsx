@@ -7,10 +7,12 @@ import {
   DryingRun,
   PackagingOperation,
   PhysicalTray,
+  PreparationPreset,
   ProductionBatch,
   Tray,
   TraySlot,
   packagingApi,
+  preparationPresetsApi,
   productionApi,
 } from "../api/client";
 import {
@@ -20,12 +22,14 @@ import {
   fromGramsForInput,
   toGrams,
 } from "../utils/weights";
+import { trayPreparationSummary } from "../utils/preparation";
 import {
   Button,
   Field,
   NumberField,
   Select,
   StatusBadge,
+  TagAutocompleteField,
   TextField,
 } from "../components/design-system";
 
@@ -56,6 +60,18 @@ export function ProductionBatchPage() {
   const physicalTraysQuery = useQuery({
     queryKey: ["physical-trays"],
     queryFn: productionApi.listPhysicalTrays,
+  });
+  const preparationPresetsQuery = useQuery({
+    queryKey: ["preparation-presets"],
+    queryFn: () => preparationPresetsApi.listPreparationPresets(),
+  });
+  const ingredientSuggestionsQuery = useQuery({
+    queryKey: ["preparation-preset-suggestions", "ingredients"],
+    queryFn: () => preparationPresetsApi.getSuggestions("ingredients"),
+  });
+  const preparationMethodSuggestionsQuery = useQuery({
+    queryKey: ["preparation-preset-suggestions", "preparation_methods"],
+    queryFn: () => preparationPresetsApi.getSuggestions("preparation_methods"),
   });
   const batchesQuery = useQuery({
     queryKey: ["production-batches"],
@@ -135,6 +151,12 @@ export function ProductionBatchPage() {
       !physicalTray.archived &&
       !unavailablePhysicalTrayIds.has(physicalTray.id),
   );
+  const activePreparationPresets = (preparationPresetsQuery.data ?? []).filter(
+    (preset) => !preset.archived,
+  );
+  const ingredientSuggestions = ingredientSuggestionsQuery.data ?? [];
+  const preparationMethodSuggestions =
+    preparationMethodSuggestionsQuery.data ?? [];
   const selectableFreezeDryers = freezeDryers.filter(
     (freezeDryer) =>
       !freezeDryer.archived || freezeDryer.id === batch?.freeze_dryer_id,
@@ -399,8 +421,13 @@ export function ProductionBatchPage() {
                     <SlotSetupRow
                       batchId={batch.id}
                       editable={Boolean(isDraft)}
+                      ingredientSuggestions={ingredientSuggestions}
                       key={traySlot.id}
                       physicalTrays={activePhysicalTrays}
+                      preparationMethodSuggestions={
+                        preparationMethodSuggestions
+                      }
+                      preparationPresets={activePreparationPresets}
                       selectedPhysicalTrayIds={selectedPhysicalTrayIds}
                       onPhysicalTraySelectionChange={(
                         traySlotId,
@@ -491,7 +518,10 @@ export function ProductionBatchPage() {
 function SlotSetupRow({
   batchId,
   editable,
+  ingredientSuggestions,
   physicalTrays,
+  preparationMethodSuggestions,
+  preparationPresets,
   selectedPhysicalTrayIds,
   onPhysicalTraySelectionChange,
   tray,
@@ -500,7 +530,10 @@ function SlotSetupRow({
 }: {
   batchId: string;
   editable: boolean;
+  ingredientSuggestions: string[];
   physicalTrays: PhysicalTray[];
+  preparationMethodSuggestions: string[];
+  preparationPresets: PreparationPreset[];
   selectedPhysicalTrayIds: Set<string>;
   onPhysicalTraySelectionChange: (
     traySlotId: string,
@@ -515,8 +548,16 @@ function SlotSetupRow({
   const [physicalTrayId, setPhysicalTrayId] = useState(
     tray?.physical_tray_id ?? "",
   );
+  const [preparationPresetId, setPreparationPresetId] = useState(
+    tray?.preparation_preset_id ?? "",
+  );
   const [productName, setProductName] = useState(tray?.product_name ?? "");
-  const [preparation, setPreparation] = useState(tray?.preparation ?? "");
+  const [ingredients, setIngredients] = useState<string[]>(
+    tray?.ingredients ?? [],
+  );
+  const [preparationMethods, setPreparationMethods] = useState<string[]>(
+    tray?.preparation_methods ?? [],
+  );
   const initialStartingWeight = fromGramsForInput(
     tray?.starting_weight_grams ?? null,
   );
@@ -558,20 +599,49 @@ function SlotSetupRow({
   );
 
   function handleSave() {
-    const body = {
-      tray_slot_id: traySlot.id,
-      physical_tray_id: physicalTrayId,
-      product_name: productName,
-      preparation,
-      starting_weight_grams: toGrams(startingWeight, startingWeightUnit),
-      notes: notes.trim() === "" ? null : notes,
-    };
-
+    // The Preset only pre-fills a starting template (see the Milestone 6
+    // Core Principle): whatever is currently on the form - edited or not -
+    // is what gets saved, never the Preset's own stored values re-fetched
+    // here. preparation_preset_id is provenance only and is create-time-only.
+    const startingWeightGrams = toGrams(startingWeight, startingWeightUnit);
     if (tray) {
-      updateTray.mutate({ id: tray.id, body });
+      updateTray.mutate({
+        id: tray.id,
+        body: {
+          tray_slot_id: traySlot.id,
+          physical_tray_id: physicalTrayId,
+          product_name: productName,
+          ingredients,
+          preparation_methods: preparationMethods,
+          starting_weight_grams: startingWeightGrams,
+          notes: notes.trim() === "" ? null : notes,
+        },
+      });
     } else {
-      addTray.mutate({ batchId, body });
+      addTray.mutate({
+        batchId,
+        body: {
+          tray_slot_id: traySlot.id,
+          physical_tray_id: physicalTrayId,
+          preparation_preset_id:
+            preparationPresetId === "" ? null : preparationPresetId,
+          product_name: productName,
+          ingredients,
+          preparation_methods: preparationMethods,
+          starting_weight_grams: startingWeightGrams,
+          notes: notes.trim() === "" ? null : notes,
+        },
+      });
     }
+  }
+
+  function applyPreparationPreset(presetId: string) {
+    setPreparationPresetId(presetId);
+    const preset = preparationPresets.find((option) => option.id === presetId);
+    if (!preset) return;
+    setProductName(preset.product_name);
+    setIngredients(preset.ingredients ?? []);
+    setPreparationMethods(preset.preparation_methods ?? []);
   }
 
   if (!tray && !editable) {
@@ -622,13 +692,35 @@ function SlotSetupRow({
             onChange={(event) => setProductName(event.target.value)}
           />
         </td>
-        <td>
-          <input
-            className="table-input"
-            required
-            value={preparation}
-            onChange={(event) => setPreparation(event.target.value)}
-          />
+        <td className="production-preparation-cell">
+          <div className="production-preparation-editor">
+            <select
+              className="table-input"
+              value={preparationPresetId}
+              onChange={(event) => applyPreparationPreset(event.target.value)}
+            >
+              <option value="">No Preset (enter manually)</option>
+              {preparationPresets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+            <TagAutocompleteField
+              id={`ingredients-${traySlot.id}`}
+              label="Ingredients"
+              suggestions={ingredientSuggestions}
+              values={ingredients}
+              onChange={setIngredients}
+            />
+            <TagAutocompleteField
+              id={`preparation-methods-${traySlot.id}`}
+              label="Preparation Methods"
+              suggestions={preparationMethodSuggestions}
+              values={preparationMethods}
+              onChange={setPreparationMethods}
+            />
+          </div>
         </td>
         <td>
           <WeightInput
@@ -656,7 +748,7 @@ function SlotSetupRow({
             disabled={
               physicalTrayId === "" ||
               productName.trim() === "" ||
-              preparation.trim() === "" ||
+              (ingredients.length === 0 && preparationMethods.length === 0) ||
               startingWeight === "" ||
               addTray.isPending ||
               updateTray.isPending
@@ -675,8 +767,10 @@ function SlotSetupRow({
                   traySlot.id,
                   tray.physical_tray_id,
                 );
+                setPreparationPresetId(tray.preparation_preset_id ?? "");
                 setProductName(tray.product_name);
-                setPreparation(tray.preparation);
+                setIngredients(tray.ingredients ?? []);
+                setPreparationMethods(tray.preparation_methods ?? []);
                 const friendlyWeight = fromGramsForInput(
                   tray.starting_weight_grams,
                 );
@@ -730,7 +824,7 @@ function SlotSetupRow({
           {tray.product_name}
         </Link>
       </td>
-      <td>{tray.preparation}</td>
+      <td>{trayPreparationSummary(tray) || "No preparation"}</td>
       <td>
         {(editable && tray.status === "Draft") ||
         (tray.status === "Running" &&
