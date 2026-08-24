@@ -161,7 +161,7 @@ instead of requiring users to repeatedly type the same information.
 
 Examples include:
 
-* saved recipes
+* saved Preparation Presets
 * recently used products
 * default values
 * suggested tray combinations
@@ -261,7 +261,7 @@ Configure.
 
 Examples:
 
-* choose a recipe
+* choose a Preparation Preset
 * choose a storage location
 * choose completed trays
 

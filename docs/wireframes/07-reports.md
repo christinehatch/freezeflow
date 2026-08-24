@@ -13,7 +13,7 @@ Examples:
 * Which Freeze Dryer performs better?
 * How long does chicken usually take?
 * What is the average dry weight for strawberries?
-* Which recipes have I made most often?
+* Which Preparation Presets have I used most often?
 * How much inventory have I produced?
 
 Reports should prioritize actionable information over complex analytics.

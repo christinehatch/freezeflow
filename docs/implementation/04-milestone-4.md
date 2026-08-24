@@ -244,7 +244,7 @@ The Package Label contains:
 - Serving Notes
 - optional freeform label notes
 
-A saved Recipe or Preparation Preset is never required. Allocation-level defaults
+A saved Preparation Preset is never required. Allocation-level defaults
 may reduce repeated typing, with per-Package overrides.
 
 # Label State

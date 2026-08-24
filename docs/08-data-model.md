@@ -45,10 +45,11 @@ Represents an optional reusable combination of Preparation Metadata.
 | ----------- | -------- | ------------------------ |
 | id          | UUID     | Primary identifier       |
 | name        | String   | Display name             |
-| product     | String   | Default Product          |
+| productName | String   | Default Product          |
 | ingredients | List     | Default Ingredients      |
 | preparationMethods | List | Default Preparation Methods |
 | notes       | Text     | Default processing Notes |
+| archived    | Boolean  | Whether the Preset may be selected for new Trays |
 | createdAt   | DateTime |                          |
 | updatedAt   | DateTime |                          |
 

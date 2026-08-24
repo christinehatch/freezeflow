@@ -1,6 +1,6 @@
 # 08 - Preparation Presets
 
-The filename is retained temporarily so existing documentation links remain valid while the Recipe-first model is retired.
+This document was renamed from `08-recipes.md` to `08-preparation-presets.md` as part of Milestone 6, completing the terminology migration described in ADR-0013.
 
 # Purpose
 
