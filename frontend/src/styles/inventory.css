@@ -1,3 +1,20 @@
+.package-header__metadata {
+  align-items: center;
+  color: var(--ff-color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--ff-font-size-supporting);
+  gap: var(--ff-space-2);
+  line-height: var(--ff-line-height-supporting);
+  margin-top: var(--ff-space-1);
+}
+
+.package-header__location {
+  color: var(--ff-color-text-primary);
+  font-size: var(--ff-font-size-body);
+  font-weight: var(--ff-font-weight-semibold);
+}
+
 .storage-location-form {
   align-items: end;
   display: grid;
