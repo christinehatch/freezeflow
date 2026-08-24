@@ -112,7 +112,9 @@ def get_packaging_worksheet(db: Session) -> list[ProductionBatch]:
                 ),
                 selectinload(ProductionBatch.trays).selectinload(Tray.tray_slot),
                 selectinload(ProductionBatch.trays).selectinload(Tray.physical_tray),
-                selectinload(ProductionBatch.trays).selectinload(Tray.recipe),
+                selectinload(ProductionBatch.trays).selectinload(
+                    Tray.preparation_preset
+                ),
                 selectinload(ProductionBatch.trays).selectinload(Tray.weight_checks),
             )
             .distinct()
@@ -664,6 +666,15 @@ def _resolve_package_line(
     return values, planned
 
 
+def _tray_preparation_summary(tray: Tray) -> str | None:
+    parts = list(tray.ingredients or []) + list(tray.preparation_methods or [])
+    if parts:
+        return ", ".join(parts)
+    # Legacy fallback for Trays created before Milestone 6, whose structured
+    # ingredients/preparation_methods were never populated.
+    return tray.preparation
+
+
 def _default_label_values(
     allocation: PackagingAllocation,
     values: dict[str, object],
@@ -676,7 +687,11 @@ def _default_label_values(
     products = list(dict.fromkeys(tray.product_name for tray in trays))
     display_name = products[0] if len(products) == 1 else "Mixed Product"
     preparation = (
-        "; ".join(dict.fromkeys(filter(None, (tray.preparation for tray in trays))))
+        "; ".join(
+            dict.fromkeys(
+                filter(None, (_tray_preparation_summary(tray) for tray in trays))
+            )
+        )
         or None
     )
     label_values = line.label.model_dump(exclude_none=True) if line.label else {}

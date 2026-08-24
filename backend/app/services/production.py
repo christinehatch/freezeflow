@@ -13,9 +13,9 @@ from app.models import (
     PackagingAllocation,
     PackagingAllocationSourceTray,
     PhysicalTray,
+    PreparationPreset,
     ProductionBatch,
     ProductionBatchStatus,
-    Recipe,
     Tray,
     TraySlot,
     TrayStatus,
@@ -52,7 +52,9 @@ def list_production_batches(db: Session) -> list[ProductionBatch]:
                 selectinload(ProductionBatch.freeze_dryer).selectinload(
                     FreezeDryer.tray_slots
                 ),
-                selectinload(ProductionBatch.trays).selectinload(Tray.recipe),
+                selectinload(ProductionBatch.trays).selectinload(
+                    Tray.preparation_preset
+                ),
                 selectinload(ProductionBatch.trays).selectinload(Tray.tray_slot),
                 selectinload(ProductionBatch.trays).selectinload(Tray.physical_tray),
                 selectinload(ProductionBatch.trays).selectinload(Tray.weight_checks),
@@ -70,7 +72,7 @@ def get_production_batch(db: Session, batch_id: UUID) -> ProductionBatch:
             selectinload(ProductionBatch.freeze_dryer).selectinload(
                 FreezeDryer.tray_slots
             ),
-            selectinload(ProductionBatch.trays).selectinload(Tray.recipe),
+            selectinload(ProductionBatch.trays).selectinload(Tray.preparation_preset),
             selectinload(ProductionBatch.trays).selectinload(Tray.tray_slot),
             selectinload(ProductionBatch.trays).selectinload(Tray.physical_tray),
             selectinload(ProductionBatch.trays).selectinload(Tray.weight_checks),
@@ -238,7 +240,7 @@ def get_tray(db: Session, tray_id: UUID) -> Tray:
             selectinload(Tray.production_batch).selectinload(
                 ProductionBatch.freeze_dryer
             ),
-            selectinload(Tray.recipe),
+            selectinload(Tray.preparation_preset),
             selectinload(Tray.tray_slot),
             selectinload(Tray.physical_tray),
             selectinload(Tray.weight_checks).selectinload(WeightCheck.drying_run),
@@ -293,8 +295,10 @@ def update_tray(db: Session, tray_id: UUID, data: TrayUpdate) -> Tray:
         values["physical_tray_id"] = data.physical_tray_id
     if data.product_name is not None:
         values["product_name"] = data.product_name
-    if data.preparation is not None:
-        values["preparation"] = data.preparation
+    if data.ingredients is not None:
+        values["ingredients"] = data.ingredients
+    if data.preparation_methods is not None:
+        values["preparation_methods"] = data.preparation_methods
     if data.starting_weight_grams is not None:
         values["starting_weight_grams"] = data.starting_weight_grams
     if data.notes is not None:
@@ -579,22 +583,33 @@ def _tray_create_values(
     batch_id: UUID,
     data: TrayCreate,
 ) -> dict[str, object]:
-    product_name = data.product_name
-    preparation = data.preparation
-
-    if data.recipe_id is not None:
-        recipe = db.get(Recipe, data.recipe_id)
-        if recipe is None:
-            raise BusinessRuleError("Recipe was not found.", status_code=404)
-        if recipe.archived:
+    # A Preparation Preset only pre-fills a starting template (see
+    # docs/09-api-design.md's Add Tray section and ADR-0013). Whatever the
+    # client actually submits here becomes the Tray's immutable historical
+    # record, whether that's the Preset's own values, edited values, or
+    # fully manual entry. A Preset lookup is only ever used to validate it
+    # exists/isn't archived and to snapshot its current name for
+    # provenance - never to overwrite the submitted product_name/
+    # ingredients/preparation_methods.
+    preparation_preset_name_at_use = None
+    if data.preparation_preset_id is not None:
+        preset = db.get(PreparationPreset, data.preparation_preset_id)
+        if preset is None:
             raise BusinessRuleError(
-                "Archived Recipes cannot be selected for new Trays."
+                "Preparation Preset was not found.", status_code=404
             )
-        product_name = recipe.product_name
-        preparation = recipe.preparation
-    elif product_name is None or preparation is None:
+        if preset.archived:
+            raise BusinessRuleError(
+                "Archived Preparation Presets cannot be selected for new Trays."
+            )
+        preparation_preset_name_at_use = preset.name
+
+    ingredients = data.ingredients or []
+    preparation_methods = data.preparation_methods or []
+    if data.product_name is None or not (ingredients or preparation_methods):
         raise BusinessRuleError(
-            "Product Name and Preparation are required when no Recipe is selected."
+            "Product Name and at least one of Ingredients or Preparation "
+            "Methods are required."
         )
 
     tray_slot = _get_tray_slot(db, data.tray_slot_id)
@@ -604,9 +619,11 @@ def _tray_create_values(
         "tray_slot_id": data.tray_slot_id,
         "physical_tray_id": data.physical_tray_id,
         "tray_number": tray_slot.slot_number,
-        "recipe_id": data.recipe_id,
-        "product_name": product_name,
-        "preparation": preparation,
+        "preparation_preset_id": data.preparation_preset_id,
+        "preparation_preset_name_at_use": preparation_preset_name_at_use,
+        "product_name": data.product_name,
+        "ingredients": ingredients,
+        "preparation_methods": preparation_methods,
         "starting_weight_grams": data.starting_weight_grams,
         "notes": data.notes,
         "status": TrayStatus.DRAFT,

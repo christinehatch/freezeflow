@@ -63,7 +63,7 @@ def _create_completed_batch(
             "tray_slot_id": freeze_dryer["tray_slots"][0]["id"],
             "physical_tray_id": physical_tray["id"],
             "product_name": product_name,
-            "preparation": preparation,
+            "preparation_methods": [preparation],
             "starting_weight_grams": "907.000",
         },
     )
