@@ -118,6 +118,13 @@ describe("InventoryPage", () => {
     ).toBeVisible();
     expect(screen.getByText("PKG-2026-000002", { exact: false })).toBeVisible();
     expect(screen.getByText("Chicken · 2 Packages")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "← Back to Products" }),
+    );
+
+    expect(await screen.findByText("Strawberries")).toBeVisible();
+    expect(screen.queryByText("Chicken · 2 Packages")).not.toBeInTheDocument();
   });
 
   it("switches to a flat Package list when searching, and back to groups when cleared", async () => {
@@ -233,14 +240,36 @@ describe("InventoryPage", () => {
       ),
     );
   });
+
+  it("keeps the open Product group in the URL, so navigating back restores it instead of the top-level list", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/v1/storage-locations")) {
+        return apiResponse(STORAGE_LOCATIONS);
+      }
+      if (url.endsWith("/api/v1/inventory/products")) {
+        return apiResponse(PRODUCT_GROUPS);
+      }
+      if (url.includes("/api/v1/inventory?") && url.includes("Chicken")) {
+        return apiResponse([makePackage()]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage(["/inventory?product=Chicken"]);
+
+    expect(await screen.findByText("Chicken · 1 Package")).toBeVisible();
+    expect(screen.queryByText("Strawberries")).not.toBeInTheDocument();
+  });
 });
 
-function renderPage() {
+function renderPage(initialEntries: string[] = ["/inventory"]) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
         <InventoryPage />
       </QueryClientProvider>

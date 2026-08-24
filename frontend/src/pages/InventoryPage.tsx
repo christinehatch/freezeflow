@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { inventoryApi, type Package, type ProductGroup } from "../api/client";
 import {
@@ -23,12 +23,25 @@ const STATUS_OPTIONS: SelectOption[] = [
 ];
 
 export function InventoryPage() {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("In Storage");
-  const [storageLocationId, setStorageLocationId] = useState("");
-  const [productNameFilter, setProductNameFilter] = useState<string | null>(
-    null,
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const query = searchParams.get("q") ?? "";
+  const status = searchParams.get("status") ?? "In Storage";
+  const storageLocationId = searchParams.get("location") ?? "";
+  const productNameFilter = searchParams.get("product");
+
+  function updateParams(updates: Record<string, string | null>) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value === null || value === "") {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+      }
+      return next;
+    });
+  }
 
   const storageLocationsQuery = useQuery({
     queryKey: ["storage-locations", "including-archived"],
@@ -78,10 +91,7 @@ export function InventoryPage() {
   });
 
   function clearSearch() {
-    setQuery("");
-    setStatus("In Storage");
-    setStorageLocationId("");
-    setProductNameFilter(null);
+    setSearchParams(new URLSearchParams());
   }
 
   return (
@@ -105,8 +115,7 @@ export function InventoryPage() {
               placeholder="Product, Package, Storage Location…"
               value={query}
               onChange={(event) => {
-                setProductNameFilter(null);
-                setQuery(event.target.value);
+                updateParams({ q: event.target.value, product: null });
               }}
             />
           </Field>
@@ -116,8 +125,10 @@ export function InventoryPage() {
               options={STATUS_OPTIONS}
               value={status}
               onChange={(value) => {
-                setProductNameFilter(null);
-                setStatus(value);
+                updateParams({
+                  status: value === "In Storage" ? null : value,
+                  product: null,
+                });
               }}
             />
           </Field>
@@ -127,8 +138,7 @@ export function InventoryPage() {
               options={storageLocationOptions}
               value={storageLocationId}
               onChange={(value) => {
-                setProductNameFilter(null);
-                setStorageLocationId(value);
+                updateParams({ location: value, product: null });
               }}
             />
           </Field>
@@ -147,10 +157,13 @@ export function InventoryPage() {
       {isBrowsingGroups ? (
         <ProductGroupsView
           query={productGroupsQuery}
-          onOpenGroup={(productName) => setProductNameFilter(productName)}
+          onOpenGroup={(productName) => updateParams({ product: productName })}
         />
       ) : (
         <SearchResultsView
+          onBackToProducts={
+            productNameFilter ? () => updateParams({ product: null }) : null
+          }
           productNameFilter={productNameFilter}
           query={searchResultsQuery}
         />
@@ -212,9 +225,11 @@ function ProductGroupsView({
 }
 
 function SearchResultsView({
+  onBackToProducts,
   productNameFilter,
   query,
 }: {
+  onBackToProducts: (() => void) | null;
   productNameFilter: string | null;
   query: UseQueryResult<Package[]>;
 }) {
@@ -222,13 +237,24 @@ function SearchResultsView({
   return (
     <section aria-labelledby="inventory-search-results">
       {productNameFilter ? (
-        <p
-          className="text-sm font-semibold text-slate-700"
-          id="inventory-search-results"
-        >
-          {productNameFilter} · {results.length} Package
-          {results.length === 1 ? "" : "s"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {onBackToProducts ? (
+            <button
+              className="quiet-action"
+              type="button"
+              onClick={onBackToProducts}
+            >
+              &larr; Back to Products
+            </button>
+          ) : null}
+          <p
+            className="text-sm font-semibold text-slate-700"
+            id="inventory-search-results"
+          >
+            {productNameFilter} · {results.length} Package
+            {results.length === 1 ? "" : "s"}
+          </p>
+        </div>
       ) : (
         <h3 className="sr-only" id="inventory-search-results">
           Matching Packages
