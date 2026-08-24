@@ -103,6 +103,14 @@ const actionGroups: { title: string; actions: DeveloperAction[] }[] = [
         run: () => developerToolsApi.createRandomBatches(100),
       },
       {
+        id: "large-inventory",
+        label: "Seed Large Inventory",
+        description:
+          "Create dozens of Storage Locations and hundreds of Packages spread across them.",
+        confirmation: "Replace current data with the Large Inventory scenario?",
+        run: developerToolsApi.seedLargeInventory,
+      },
+      {
         id: "edge-cases",
         label: "Create Edge Cases",
         description: "Add archived setup records and preserved voided history.",
