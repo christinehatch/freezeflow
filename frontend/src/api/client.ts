@@ -155,6 +155,25 @@ export type Package = {
   label: PackageLabel;
 };
 
+export type StorageLocationHistoryEntry = {
+  id: string;
+  package_id: string;
+  previous_storage_location_id: string | null;
+  current_storage_location_id: string;
+  moved_at: string;
+  notes: string | null;
+};
+
+export type PackageStatusHistoryEntry = {
+  id: string;
+  package_id: string;
+  previous_status: "In Storage" | "Given Away" | "Depleted" | null;
+  current_status: "In Storage" | "Given Away" | "Depleted";
+  effective_at: string;
+  recorded_at: string;
+  notes: string | null;
+};
+
 export type PackageEligibleForPrint = Package & {
   production_batch_id: string;
   batch_number: string;
@@ -827,6 +846,30 @@ export const inventoryApi = {
     search.set("limit", String(params.limit ?? 100));
     return apiGet<Package[]>(`/inventory?${search.toString()}`);
   },
+  movePackage: (
+    packageId: string,
+    body: {
+      storage_location_id: string;
+      moved_at?: string;
+      notes?: string | null;
+    },
+  ) => apiPost<Package>(`/packages/${packageId}/move`, body),
+  giveAwayPackage: (
+    packageId: string,
+    body: { effective_at?: string; notes?: string | null } = {},
+  ) => apiPost<Package>(`/packages/${packageId}/give-away`, body),
+  depletePackage: (
+    packageId: string,
+    body: { effective_at?: string; notes?: string | null } = {},
+  ) => apiPost<Package>(`/packages/${packageId}/deplete`, body),
+  getPackageStorageHistory: (packageId: string) =>
+    apiGet<StorageLocationHistoryEntry[]>(
+      `/packages/${packageId}/storage-history`,
+    ),
+  getPackageStatusHistory: (packageId: string) =>
+    apiGet<PackageStatusHistoryEntry[]>(
+      `/packages/${packageId}/status-history`,
+    ),
 };
 
 async function packageTraysThroughWorkflow(
