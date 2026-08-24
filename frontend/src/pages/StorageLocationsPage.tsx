@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 
 import { inventoryApi } from "../api/client";
 import {
   Button,
-  ButtonLink,
   PageHeader,
   SectionHeader,
   StatusBanner,
@@ -15,6 +15,8 @@ import { formatApiError } from "../utils/apiErrors";
 const QUERY_KEY = ["storage-locations", "including-archived"];
 
 export function StorageLocationsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const storageLocationsQuery = useQuery({
     queryKey: QUERY_KEY,
@@ -57,17 +59,25 @@ export function StorageLocationsPage() {
     });
   }
 
+  function goBack() {
+    if (location.key === "default") {
+      navigate("/inventory");
+    } else {
+      navigate(-1);
+    }
+  }
+
   const locations = storageLocationsQuery.data ?? [];
-  const activeLocations = locations.filter((location) => !location.archived);
-  const archivedLocations = locations.filter((location) => location.archived);
+  const activeLocations = locations.filter((item) => !item.archived);
+  const archivedLocations = locations.filter((item) => item.archived);
 
   return (
     <div className="storage-locations-page">
       <PageHeader
         action={
-          <ButtonLink to="/inventory" variant="secondary">
-            Back to Inventory
-          </ButtonLink>
+          <Button variant="secondary" onClick={goBack}>
+            &larr; Back
+          </Button>
         }
         description="Manage the physical places Packages are stored without interrupting active Inventory work."
         eyebrow="Inventory setup"

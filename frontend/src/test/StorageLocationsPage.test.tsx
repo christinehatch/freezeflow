@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StorageLocation } from "../api/client";
@@ -90,9 +90,7 @@ describe("StorageLocationsPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Unassigned" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Back to Inventory" }),
-    ).toHaveAttribute("href", "/inventory");
+    expect(screen.getByRole("button", { name: "← Back" })).toBeVisible();
 
     const unassignedCard = screen
       .getByRole("heading", { name: "Unassigned" })
@@ -195,19 +193,53 @@ describe("StorageLocationsPage", () => {
       await screen.findByRole("heading", { name: "Pantry" }),
     ).toBeVisible();
   });
+
+  it("returns to whichever page it was opened from, Inventory or Packaging", async () => {
+    const user = userEvent.setup();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/storage-locations?include_archived=true")) {
+        return apiResponse([]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage(["/packaging", "/inventory/storage-locations"], 1);
+    await screen.findByText("No active Storage Locations yet.");
+
+    await user.click(screen.getByRole("button", { name: "← Back" }));
+
+    expect(await screen.findByText("Origin view: /packaging")).toBeVisible();
+  });
 });
 
-function renderPage() {
+function renderPage(
+  initialEntries: string[] = ["/inventory/storage-locations"],
+  initialIndex?: number,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries} initialIndex={initialIndex}>
       <QueryClientProvider client={queryClient}>
-        <StorageLocationsPage />
+        <Routes>
+          <Route
+            element={<StorageLocationsPage />}
+            path="/inventory/storage-locations"
+          />
+          <Route element={<OriginProbe />} path="/inventory" />
+          <Route element={<OriginProbe />} path="/packaging" />
+        </Routes>
       </QueryClientProvider>
     </MemoryRouter>,
   );
+}
+
+function OriginProbe() {
+  const location = useLocation();
+  return <div>Origin view: {location.pathname + location.search}</div>;
 }
 
 function apiResponse(data: unknown, status = 200) {
