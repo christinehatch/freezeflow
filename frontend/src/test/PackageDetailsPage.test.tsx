@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -156,6 +156,23 @@ describe("PackageDetailsPage", () => {
     expect(
       screen.getAllByText("Black Freeze Dryer", { exact: false }).length,
     ).toBeGreaterThan(0);
+  });
+
+  it("returns to the exact prior Inventory view on Back, not a fresh unfiltered one", async () => {
+    const user = userEvent.setup();
+    const fetch = baseFetch(makePackage());
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage(["/inventory?product=Apples", "/packages/package-1"], 1);
+    await screen.findByText("Taco Chicken");
+
+    await user.click(
+      screen.getByRole("button", { name: "← Back to Inventory" }),
+    );
+
+    expect(
+      await screen.findByText("Inventory view: /inventory?product=Apples"),
+    ).toBeVisible();
   });
 
   it("moves an In Storage Package, excluding the current and archived Storage Locations from the destination list", async () => {
@@ -338,19 +355,28 @@ function baseFetch(
   });
 }
 
-function renderPage() {
+function renderPage(
+  initialEntries: string[] = ["/packages/package-1"],
+  initialIndex?: number,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
-    <MemoryRouter initialEntries={["/packages/package-1"]}>
+    <MemoryRouter initialEntries={initialEntries} initialIndex={initialIndex}>
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route element={<PackageDetailsPage />} path="/packages/:packageId" />
+          <Route element={<InventoryLocationProbe />} path="/inventory" />
         </Routes>
       </QueryClientProvider>
     </MemoryRouter>,
   );
+}
+
+function InventoryLocationProbe() {
+  const location = useLocation();
+  return <div>Inventory view: {location.pathname + location.search}</div>;
 }
 
 function apiResponse(data: unknown, status = 200) {

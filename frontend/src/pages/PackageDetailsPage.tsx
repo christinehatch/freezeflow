@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 
 import {
   inventoryApi,
@@ -25,6 +25,8 @@ import { formatGrams } from "../utils/weights";
 
 export function PackageDetailsPage() {
   const { packageId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
@@ -130,6 +132,14 @@ export function PackageDetailsPage() {
     },
   });
 
+  function goBackToInventory() {
+    if (location.key === "default") {
+      navigate("/inventory");
+    } else {
+      navigate(-1);
+    }
+  }
+
   async function reprintLabel(label: PackageLabel) {
     if (!pkg) return;
     setPrintError(null);
@@ -194,11 +204,14 @@ export function PackageDetailsPage() {
 
   return (
     <div className="space-y-8">
-      <nav className="text-sm text-slate-600">
-        <Link className="text-link" to="/inventory">
-          Inventory
-        </Link>{" "}
-        / {pkg.package_identifier}
+      <nav>
+        <button
+          className="quiet-action -ml-3"
+          type="button"
+          onClick={goBackToInventory}
+        >
+          &larr; Back to Inventory
+        </button>
       </nav>
 
       <section className="workspace-header">
@@ -208,9 +221,15 @@ export function PackageDetailsPage() {
           </p>
           <h2 className="text-3xl font-semibold">{label.display_name}</h2>
         </div>
-        <StatusBadge tone={isInStorage ? "active" : "neutral"}>
-          {pkg.status}
-        </StatusBadge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="neutral">
+            {isInStorage ? "Stored in " : "Last stored in "}
+            {pkg.storage_location.name}
+          </StatusBadge>
+          <StatusBadge tone={isInStorage ? "active" : "neutral"}>
+            {pkg.status}
+          </StatusBadge>
+        </div>
       </section>
 
       <section className="panel">
