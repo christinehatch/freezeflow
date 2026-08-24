@@ -15,14 +15,17 @@ import type {
   PackagingOperationStart,
   PackageType,
   PackagingWorksheetItem,
+  PackageStatusHistoryEntry,
   PhysicalTray,
   PlannedPackageInput,
   PlannedPackageRow,
   PrintablePackageLabel,
+  ProductGroup,
   ProductionBatch,
   RecordAllocationPackagesRequest,
   RecordPackagingLossRequest,
   StorageLocation,
+  StorageLocationHistoryEntry,
   Tray,
   TraySlot,
   WeightCheck,
@@ -202,6 +205,28 @@ export type MockApiState = {
   completeProductionBatchIds: string[];
   packageBodies: PackageRequestBody[];
   packageLabels: PrintablePackageLabel[];
+  createStorageLocationBodies: Array<{ name: string; notes?: string | null }>;
+  updateStorageLocationBodies: Array<{
+    id: string;
+    body: Record<string, unknown>;
+  }>;
+  movePackageBodies: Array<{
+    packageId: string;
+    body: Record<string, unknown>;
+  }>;
+  giveAwayPackageBodies: Array<{
+    packageId: string;
+    body: Record<string, unknown>;
+  }>;
+  depletePackageBodies: Array<{
+    packageId: string;
+    body: Record<string, unknown>;
+  }>;
+  storageLocationHistoriesByPackageId: Record<
+    string,
+    StorageLocationHistoryEntry[]
+  >;
+  statusHistoriesByPackageId: Record<string, PackageStatusHistoryEntry[]>;
 };
 
 export type MockApiOptions = Partial<
@@ -305,6 +330,13 @@ export async function mockFreezeflowApi(
     completeProductionBatchIds: [],
     packageBodies: [],
     packageLabels: [packageLabelForPackage(legacyPackage, [createTray()])],
+    createStorageLocationBodies: [],
+    updateStorageLocationBodies: [],
+    movePackageBodies: [],
+    giveAwayPackageBodies: [],
+    depletePackageBodies: [],
+    storageLocationHistoriesByPackageId: {},
+    statusHistoriesByPackageId: {},
   };
   seedTrayLookup(state, useLegacyPackagingDefaults);
 
@@ -562,6 +594,349 @@ export async function mockFreezeflowApi(
     if (method === "GET" && path === "/storage-locations") {
       recordPackagingRead(state, path);
       return route.fulfill(json(state.storageLocations));
+    }
+
+    if (method === "POST" && path === "/storage-locations") {
+      const body = request.postDataJSON() as {
+        name: string;
+        notes?: string | null;
+      };
+      state.createStorageLocationBodies.push(body);
+      const name = body.name.trim();
+      if (!name) {
+        return route.fulfill(
+          businessRuleError("Storage Location name is required."),
+        );
+      }
+      if (name.toLowerCase() === "unassigned") {
+        return route.fulfill(
+          businessRuleError(
+            'The name "Unassigned" is reserved for the system-provided Storage Location.',
+          ),
+        );
+      }
+      if (
+        state.storageLocations.some(
+          (candidate) => candidate.name.toLowerCase() === name.toLowerCase(),
+        )
+      ) {
+        return route.fulfill(
+          businessRuleError(
+            `A Storage Location named "${name}" already exists.`,
+          ),
+        );
+      }
+      const created: StorageLocation = {
+        id: `storage-location-${state.storageLocations.length + 1}`,
+        name,
+        notes: body.notes ?? null,
+        archived: false,
+      };
+      state.storageLocations = [...state.storageLocations, created];
+      return route.fulfill(json(created, 201));
+    }
+
+    const storageLocationById = path.match(/^\/storage-locations\/([^/]+)$/);
+    if (method === "GET" && storageLocationById) {
+      const location = state.storageLocations.find(
+        (candidate) => candidate.id === storageLocationById[1],
+      );
+      return route.fulfill(
+        location
+          ? json(location)
+          : notFound("Storage Location does not exist."),
+      );
+    }
+
+    if (method === "PATCH" && storageLocationById) {
+      const location = state.storageLocations.find(
+        (candidate) => candidate.id === storageLocationById[1],
+      );
+      if (!location) {
+        return route.fulfill(notFound("Storage Location does not exist."));
+      }
+      const body = request.postDataJSON() as {
+        name?: string;
+        notes?: string | null;
+      };
+      state.updateStorageLocationBodies.push({ id: location.id, body });
+      if (body.name !== undefined) location.name = body.name.trim();
+      if ("notes" in body) location.notes = body.notes ?? null;
+      return route.fulfill(json(location));
+    }
+
+    const storageLocationArchive = path.match(
+      /^\/storage-locations\/([^/]+)\/archive$/,
+    );
+    if (method === "POST" && storageLocationArchive) {
+      const location = state.storageLocations.find(
+        (candidate) => candidate.id === storageLocationArchive[1],
+      );
+      if (!location) {
+        return route.fulfill(notFound("Storage Location does not exist."));
+      }
+      location.archived = true;
+      return route.fulfill(json(location));
+    }
+
+    const storageLocationRestore = path.match(
+      /^\/storage-locations\/([^/]+)\/restore$/,
+    );
+    if (method === "POST" && storageLocationRestore) {
+      const location = state.storageLocations.find(
+        (candidate) => candidate.id === storageLocationRestore[1],
+      );
+      if (!location) {
+        return route.fulfill(notFound("Storage Location does not exist."));
+      }
+      location.archived = false;
+      return route.fulfill(json(location));
+    }
+
+    const packageMove = path.match(/^\/packages\/([^/]+)\/move$/);
+    if (method === "POST" && packageMove) {
+      const recordedPackage = packagesInOperations(state).find(
+        (candidate) => candidate.id === packageMove[1],
+      );
+      if (!recordedPackage)
+        return route.fulfill(notFound("Package does not exist."));
+      const body = request.postDataJSON() as {
+        storage_location_id: string;
+        moved_at?: string;
+        notes?: string | null;
+      };
+      state.movePackageBodies.push({ packageId: recordedPackage.id, body });
+      if (recordedPackage.status !== "In Storage") {
+        return route.fulfill(
+          businessRuleError("Only an In Storage Package can be moved."),
+        );
+      }
+      const destination = state.storageLocations.find(
+        (candidate) => candidate.id === body.storage_location_id,
+      );
+      if (!destination) {
+        return route.fulfill(notFound("Storage Location does not exist."));
+      }
+      if (destination.archived) {
+        return route.fulfill(
+          businessRuleError(
+            "Archived Storage Locations cannot receive Packages.",
+          ),
+        );
+      }
+      if (destination.id === recordedPackage.storage_location_id) {
+        return route.fulfill(
+          businessRuleError("Package is already in that Storage Location."),
+        );
+      }
+      const history = ensureStorageHistory(state, recordedPackage);
+      const movedAt = body.moved_at ?? nextPackagingTimestamp(state);
+      history.push({
+        id: `storage-history-${recordedPackage.id}-${history.length + 1}`,
+        package_id: recordedPackage.id,
+        previous_storage_location_id: recordedPackage.storage_location_id,
+        current_storage_location_id: destination.id,
+        moved_at: movedAt,
+        notes: body.notes ?? null,
+      });
+      recordedPackage.storage_location_id = destination.id;
+      recordedPackage.storage_location = destination;
+      return route.fulfill(json(recordedPackage));
+    }
+
+    const packageGiveAway = path.match(/^\/packages\/([^/]+)\/give-away$/);
+    if (method === "POST" && packageGiveAway) {
+      const recordedPackage = packagesInOperations(state).find(
+        (candidate) => candidate.id === packageGiveAway[1],
+      );
+      if (!recordedPackage)
+        return route.fulfill(notFound("Package does not exist."));
+      const body =
+        (request.postDataJSON() as {
+          effective_at?: string;
+          notes?: string | null;
+        } | null) ?? {};
+      state.giveAwayPackageBodies.push({
+        packageId: recordedPackage.id,
+        body,
+      });
+      if (recordedPackage.status !== "In Storage") {
+        return route.fulfill(
+          businessRuleError("Only an In Storage Package can be given away."),
+        );
+      }
+      const history = ensureStatusHistory(state, recordedPackage);
+      const effectiveAt = body.effective_at ?? nextPackagingTimestamp(state);
+      history.push({
+        id: `status-history-${recordedPackage.id}-${history.length + 1}`,
+        package_id: recordedPackage.id,
+        previous_status: recordedPackage.status,
+        current_status: "Given Away",
+        effective_at: effectiveAt,
+        recorded_at: effectiveAt,
+        notes: body.notes ?? null,
+      });
+      recordedPackage.status = "Given Away";
+      return route.fulfill(json(recordedPackage));
+    }
+
+    const packageDeplete = path.match(/^\/packages\/([^/]+)\/deplete$/);
+    if (method === "POST" && packageDeplete) {
+      const recordedPackage = packagesInOperations(state).find(
+        (candidate) => candidate.id === packageDeplete[1],
+      );
+      if (!recordedPackage)
+        return route.fulfill(notFound("Package does not exist."));
+      const body =
+        (request.postDataJSON() as {
+          effective_at?: string;
+          notes?: string | null;
+        } | null) ?? {};
+      state.depletePackageBodies.push({ packageId: recordedPackage.id, body });
+      if (recordedPackage.status !== "In Storage") {
+        return route.fulfill(
+          businessRuleError("Only an In Storage Package can be depleted."),
+        );
+      }
+      const history = ensureStatusHistory(state, recordedPackage);
+      const effectiveAt = body.effective_at ?? nextPackagingTimestamp(state);
+      history.push({
+        id: `status-history-${recordedPackage.id}-${history.length + 1}`,
+        package_id: recordedPackage.id,
+        previous_status: recordedPackage.status,
+        current_status: "Depleted",
+        effective_at: effectiveAt,
+        recorded_at: effectiveAt,
+        notes: body.notes ?? null,
+      });
+      recordedPackage.status = "Depleted";
+      return route.fulfill(json(recordedPackage));
+    }
+
+    const packageStorageHistory = path.match(
+      /^\/packages\/([^/]+)\/storage-history$/,
+    );
+    if (method === "GET" && packageStorageHistory) {
+      const recordedPackage = packagesInOperations(state).find(
+        (candidate) => candidate.id === packageStorageHistory[1],
+      );
+      if (!recordedPackage)
+        return route.fulfill(notFound("Package does not exist."));
+      return route.fulfill(json(ensureStorageHistory(state, recordedPackage)));
+    }
+
+    const packageStatusHistory = path.match(
+      /^\/packages\/([^/]+)\/status-history$/,
+    );
+    if (method === "GET" && packageStatusHistory) {
+      const recordedPackage = packagesInOperations(state).find(
+        (candidate) => candidate.id === packageStatusHistory[1],
+      );
+      if (!recordedPackage)
+        return route.fulfill(notFound("Package does not exist."));
+      return route.fulfill(json(ensureStatusHistory(state, recordedPackage)));
+    }
+
+    if (method === "GET" && path === "/inventory") {
+      const statusesParam = url.searchParams.getAll("status");
+      const activeStatuses =
+        statusesParam.length > 0 ? statusesParam : ["In Storage"];
+      const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
+      const storageLocationId = url.searchParams.get("storage_location_id");
+      const productName = url.searchParams.get("product_name");
+      const limit = Number(url.searchParams.get("limit") ?? "50");
+      const offset = Number(url.searchParams.get("offset") ?? "0");
+
+      let results = packagesInOperations(state).filter((candidate) =>
+        activeStatuses.includes(candidate.status),
+      );
+      if (storageLocationId) {
+        results = results.filter(
+          (candidate) => candidate.storage_location_id === storageLocationId,
+        );
+      }
+      if (productName) {
+        results = results.filter(
+          (candidate) =>
+            candidate.label.display_name.toLowerCase() ===
+            productName.toLowerCase(),
+        );
+      }
+      if (query) {
+        results = results.filter((candidate) =>
+          [
+            candidate.label.display_name,
+            candidate.package_identifier,
+            candidate.notes,
+            candidate.label.preparation_summary,
+            candidate.storage_location.name,
+            candidate.package_type.name,
+          ]
+            .filter((value): value is string => Boolean(value))
+            .some((value) => value.toLowerCase().includes(query)),
+        );
+      }
+      results = [...results].sort((a, b) =>
+        a.label.display_name === b.label.display_name
+          ? a.packaged_at.localeCompare(b.packaged_at)
+          : a.label.display_name.localeCompare(b.label.display_name),
+      );
+      const page = results.slice(offset, offset + limit);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: page,
+          meta: { total: results.length, limit, offset },
+        }),
+      });
+    }
+
+    if (method === "GET" && path === "/inventory/products") {
+      const inStorage = packagesInOperations(state).filter(
+        (candidate) => candidate.status === "In Storage",
+      );
+      const groups = new Map<
+        string,
+        {
+          count: number;
+          locations: Set<string>;
+          oldest: string;
+          newest: string;
+        }
+      >();
+      for (const candidate of inStorage) {
+        const key = candidate.label.display_name;
+        const existing = groups.get(key);
+        if (!existing) {
+          groups.set(key, {
+            count: 1,
+            locations: new Set([candidate.storage_location.name]),
+            oldest: candidate.packaged_at,
+            newest: candidate.packaged_at,
+          });
+          continue;
+        }
+        existing.count += 1;
+        existing.locations.add(candidate.storage_location.name);
+        if (candidate.packaged_at < existing.oldest) {
+          existing.oldest = candidate.packaged_at;
+        }
+        if (candidate.packaged_at > existing.newest) {
+          existing.newest = candidate.packaged_at;
+        }
+      }
+      const productGroups: ProductGroup[] = Array.from(groups.entries())
+        .map(([productName, value]) => ({
+          product_name: productName,
+          available_package_count: value.count,
+          storage_locations: Array.from(value.locations).sort(),
+          oldest_packaged_at: value.oldest,
+          newest_packaged_at: value.newest,
+        }))
+        .sort((a, b) => a.product_name.localeCompare(b.product_name));
+      return route.fulfill(json(productGroups));
     }
 
     const operationForBatch = path.match(
@@ -1251,6 +1626,45 @@ function packagesInOperations(state: MockApiState) {
       packages.map((recordedPackage) => [recordedPackage.id, recordedPackage]),
     ).values(),
   );
+}
+
+function ensureStorageHistory(
+  state: MockApiState,
+  recordedPackage: Package,
+): StorageLocationHistoryEntry[] {
+  if (!state.storageLocationHistoriesByPackageId[recordedPackage.id]) {
+    state.storageLocationHistoriesByPackageId[recordedPackage.id] = [
+      {
+        id: `storage-history-${recordedPackage.id}-1`,
+        package_id: recordedPackage.id,
+        previous_storage_location_id: null,
+        current_storage_location_id: recordedPackage.storage_location_id,
+        moved_at: recordedPackage.packaged_at,
+        notes: null,
+      },
+    ];
+  }
+  return state.storageLocationHistoriesByPackageId[recordedPackage.id];
+}
+
+function ensureStatusHistory(
+  state: MockApiState,
+  recordedPackage: Package,
+): PackageStatusHistoryEntry[] {
+  if (!state.statusHistoriesByPackageId[recordedPackage.id]) {
+    state.statusHistoriesByPackageId[recordedPackage.id] = [
+      {
+        id: `status-history-${recordedPackage.id}-1`,
+        package_id: recordedPackage.id,
+        previous_status: null,
+        current_status: "In Storage",
+        effective_at: recordedPackage.packaged_at,
+        recorded_at: recordedPackage.packaged_at,
+        notes: null,
+      },
+    ];
+  }
+  return state.statusHistoriesByPackageId[recordedPackage.id];
 }
 
 function authoritativePackagingWorksheet(

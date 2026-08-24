@@ -72,3 +72,58 @@ test("persists a seeded production-to-packaging smoke path", async ({
     page.locator("tr").filter({ hasText: "Pork Shoulder" }),
   ).toHaveCount(1);
 });
+
+test("persists a seeded Inventory move across a reload", async ({
+  page,
+  request,
+}) => {
+  const seedResponse = await request.post(`${API_BASE_URL}/dev/demo/basic`);
+  expect(seedResponse.ok()).toBeTruthy();
+
+  await page.goto("/inventory");
+  await expect(
+    page.getByRole("heading", { name: "Inventory", exact: true }),
+  ).toBeVisible();
+
+  const tacoChickenGroup = page
+    .getByRole("button")
+    .filter({ has: page.getByText("Taco Chicken", { exact: true }) });
+  await expect(tacoChickenGroup).toContainText("Basement Bin A");
+  await tacoChickenGroup.click();
+
+  await page.getByText("PKG-2026-000001", { exact: false }).click();
+  await expect(
+    page.getByRole("heading", { name: "Taco Chicken", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Basement Bin A")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Batch 019", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Black", { exact: false }).first()).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Move to" }).click();
+  await page.getByRole("option", { name: "Pantry Shelf" }).click();
+  await page.getByRole("button", { name: "Move Package" }).click();
+
+  await expect(
+    page.getByText("Moved to Pantry Shelf", { exact: false }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(
+    page.locator("dd").filter({ hasText: "Pantry Shelf" }).first(),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Moved to Pantry Shelf", { exact: false }),
+  ).toBeVisible();
+
+  await page
+    .getByLabel("Primary navigation")
+    .getByRole("link", { name: "Inventory", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("button")
+      .filter({ has: page.getByText("Taco Chicken", { exact: true }) }),
+  ).toContainText("Pantry Shelf");
+});
