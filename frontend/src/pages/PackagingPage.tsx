@@ -863,6 +863,9 @@ export function PackagingPage() {
             <ButtonLink to="/packaging/package-types" variant="secondary">
               Manage Package Types
             </ButtonLink>
+            <ButtonLink to="/inventory/storage-locations" variant="secondary">
+              Manage Storage Locations
+            </ButtonLink>
           </div>
         }
         description="Turn completed product into balanced, labeled Packages through a saved workflow you can safely resume."
