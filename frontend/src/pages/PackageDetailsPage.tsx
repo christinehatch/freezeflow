@@ -207,14 +207,16 @@ export function PackageDetailsPage() {
             {pkg.package_identifier}
           </p>
           <h2 className="text-3xl font-semibold">{label.display_name}</h2>
-          <p className="mt-2 text-lg font-semibold text-slate-800">
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge tone="neutral">
             {isInStorage ? "Stored in " : "Last stored in "}
             {pkg.storage_location.name}
-          </p>
+          </StatusBadge>
+          <StatusBadge tone={isInStorage ? "active" : "neutral"}>
+            {pkg.status}
+          </StatusBadge>
         </div>
-        <StatusBadge tone={isInStorage ? "active" : "neutral"}>
-          {pkg.status}
-        </StatusBadge>
       </section>
 
       <section className="panel">
