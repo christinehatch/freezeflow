@@ -23,7 +23,7 @@ from app.models import (
     TrayStatus,
     WeightCheck,
 )
-from app.services.packaging import fresh_equivalent_grams
+from app.services.packaging import fresh_equivalent_grams, tray_preparation_summary
 
 
 def _fresh_equivalent_display(
@@ -283,7 +283,7 @@ def source_tray_data(tray: Tray) -> dict[str, object]:
         "physical_tray_id": tray.physical_tray_id,
         "physical_tray_label": tray.physical_tray.label,
         "product_name": tray.product_name,
-        "preparation": tray.preparation,
+        "preparation": tray_preparation_summary(tray),
         "final_dry_weight_grams": tray.final_dry_weight_grams,
         "notes": tray.notes,
         "status": tray.status,

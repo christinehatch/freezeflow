@@ -306,6 +306,97 @@
   text-align: center;
 }
 
+.ds-tag-field {
+  min-width: 0;
+  position: relative;
+}
+
+.ds-tag-field__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-2);
+  list-style: none;
+  margin: 0 0 var(--ff-space-2);
+  padding: 0;
+}
+
+.ds-tag-field__chip {
+  align-items: center;
+  background: var(--ff-color-calm-background);
+  border-radius: 999px;
+  color: var(--ff-color-text-primary);
+  display: inline-flex;
+  font-size: var(--ff-font-size-caption);
+  font-weight: var(--ff-font-weight-medium);
+  gap: var(--ff-space-1);
+  padding: 0.25rem 0.25rem 0.25rem var(--ff-space-3);
+}
+
+.ds-tag-field__chip-remove {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ff-color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1rem;
+  height: 1.25rem;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 1.25rem;
+}
+
+.ds-tag-field__chip-remove:hover {
+  background: var(--ff-color-surface-subtle);
+  color: var(--ff-color-text-primary);
+}
+
+.ds-tag-field__input {
+  min-height: 2.5rem;
+}
+
+.ds-tag-field__menu {
+  animation: ds-select-enter 170ms ease-out;
+  background: var(--ff-color-surface);
+  border: 1px solid var(--ff-color-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--ff-elevation-floating);
+  display: grid;
+  gap: var(--ff-space-1);
+  left: 0;
+  list-style: none;
+  margin: var(--ff-space-2) 0 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: var(--ff-space-2);
+  position: absolute;
+  right: 0;
+  transform-origin: top;
+  z-index: 50;
+}
+
+.ds-tag-field__option {
+  background: transparent;
+  border: 0;
+  border-radius: var(--ff-radius-small);
+  color: var(--ff-color-text-primary);
+  cursor: pointer;
+  font-family: var(--ff-font-family-sans);
+  font-size: 0.9375rem;
+  min-height: 2.5rem;
+  padding: var(--ff-space-2) var(--ff-space-3);
+  text-align: left;
+  transition: background-color 150ms ease;
+  width: 100%;
+}
+
+.ds-tag-field__option:hover,
+.ds-tag-field__option--active {
+  background: var(--ff-color-surface-subtle);
+}
+
 @keyframes ds-select-enter {
   from {
     opacity: 0;

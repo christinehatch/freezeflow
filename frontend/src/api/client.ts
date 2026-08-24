@@ -49,10 +49,13 @@ export type Tray = {
   tray_slot: TraySlot;
   physical_tray_id: string;
   physical_tray: PhysicalTray;
-  recipe_id: string | null;
-  recipe_name: string | null;
+  preparation_preset_id: string | null;
+  preparation_preset_name: string | null;
   product_name: string;
-  preparation: string;
+  ingredients: string[] | null;
+  preparation_methods: string[] | null;
+  /** Legacy freeform fallback, only populated on pre-Milestone-6 Trays. */
+  preparation: string | null;
   starting_weight_grams: string | null;
   final_dry_weight_grams: string | null;
   completed_at: string | null;
@@ -125,6 +128,16 @@ export type PackageType = {
 export type StorageLocation = {
   id: string;
   name: string;
+  notes: string | null;
+  archived: boolean;
+};
+
+export type PreparationPreset = {
+  id: string;
+  name: string;
+  product_name: string;
+  ingredients: string[] | null;
+  preparation_methods: string[] | null;
   notes: string | null;
   archived: boolean;
 };
@@ -203,7 +216,7 @@ export type PackagingAllocationSourceTray = {
   physical_tray_id: string;
   physical_tray_label: string;
   product_name: string;
-  preparation: string;
+  preparation: string | null;
   final_dry_weight_grams: DecimalValue;
   notes: string | null;
   status: Tray["status"];
@@ -626,8 +639,10 @@ export const productionApi = {
     body: {
       tray_slot_id: string;
       physical_tray_id: string;
+      preparation_preset_id?: string | null;
       product_name?: string | null;
-      preparation?: string | null;
+      ingredients?: string[] | null;
+      preparation_methods?: string[] | null;
       starting_weight_grams?: string;
       notes?: string | null;
     };
@@ -642,7 +657,8 @@ export const productionApi = {
       tray_slot_id?: string;
       physical_tray_id?: string;
       product_name?: string;
-      preparation?: string;
+      ingredients?: string[] | null;
+      preparation_methods?: string[] | null;
       starting_weight_grams?: string;
       notes?: string | null;
     };
@@ -870,6 +886,40 @@ export const inventoryApi = {
     apiGet<PackageStatusHistoryEntry[]>(
       `/packages/${packageId}/status-history`,
     ),
+};
+
+export const preparationPresetsApi = {
+  listPreparationPresets: ({
+    includeArchived,
+  }: { includeArchived?: boolean } = {}) =>
+    apiGet<PreparationPreset[]>(
+      `/preparation-presets${includeArchived ? "?include_archived=true" : ""}`,
+    ),
+  createPreparationPreset: (body: {
+    name: string;
+    product_name: string;
+    ingredients?: string[];
+    preparation_methods?: string[];
+    notes?: string | null;
+  }) => apiPost<PreparationPreset>("/preparation-presets", body),
+  getPreparationPreset: (id: string) =>
+    apiGet<PreparationPreset>(`/preparation-presets/${id}`),
+  updatePreparationPreset: (
+    id: string,
+    body: {
+      name?: string;
+      product_name?: string;
+      ingredients?: string[];
+      preparation_methods?: string[];
+      notes?: string | null;
+    },
+  ) => apiPatch<PreparationPreset>(`/preparation-presets/${id}`, body),
+  archivePreparationPreset: (id: string) =>
+    apiPost<PreparationPreset>(`/preparation-presets/${id}/archive`),
+  restorePreparationPreset: (id: string) =>
+    apiPost<PreparationPreset>(`/preparation-presets/${id}/restore`),
+  getSuggestions: (field: "ingredients" | "preparation_methods") =>
+    apiGet<string[]>(`/preparation-presets/suggestions?field=${field}`),
 };
 
 async function packageTraysThroughWorkflow(

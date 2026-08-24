@@ -666,7 +666,7 @@ def _resolve_package_line(
     return values, planned
 
 
-def _tray_preparation_summary(tray: Tray) -> str | None:
+def tray_preparation_summary(tray: Tray) -> str | None:
     parts = list(tray.ingredients or []) + list(tray.preparation_methods or [])
     if parts:
         return ", ".join(parts)
@@ -689,7 +689,7 @@ def _default_label_values(
     preparation = (
         "; ".join(
             dict.fromkeys(
-                filter(None, (_tray_preparation_summary(tray) for tray in trays))
+                filter(None, (tray_preparation_summary(tray) for tray in trays))
             )
         )
         or None
