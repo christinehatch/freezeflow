@@ -132,7 +132,7 @@ export function PackageDetailsPage() {
     },
   });
 
-  function goBackToInventory() {
+  function goBack() {
     if (location.key === "default") {
       navigate("/inventory");
     } else {
@@ -205,12 +205,8 @@ export function PackageDetailsPage() {
   return (
     <div className="space-y-8">
       <nav>
-        <button
-          className="quiet-action -ml-3"
-          type="button"
-          onClick={goBackToInventory}
-        >
-          &larr; Back to Inventory
+        <button className="quiet-action -ml-3" type="button" onClick={goBack}>
+          &larr; Back
         </button>
       </nav>
 

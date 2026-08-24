@@ -166,9 +166,7 @@ describe("PackageDetailsPage", () => {
     renderPage(["/inventory?product=Apples", "/packages/package-1"], 1);
     await screen.findByText("Taco Chicken");
 
-    await user.click(
-      screen.getByRole("button", { name: "← Back to Inventory" }),
-    );
+    await user.click(screen.getByRole("button", { name: "← Back" }));
 
     expect(
       await screen.findByText("Inventory view: /inventory?product=Apples"),
