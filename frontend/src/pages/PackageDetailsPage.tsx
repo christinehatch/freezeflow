@@ -207,6 +207,10 @@ export function PackageDetailsPage() {
             {pkg.package_identifier}
           </p>
           <h2 className="text-3xl font-semibold">{label.display_name}</h2>
+          <p className="mt-2 text-lg font-semibold text-slate-800">
+            {isInStorage ? "Stored in " : "Last stored in "}
+            {pkg.storage_location.name}
+          </p>
         </div>
         <StatusBadge tone={isInStorage ? "active" : "neutral"}>
           {pkg.status}
