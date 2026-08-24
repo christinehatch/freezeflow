@@ -1,3 +1,8 @@
+.storage-locations-page {
+  display: grid;
+  gap: var(--ff-space-8);
+}
+
 .package-header__metadata {
   align-items: center;
   color: var(--ff-color-text-secondary);
