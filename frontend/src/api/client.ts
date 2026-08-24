@@ -1014,6 +1014,8 @@ export const developerToolsApi = {
     devRequest<DevToolResult>("/dev/demo/packaging-resume"),
   seedWeightHistory: () =>
     devRequest<DevToolResult>("/dev/demo/weight-history"),
+  seedLargeInventory: () =>
+    devRequest<DevToolResult>("/dev/demo/large-inventory"),
   createRandomBatches: (count = 100) =>
     devRequest<DevToolResult>("/dev/demo/random-batches", { count }),
   seedEdgeCases: () => devRequest<DevToolResult>("/dev/demo/edge-cases"),

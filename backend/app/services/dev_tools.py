@@ -78,6 +78,7 @@ class DeveloperDataService:
             "packaging-fresh": self.seed_packaging_fresh,
             "packaging-resume": self.seed_packaging_resume,
             "weight-history": self.seed_weight_history,
+            "large-inventory": self.seed_large_inventory,
             "edge-cases": self.seed_edge_cases,
             "randomize-dates": self.randomize_dates,
             "randomize-weights": self.randomize_weights,
@@ -256,6 +257,196 @@ class DeveloperDataService:
             "decreasing weights.",
         )
         return result
+
+    def seed_large_inventory(self) -> dict:
+        self._clear_database()
+        data = self._seed_reference_data()
+        rng = random.Random(20260824)
+
+        bin_specs = [
+            ("Chest Freezer 1", "Upright freezer, garage."),
+            ("Chest Freezer 2", "Upright freezer, garage."),
+            ("Chest Freezer 3", "Chest freezer, garage."),
+            ("Chest Freezer 4", "Chest freezer, garage."),
+            ("Garage Freezer 1", "Backup freezer."),
+            ("Garage Freezer 2", "Backup freezer."),
+            ("Garage Freezer 3", "Backup freezer."),
+            ("Basement Bin B", "Long-term storage."),
+            ("Basement Bin C", "Long-term storage."),
+            ("Basement Bin D", "Long-term storage."),
+            ("Basement Bin E", "Long-term storage."),
+            ("Basement Bin F", "Long-term storage."),
+            ("Basement Bin G", "Long-term storage."),
+            ("Basement Bin H", "Long-term storage."),
+            ("Basement Bin I", "Long-term storage."),
+            ("Basement Bin J", "Long-term storage."),
+            ("Pantry Shelf 2", "Ready for near-term use."),
+            ("Pantry Shelf 3", "Ready for near-term use."),
+            ("Pantry Shelf 4", "Ready for near-term use."),
+            ("Pantry Shelf 5", "Ready for near-term use."),
+            ("Pantry Shelf 6", "Ready for near-term use."),
+            ("Root Cellar Bin 1", "Cool and dark."),
+            ("Root Cellar Bin 2", "Cool and dark."),
+            ("Root Cellar Bin 3", "Cool and dark."),
+            ("Root Cellar Bin 4", "Cool and dark."),
+            ("Root Cellar Bin 5", "Cool and dark."),
+            ("Root Cellar Bin 6", "Cool and dark."),
+        ]
+        extra_locations = [
+            StorageLocation(name=name, notes=notes) for name, notes in bin_specs
+        ]
+        self.db.add_all(extra_locations)
+        self.db.flush()
+        storage_bins = data["locations"][1:] + extra_locations
+
+        package_types = data["package_types"]
+        products = [recipe.product_name for recipe in data["recipes"]]
+
+        global_index = 0
+        batch_count = 12
+        for batch_index in range(batch_count):
+            dryer_index = batch_index % len(data["dryers"])
+            dryer = data["dryers"][dryer_index]
+            slots = data["slots"][dryer_index]
+            product_index = batch_index % len(products)
+            product = products[product_index]
+            recipe = data["recipes"][product_index]
+
+            package_count = rng.randint(20, 30)
+            package_weights = [
+                Decimal(rng.randint(60, 220)) for _ in range(package_count)
+            ]
+            dried_total = sum(package_weights, Decimal("0"))
+            starting_weight = int(
+                (dried_total / Decimal("0.35")).quantize(Decimal("1"))
+            )
+
+            physical_tray = PhysicalTray(
+                label=f"Bulk Tray {batch_index + 1:02d}",
+                notes="Dedicated to a bulk-seeded inventory batch.",
+            )
+            self.db.add(physical_tray)
+            self.db.flush()
+
+            started_at = self.now - timedelta(
+                days=rng.randint(5, 150), hours=rng.randint(0, 20)
+            )
+            batch, trays = self._create_batch(
+                dryer=dryer,
+                slots=slots,
+                physical_trays=[physical_tray],
+                recipes=data["recipes"],
+                batch_number=f"Batch {200 + batch_index}",
+                status=ProductionBatchStatus.COMPLETED,
+                products=(product,),
+                starting=(starting_weight,),
+                latest=(int(dried_total),),
+                started_at=started_at,
+                completed_runs=2,
+                notes="Bulk-seeded batch for large-inventory browsing.",
+            )
+            tray = trays[0]
+
+            packaged_at = (batch.completed_at or self.now) + timedelta(hours=4)
+            operation = PackagingOperation(
+                production_batch=batch,
+                status=PackagingOperationStatus.COMPLETED,
+                started_at=packaged_at,
+                completed_at=packaged_at + timedelta(minutes=30),
+                notes="Bulk packaging session.",
+            )
+            self.db.add(operation)
+            self.db.flush()
+            allocation = PackagingAllocation(
+                packaging_operation=operation,
+                notes="Bulk-seeded allocation.",
+            )
+            self.db.add(allocation)
+            self.db.flush()
+            tray.status = TrayStatus.PACKAGED
+            self.db.add(
+                PackagingAllocationSourceTray(
+                    packaging_allocation=allocation, tray=tray
+                )
+            )
+
+            for weight in package_weights:
+                global_index += 1
+                package_type = package_types[global_index % len(package_types)]
+                location = rng.choice(storage_bins)
+                status_roll = rng.random()
+                if status_roll < 0.78:
+                    status = InventoryStatus.IN_STORAGE
+                elif status_roll < 0.90:
+                    status = InventoryStatus.GIVEN_AWAY
+                else:
+                    status = InventoryStatus.DEPLETED
+
+                this_packaged_at = packaged_at + timedelta(minutes=global_index)
+                package = Package(
+                    packaging_allocation=allocation,
+                    package_type=package_type,
+                    package_identifier=f"PKG-{self.now.year}-{global_index:06d}",
+                    packaged_at=this_packaged_at,
+                    package_weight_grams=weight + Decimal("12"),
+                    finished_product_weight_grams=weight,
+                    oxygen_absorber=package_type.default_oxygen_absorber,
+                    storage_location=location,
+                    status=status,
+                )
+                self.db.add(package)
+                self.db.flush()
+                self.db.add(
+                    PackageStatusHistory(
+                        package=package,
+                        previous_status=None,
+                        current_status=InventoryStatus.IN_STORAGE,
+                        effective_at=this_packaged_at,
+                        recorded_at=this_packaged_at,
+                        notes="Initial status recorded during Packaging.",
+                    )
+                )
+                if status != InventoryStatus.IN_STORAGE:
+                    max_delay_days = max(1, (self.now - this_packaged_at).days)
+                    transition_at = this_packaged_at + timedelta(
+                        days=rng.randint(1, min(60, max_delay_days))
+                    )
+                    transition_at = min(transition_at, self.now)
+                    self.db.add(
+                        PackageStatusHistory(
+                            package=package,
+                            previous_status=InventoryStatus.IN_STORAGE,
+                            current_status=status,
+                            effective_at=transition_at,
+                            recorded_at=transition_at,
+                            notes="Bulk-seeded inventory lifecycle transition.",
+                        )
+                    )
+                self.db.add(
+                    StorageLocationHistory(
+                        package=package,
+                        previous_storage_location=None,
+                        current_storage_location=location,
+                        moved_at=this_packaged_at,
+                        notes="Initial location assigned during Packaging.",
+                    )
+                )
+                self.db.add(
+                    PackageLabel(
+                        package=package,
+                        status=PackageLabelStatus.READY,
+                        display_name=product,
+                        preparation_summary=recipe.preparation,
+                        net_weight_display=f"{weight} g freeze-dried",
+                    )
+                )
+
+        self.db.commit()
+        return self._result(
+            "large-inventory",
+            f"Large inventory demo seeded with {global_index} Packages across "
+            f"{len(storage_bins)} Storage Locations.",
+        )
 
     def seed_edge_cases(self) -> dict:
         self.seed_basic()

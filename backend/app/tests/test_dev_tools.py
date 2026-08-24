@@ -285,6 +285,57 @@ def test_busy_day_does_not_reuse_trays_in_active_batches(
     assert len(running_tray_ids) == len(set(running_tray_ids))
 
 
+def test_large_inventory_seeds_dozens_of_bins_and_hundreds_of_packages(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    response = client.post("/dev/demo/large-inventory")
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["action"] == "large-inventory"
+    assert payload["counts"]["storage_locations"] >= 24
+    assert payload["counts"]["packages"] >= 200
+
+    packages = list(db_session.scalars(select(Package)))
+    assert len({package.package_identifier for package in packages}) == len(packages)
+    assert all(package.label is not None for package in packages)
+    assert all(package.storage_location.name != "Unassigned" for package in packages)
+
+    statuses = {package.status for package in packages}
+    assert InventoryStatus.IN_STORAGE in statuses
+    assert InventoryStatus.GIVEN_AWAY in statuses
+    assert InventoryStatus.DEPLETED in statuses
+
+    distinct_locations = {package.storage_location_id for package in packages}
+    assert len(distinct_locations) > 10
+
+    for package in packages:
+        assert (
+            package.status_history[0].previous_status is None
+            and package.status_history[0].current_status == InventoryStatus.IN_STORAGE
+        )
+        if package.status != InventoryStatus.IN_STORAGE:
+            assert len(package.status_history) == 2
+            assert package.status_history[1].current_status == package.status
+            assert (
+                package.status_history[1].effective_at
+                >= package.status_history[0].effective_at
+            )
+
+    search_response = client.get("/api/v1/inventory")
+    assert search_response.status_code == 200
+    assert len(search_response.json()["data"]) <= 100
+
+    groups_response = client.get("/api/v1/inventory/products")
+    assert groups_response.status_code == 200
+    groups = groups_response.json()["data"]
+    assert len(groups) == 4
+    assert sum(group["available_package_count"] for group in groups) == sum(
+        1 for package in packages if package.status == InventoryStatus.IN_STORAGE
+    )
+
+
 def test_developer_routes_are_not_registered_in_production() -> None:
     app = create_app(Settings(environment="production"))
 

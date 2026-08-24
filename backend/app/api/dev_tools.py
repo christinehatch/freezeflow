@@ -57,6 +57,11 @@ def seed_weight_history(db: DBSession) -> dict:
     return run_action(db, "weight-history")
 
 
+@router.post("/demo/large-inventory")
+def seed_large_inventory(db: DBSession) -> dict:
+    return run_action(db, "large-inventory")
+
+
 @router.post("/demo/random-batches")
 def seed_random_batches(
     body: RandomBatchRequest,
