@@ -336,13 +336,13 @@ POST /api/production-batches/{id}/trays
 
 Adds a Tray to a Production Batch.
 
-The request identifies the Tray Slot and Physical Tray selected for that Production Batch.
+The request identifies the Tray Slot and Physical Tray selected for that Production Batch, and always carries the actual `product_name`, `ingredients`, and `preparation_methods` to persist — whether the operator typed them manually or started from a Preparation Preset and edited some or all of the pre-filled values before saving.
 
-The request may include a Preparation Preset identifier.
+The request may also include a `preparation_preset_id`. **A Preparation Preset is a template, never an authoritative source of record** (ADR-0013): when `preparation_preset_id` is provided, the server's only use for it is validating that the Preset exists and is not archived, and capturing the Preset's *current* name into `preparation_preset_name_at_use` for provenance. The server never overwrites the request's own `product_name`/`ingredients`/`preparation_methods` with the Preset's stored values — whatever was actually submitted becomes the Tray's immutable historical snapshot.
 
-When a Preparation Preset is provided, the server copies its Product, Ingredients, Preparation Methods, and Notes onto the Tray.
+When `preparation_preset_id` is omitted, `product_name` is required, and at least one of `ingredients` or `preparation_methods` must be non-empty — not necessarily both. Sparse, asymmetric Preparation Metadata (an ingredient list with no distinct named method, or vice versa) is expected and fully supported, not a validation gap.
 
-The copied Preparation Metadata becomes the immutable historical snapshot for that Tray. The same fields may be entered inline without a preset.
+Trays created before Milestone 6 shipped carry their original freeform text in a deprecated, read-only `preparation` field instead of structured `ingredients`/`preparation_methods`; new Trays never write to it.
 
 ---
 
@@ -1069,29 +1069,124 @@ Each item includes:
 
 # Preparation Preset Endpoints
 
+Preparation Preset management uses explicit CRUD-style endpoints for
+descriptive fields plus explicit action endpoints for the archive/restore
+lifecycle transitions, consistent with how Storage Location lifecycle
+transitions are modeled.
+
+Preparation Presets are optional data-entry conveniences, never historical
+records (ADR-0013). Tray APIs accept one-off Ingredients and Preparation
+Methods directly, without requiring a Preparation Preset to exist first.
+
 ## List Preparation Presets
 
 ```http
-GET /api/preparation-presets
+GET /api/v1/preparation-presets
 ```
+
+Returns active and archived Preparation Presets. Supports an
+`includeArchived` query flag; omitted or `false` returns only active Presets.
 
 ## Create Preparation Preset
 
 ```http
-POST /api/preparation-presets
+POST /api/v1/preparation-presets
 ```
+
+```json
+{
+  "name": "Sliced Chicken Tacos",
+  "product_name": "Chicken Breast",
+  "ingredients": ["Salt", "Pepper", "Salsa"],
+  "preparation_methods": ["Sliced", "Cooked"],
+  "notes": null
+}
+```
+
+### Validation
+
+* `name` is required, is trimmed, and must not be blank after trimming.
+* `name` must be case-insensitively unique across active and archived
+  Preparation Presets.
+* `product_name` is required.
+* `ingredients` and `preparation_methods` are each optional lists of strings;
+  a Preparation Preset may supply only one of the two, or both, or neither —
+  sparse and asymmetric entry is expected, not a validation gap.
+
+### Response
+
+Returns the created Preparation Preset.
+
+## Get Preparation Preset
+
+```http
+GET /api/v1/preparation-presets/{id}
+```
+
+Returns Preparation Preset details, including whether it is archived.
 
 ## Update Preparation Preset
 
 ```http
-PATCH /api/preparation-presets/{id}
+PATCH /api/v1/preparation-presets/{id}
 ```
 
-Historical Production Batches remain unaffected.
+Updates the Preparation Preset's mutable descriptive fields: `name`,
+`product_name`, `ingredients`, `preparation_methods`, and `notes`. It does not
+archive, restore, or otherwise change lifecycle state.
 
-Historical Trays that were previously created from the Preparation Preset remain unaffected.
+Historical Production Batches remain unaffected. Historical Trays that were
+previously created from the Preparation Preset remain unaffected — a Tray's
+Preparation Metadata is an immutable snapshot captured at Tray-creation time,
+never a live reference to the Preset's current values (ADR-0013).
 
-Preparation Presets are optional. Tray APIs accept one-off Ingredients and Preparation Methods without requiring preset creation.
+### Validation
+
+* Same `name` rules as Create.
+
+## Archive Preparation Preset
+
+```http
+POST /api/v1/preparation-presets/{id}/archive
+```
+
+Transitions an active Preparation Preset to archived. Archived Presets remain
+visible on historical Trays that reference them but cannot be selected for
+new Trays.
+
+### Validation
+
+* An already-archived Preparation Preset cannot be archived again.
+
+## Restore Preparation Preset
+
+```http
+POST /api/v1/preparation-presets/{id}/restore
+```
+
+Transitions an archived Preparation Preset back to active, making it
+selectable for new Trays again.
+
+### Validation
+
+* Only archived Preparation Presets may be restored.
+* Restoring is rejected if another active or archived Preparation Preset now
+  shares the same case-insensitive name.
+
+## Preparation Preset Suggestions
+
+```http
+GET /api/v1/preparation-presets/suggestions?field=ingredients
+GET /api/v1/preparation-presets/suggestions?field=preparation_methods
+```
+
+Returns the distinct set of previously-used values for the requested field,
+scanned across **both** Preparation Presets and Trays — so a one-off value an
+operator typed directly on a Tray (without ever saving a Preset) also
+surfaces as a future suggestion, not just values saved on a Preset. Used to
+power inline autocomplete while entering Ingredients or Preparation Methods;
+typing a value not in the returned list is always allowed and does not
+require creating a catalog record first.
 
 ---
 

@@ -73,35 +73,7 @@ Preparation Presets should normally be archived rather than deleted.
 
 # Business Rules
 
-RP-001
-
-Preparation Presets are reusable data-entry conveniences.
-
-They are not historical records.
-
----
-
-RP-002
-
-Using a Preparation Preset copies its Preparation Metadata onto the Tray.
-
----
-
-RP-003
-
-Editing a Preparation Preset affects future Trays only.
-
----
-
-RP-004
-
-A Tray may be created without selecting a Preparation Preset.
-
----
-
-RP-005
-
-Preparation Presets should be archived rather than deleted whenever they have been used by historical Trays.
+See RC-001–RC-006 ("Preparation Metadata and Preset Rules") in `docs/04-business-rules.md` — the canonical business-rules doc is the single source of truth for these rules. This document does not maintain its own duplicate rule numbering.
 
 ---
 
@@ -113,4 +85,4 @@ Users should think of Preparation Presets as optional shortcuts for creating Tra
 
 Historical reporting should always use the Preparation Metadata stored on the Tray rather than the current Preparation Preset definition.
 
-The filename is retained temporarily to preserve documentation links during the migration from the Recipe-first model. ADR-0013 is authoritative.
+This document was renamed from `04-recipe.md` to `04-preparation-preset.md` as part of Milestone 6, completing the terminology migration described in ADR-0013.

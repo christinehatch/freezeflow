@@ -95,8 +95,7 @@ Do not include:
 * splitting or merging existing Packages
 * reopening Given Away or Depleted Packages
 * deleting Packages or Production history
-* Preparation Preset CRUD
-* recipe archive or restore
+* Preparation Preset CRUD, archive, and restore
 * production reports or Inventory analytics
 * corrections UI
 * audit history UI

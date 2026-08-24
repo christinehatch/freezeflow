@@ -150,4 +150,4 @@ The Production Batch represents the production session.
 
 Product-specific information belongs on the Tray.
 
-This allows a single Production Batch to contain multiple products, recipes, and preparation methods while maintaining complete historical traceability.
+This allows a single Production Batch to contain multiple products and preparation methods while maintaining complete historical traceability.
