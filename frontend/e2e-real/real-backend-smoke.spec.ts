@@ -1,17 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const API_BASE_URL = "http://127.0.0.1:8001";
-
-async function selectBatch(page: Page, batchNumber: string) {
-  const batchSelect = page.getByLabel("Production Batch");
-  const optionValue = await batchSelect
-    .locator("option")
-    .filter({ hasText: batchNumber })
-    .getAttribute("value");
-
-  expect(optionValue).not.toBeNull();
-  await batchSelect.selectOption(optionValue!);
-}
 
 test("persists a seeded production-to-packaging smoke path", async ({
   page,
@@ -28,49 +17,101 @@ test("persists a seeded production-to-packaging smoke path", async ({
   expect(seedResult.data.counts.production_batches).toBe(4);
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(
-    page.getByRole("link", {
-      name: "black has active Production Batch Batch 021.",
-    }),
+    page.getByRole("heading", { name: "Dashboard", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Batch 021 is currently drying" }),
+  ).toBeVisible();
+  await expect(page.getByText("Batch 021 · Black Freeze Dryer")).toBeVisible();
   await expect(page.getByRole("link", { name: "Batch 020" })).toBeVisible();
 
   await page.getByRole("link", { name: "Packaging" }).click();
   await expect(
-    page.getByRole("heading", { name: "Packaging Worksheet" }),
+    page.getByRole("heading", { name: "Choose a batch" }),
   ).toBeVisible();
-  await selectBatch(page, "Batch 020");
-  await expect(page.getByLabel("Production Batch")).toContainText(
-    "875 g ready",
+  const batchCard = page.locator("article.packaging-batch-card");
+  await expect(batchCard).toContainText("Batch 020");
+  await expect(batchCard).toContainText(
+    "Packaging is in progress. 1 additional Tray is ready (236 g).",
   );
 
-  const firstPorkTray = page
-    .locator("tr")
-    .filter({ hasText: "Pork Shoulder" })
-    .first();
-  await firstPorkTray.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Next — Choose trays" }).click();
 
-  const form = page.locator("form").filter({
-    has: page.getByRole("heading", { name: "Create Packages" }),
-  });
-  await form.getByLabel("Finished Product Weight", { exact: true }).fill("328");
-  await form.getByLabel("Sealed Package Weight", { exact: true }).fill("335");
-  await form.getByRole("button", { name: "Finish Packaging" }).click();
+  // The seed pre-plans this Batch's allocation as two draft bags (Pork
+  // Shoulder trays: 328 g + 311 g = 639 g). Drafts default their weight
+  // unit to oz on load regardless of the persisted unit, so switch each
+  // field to grams before filling to avoid a lossy oz round-trip.
+  await expect(page.getByRole("heading", { name: "Bag 1" })).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Finished Product Weight unit" })
+    .click();
+  await page.getByRole("option", { name: "g", exact: true }).click();
+  await page
+    .getByRole("spinbutton", { name: "Finished Product Weight", exact: true })
+    .fill("339");
+  await page
+    .getByRole("combobox", { name: "Sealed Package Weight unit" })
+    .click();
+  await page.getByRole("option", { name: "g", exact: true }).click();
+  await page
+    .getByRole("spinbutton", { name: "Sealed Package Weight", exact: true })
+    .fill("345");
+  await page.getByRole("button", { name: "Save Bag 1" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Packaging Complete" }),
+    page.getByRole("button", { name: "Add another bag" }),
   ).toBeVisible();
-  await expect(page.getByText(/^PKG-/)).toBeVisible();
+  await page.getByRole("button", { name: "Add another bag" }).click();
+
+  await expect(page.getByRole("heading", { name: "Bag 2" })).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Finished Product Weight unit" })
+    .click();
+  await page.getByRole("option", { name: "g", exact: true }).click();
+  await page
+    .getByRole("spinbutton", { name: "Finished Product Weight", exact: true })
+    .fill("300");
+  await page
+    .getByRole("combobox", { name: "Sealed Package Weight unit" })
+    .click();
+  await page.getByRole("option", { name: "g", exact: true }).click();
+  await page
+    .getByRole("spinbutton", { name: "Sealed Package Weight", exact: true })
+    .fill("312");
+  await page.getByRole("button", { name: "Save Bag 2" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Do you have another bag to package?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "No more bags — Review" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Let's approve the bags" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Next — Finish" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Complete Packaging" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Complete Packaging" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Packaging complete" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /^Review & labels/ }).click();
+  await expect(
+    page.locator("summary").filter({ hasText: /^PKG-/ }).first(),
+  ).toBeVisible();
 
   await page.reload();
-  await selectBatch(page, "Batch 020");
-  await expect(page.getByLabel("Production Batch")).toContainText(
-    "547 g ready",
-  );
   await expect(
-    page.locator("tr").filter({ hasText: "Pork Shoulder" }),
-  ).toHaveCount(1);
+    page.getByRole("heading", { name: "Choose a batch" }),
+  ).toBeVisible();
+  await expect(batchCard).toContainText(
+    "Packaging is complete. Open it to view the saved history.",
+  );
 });
 
 test("persists a seeded Inventory move across a reload", async ({
@@ -95,7 +136,9 @@ test("persists a seeded Inventory move across a reload", async ({
   await expect(
     page.getByRole("heading", { name: "Taco Chicken", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Basement Bin A")).toBeVisible();
+  await expect(
+    page.getByText("Basement Bin A", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Batch 019", exact: true }),
   ).toBeVisible();
