@@ -8,6 +8,7 @@ export {
   TextField,
   type SelectOption,
 } from "./FormControls";
+export { Modal } from "./Modal";
 export { PageHeader } from "./PageHeader";
 export { RecentProductionRow } from "./RecentProductionRow";
 export { SectionHeader } from "./SectionHeader";
