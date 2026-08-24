@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { Link } from "react-router";
 
 import { inventoryApi, type Package, type ProductGroup } from "../api/client";
 import {
@@ -252,23 +253,25 @@ function SearchResultsView({
       ) : (
         <ul className="mt-2 space-y-2" role="list">
           {results.map((item) => (
-            <li
-              className="rounded-md border border-slate-200 bg-white p-3 shadow-sm"
-              key={item.id}
-            >
-              <p className="font-semibold">{item.label.display_name}</p>
-              <p className="text-sm text-slate-700">
-                {item.package_identifier} · {item.package_type.name} ·{" "}
-                {formatGrams(
-                  item.finished_product_weight_grams === null
-                    ? null
-                    : String(item.finished_product_weight_grams),
-                )}
-              </p>
-              <p className="text-sm text-slate-600">
-                {item.storage_location.name} · Packaged{" "}
-                {formatDate(item.packaged_at)} · {item.status}
-              </p>
+            <li key={item.id}>
+              <Link
+                className="block rounded-md border border-slate-200 bg-white p-3 shadow-sm hover:border-teal-600"
+                to={`/packages/${item.id}`}
+              >
+                <p className="font-semibold">{item.label.display_name}</p>
+                <p className="text-sm text-slate-700">
+                  {item.package_identifier} · {item.package_type.name} ·{" "}
+                  {formatGrams(
+                    item.finished_product_weight_grams === null
+                      ? null
+                      : String(item.finished_product_weight_grams),
+                  )}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {item.storage_location.name} · Packaged{" "}
+                  {formatDate(item.packaged_at)} · {item.status}
+                </p>
+              </Link>
             </li>
           ))}
         </ul>

@@ -6,6 +6,7 @@ import { DesignSystemPage } from "../pages/DesignSystemPage";
 import { DeveloperToolsPage } from "../pages/DeveloperToolsPage";
 import { FreezeDryersPage } from "../pages/FreezeDryersPage";
 import { InventoryPage } from "../pages/InventoryPage";
+import { PackageDetailsPage } from "../pages/PackageDetailsPage";
 import { PackagingPage } from "../pages/PackagingPage";
 import { PackageTypesPage } from "../pages/PackageTypesPage";
 import { PrintTodaysLabelsPage } from "../pages/PrintTodaysLabelsPage";
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
       { path: "/production", element: <ProductionPage /> },
       { path: "/production/:batchId", element: <ProductionBatchPage /> },
       { path: "/trays/:trayId", element: <TrayDetailsPage /> },
+      { path: "/packages/:packageId", element: <PackageDetailsPage /> },
       { path: "/freeze-dryers", element: <FreezeDryersPage /> },
       { path: "/packaging", element: <PackagingPage /> },
       { path: "/packaging/package-types", element: <PackageTypesPage /> },
