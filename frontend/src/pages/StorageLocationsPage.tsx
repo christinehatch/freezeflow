@@ -1,16 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { FormEvent, type ReactNode, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { inventoryApi } from "../api/client";
+import { inventoryApi, type StorageLocation } from "../api/client";
 import {
   Button,
+  ButtonLink,
   PageHeader,
   SectionHeader,
   StatusBanner,
   Surface,
 } from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
+
+const UNASSIGNED_LOCATION_NAME = "Unassigned";
 
 const QUERY_KEY = ["storage-locations", "including-archived"];
 
@@ -24,6 +27,8 @@ export function StorageLocationsPage() {
   });
   const [draft, setDraft] = useState({ name: "", notes: "" });
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ name: "", notes: "" });
 
   const createStorageLocation = useMutation({
     mutationFn: inventoryApi.createStorageLocation,
@@ -50,6 +55,38 @@ export function StorageLocationsPage() {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
     },
   });
+  const updateStorageLocation = useMutation({
+    mutationFn: (params: {
+      id: string;
+      name?: string;
+      notes?: string | null;
+    }) =>
+      inventoryApi.updateStorageLocation(params.id, {
+        name: params.name,
+        notes: params.notes,
+      }),
+    onError: (mutationError) => setError(formatApiError(mutationError)),
+    onSuccess: () => {
+      setError(null);
+      setEditingId(null);
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+
+  function startEditing(location: StorageLocation) {
+    setError(null);
+    setEditingId(location.id);
+    setEditDraft({ name: location.name, notes: location.notes ?? "" });
+  }
+
+  function submitEdit(location: StorageLocation) {
+    const isUnassigned = location.name === UNASSIGNED_LOCATION_NAME;
+    updateStorageLocation.mutate({
+      id: location.id,
+      notes: editDraft.notes.trim() || null,
+      ...(isUnassigned ? {} : { name: editDraft.name.trim() }),
+    });
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -144,22 +181,29 @@ export function StorageLocationsPage() {
         ) : activeLocations.length ? (
           <div className="storage-location-list">
             {activeLocations.map((location) => (
-              <Surface className="storage-location-card" key={location.id}>
-                <div>
-                  <h3>{location.name}</h3>
-                  {location.notes ? <p>{location.notes}</p> : null}
-                </div>
-                <Button
-                  disabled={
-                    archiveStorageLocation.isPending ||
-                    location.name === "Unassigned"
-                  }
-                  variant="secondary"
-                  onClick={() => archiveStorageLocation.mutate(location.id)}
-                >
-                  Archive
-                </Button>
-              </Surface>
+              <StorageLocationCard
+                editDraft={editDraft}
+                isEditing={editingId === location.id}
+                isSaving={updateStorageLocation.isPending}
+                key={location.id}
+                location={location}
+                secondaryAction={
+                  <Button
+                    disabled={
+                      archiveStorageLocation.isPending ||
+                      location.name === UNASSIGNED_LOCATION_NAME
+                    }
+                    variant="secondary"
+                    onClick={() => archiveStorageLocation.mutate(location.id)}
+                  >
+                    Archive
+                  </Button>
+                }
+                onCancelEdit={() => setEditingId(null)}
+                onChangeDraft={setEditDraft}
+                onStartEdit={() => startEditing(location)}
+                onSubmitEdit={() => submitEdit(location)}
+              />
             ))}
           </div>
         ) : (
@@ -175,23 +219,123 @@ export function StorageLocationsPage() {
           />
           <div className="storage-location-list">
             {archivedLocations.map((location) => (
-              <Surface className="storage-location-card" key={location.id}>
-                <div>
-                  <h3>{location.name}</h3>
-                  {location.notes ? <p>{location.notes}</p> : null}
-                </div>
-                <Button
-                  disabled={restoreStorageLocation.isPending}
-                  variant="secondary"
-                  onClick={() => restoreStorageLocation.mutate(location.id)}
-                >
-                  Restore
-                </Button>
-              </Surface>
+              <StorageLocationCard
+                editDraft={editDraft}
+                isEditing={editingId === location.id}
+                isSaving={updateStorageLocation.isPending}
+                key={location.id}
+                location={location}
+                secondaryAction={
+                  <Button
+                    disabled={restoreStorageLocation.isPending}
+                    variant="secondary"
+                    onClick={() => restoreStorageLocation.mutate(location.id)}
+                  >
+                    Restore
+                  </Button>
+                }
+                onCancelEdit={() => setEditingId(null)}
+                onChangeDraft={setEditDraft}
+                onStartEdit={() => startEditing(location)}
+                onSubmitEdit={() => submitEdit(location)}
+              />
             ))}
           </div>
         </section>
       ) : null}
     </div>
+  );
+}
+
+function StorageLocationCard({
+  editDraft,
+  isEditing,
+  isSaving,
+  location,
+  secondaryAction,
+  onCancelEdit,
+  onChangeDraft,
+  onStartEdit,
+  onSubmitEdit,
+}: {
+  editDraft: { name: string; notes: string };
+  isEditing: boolean;
+  isSaving: boolean;
+  location: StorageLocation;
+  secondaryAction: ReactNode;
+  onCancelEdit: () => void;
+  onChangeDraft: (draft: { name: string; notes: string }) => void;
+  onStartEdit: () => void;
+  onSubmitEdit: () => void;
+}) {
+  const isUnassigned = location.name === UNASSIGNED_LOCATION_NAME;
+
+  if (isEditing) {
+    return (
+      <Surface className="storage-location-card storage-location-card--editing">
+        <form
+          className="storage-location-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmitEdit();
+          }}
+        >
+          <label className="field">
+            <span>Name</span>
+            <input
+              disabled={isUnassigned}
+              required
+              value={editDraft.name}
+              onChange={(event) =>
+                onChangeDraft({ ...editDraft, name: event.target.value })
+              }
+            />
+          </label>
+          <label className="field storage-location-form__notes">
+            <span>Notes</span>
+            <input
+              value={editDraft.notes}
+              onChange={(event) =>
+                onChangeDraft({ ...editDraft, notes: event.target.value })
+              }
+            />
+          </label>
+          <div className="storage-location-card__edit-actions">
+            <Button disabled={isSaving} type="submit">
+              {isSaving ? "Saving…" : "Save"}
+            </Button>
+            <Button
+              disabled={isSaving}
+              type="button"
+              variant="secondary"
+              onClick={onCancelEdit}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Surface>
+    );
+  }
+
+  return (
+    <Surface className="storage-location-card">
+      <div>
+        <h3>{location.name}</h3>
+        {location.notes ? <p>{location.notes}</p> : null}
+      </div>
+      <div className="storage-location-card__actions">
+        <ButtonLink
+          to={`/inventory?location=${location.id}`}
+          variant="secondary"
+        >
+          View Contents
+        </ButtonLink>
+        <Button variant="secondary" onClick={onStartEdit}>
+          Edit
+        </Button>
+        {secondaryAction}
+      </div>
+    </Surface>
   );
 }
