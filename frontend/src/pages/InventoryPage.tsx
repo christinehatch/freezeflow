@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { inventoryApi, type Package, type ProductGroup } from "../api/client";
 import {
@@ -23,6 +23,7 @@ const STATUS_OPTIONS: SelectOption[] = [
 ];
 
 export function InventoryPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const status = searchParams.get("status") ?? "In Storage";
@@ -59,6 +60,14 @@ export function InventoryPage() {
       })),
     ];
   }, [storageLocationsQuery.data]);
+
+  const storageLocationName = useMemo(
+    () =>
+      storageLocationsQuery.data?.find(
+        (location) => location.id === storageLocationId,
+      )?.name ?? null,
+    [storageLocationsQuery.data, storageLocationId],
+  );
 
   const isBrowsingGroups =
     query.trim() === "" &&
@@ -164,8 +173,14 @@ export function InventoryPage() {
           onBackToProducts={
             productNameFilter ? () => updateParams({ product: null }) : null
           }
+          onBackToStorageLocations={
+            !productNameFilter && storageLocationId
+              ? () => navigate("/inventory/storage-locations")
+              : null
+          }
           productNameFilter={productNameFilter}
           query={searchResultsQuery}
+          storageLocationName={!productNameFilter ? storageLocationName : null}
         />
       )}
     </div>
@@ -226,17 +241,22 @@ function ProductGroupsView({
 
 function SearchResultsView({
   onBackToProducts,
+  onBackToStorageLocations,
   productNameFilter,
   query,
+  storageLocationName,
 }: {
   onBackToProducts: (() => void) | null;
+  onBackToStorageLocations: (() => void) | null;
   productNameFilter: string | null;
   query: UseQueryResult<Package[]>;
+  storageLocationName: string | null;
 }) {
   const results = query.data ?? [];
+  const heading = productNameFilter ?? storageLocationName;
   return (
     <section aria-labelledby="inventory-search-results">
-      {productNameFilter ? (
+      {heading ? (
         <div className="flex flex-wrap items-center gap-2">
           {onBackToProducts ? (
             <button
@@ -247,11 +267,20 @@ function SearchResultsView({
               &larr; Back to Products
             </button>
           ) : null}
+          {onBackToStorageLocations ? (
+            <button
+              className="quiet-action"
+              type="button"
+              onClick={onBackToStorageLocations}
+            >
+              &larr; Back to Storage Locations
+            </button>
+          ) : null}
           <p
             className="text-sm font-semibold text-slate-700"
             id="inventory-search-results"
           >
-            {productNameFilter} · {results.length} Package
+            {heading} · {results.length} Package
             {results.length === 1 ? "" : "s"}
           </p>
         </div>
