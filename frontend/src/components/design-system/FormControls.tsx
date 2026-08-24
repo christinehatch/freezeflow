@@ -103,6 +103,7 @@ export type SelectOption = {
   label: string;
   description?: string;
   disabled?: boolean;
+  accent?: boolean;
 };
 
 type SelectProps = {
@@ -253,7 +254,7 @@ export function Select({
           {options.map((option, index) => (
             <button
               aria-selected={option.value === value}
-              className={`ds-select__option ${index === activeIndex ? "ds-select__option--active" : ""}`.trim()}
+              className={`ds-select__option ${index === activeIndex ? "ds-select__option--active" : ""} ${option.accent ? "ds-select__option--accent" : ""}`.trim()}
               disabled={option.disabled}
               id={`${controlId}-option-${index}`}
               key={option.value}

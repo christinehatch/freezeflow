@@ -9,13 +9,9 @@ import {
   type PackageLabel,
   type PackagingAllocationSourceTray,
 } from "../api/client";
+import { CreatableStorageLocationSelect } from "../components/CreatableStorageLocationSelect";
 import { PackageLabelEditor } from "../components/PackagingWorkspaceActions";
-import {
-  Field,
-  Select,
-  StatusBadge,
-  type SelectOption,
-} from "../components/design-system";
+import { StatusBadge, type SelectOption } from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
 import {
   reserveAvery5163PrintOutput,
@@ -431,15 +427,15 @@ export function PackageDetailsPage() {
 
         {isInStorage ? (
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <Field htmlFor="package-move-destination" label="Move to">
-              <Select
-                id="package-move-destination"
-                options={moveDestinationOptions}
-                placeholder="Choose a Storage Location"
-                value={moveDestination}
-                onChange={setMoveDestination}
-              />
-            </Field>
+            <CreatableStorageLocationSelect
+              id="package-move-destination"
+              invalidateQueryKey={["storage-locations", "including-archived"]}
+              label="Move to"
+              options={moveDestinationOptions}
+              placeholder="Choose a Storage Location"
+              value={moveDestination}
+              onChange={setMoveDestination}
+            />
             <button
               className="secondary-action"
               disabled={moveDestination === "" || moveMutation.isPending}

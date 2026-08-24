@@ -381,6 +381,48 @@ describe("PackagingPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("creates a new Storage Location from the Bag form and selects it immediately", async () => {
+    const user = userEvent.setup();
+    const sourceTray = defaultWorksheet()[0].eligible_trays[0];
+    const allocation = createPackagingAllocation([sourceTray]);
+    const operation = createPackagingOperation("batch-1", {
+      allocations: [allocation],
+    });
+    const testState = createPackagingTestState({ operation });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage("/packaging?batch=batch-1&workspace=1");
+    await screen.findByRole("heading", { name: "Bag 1" });
+
+    await chooseCustomOption(user, "Storage Location", "New Storage Location");
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "New Storage Location",
+    });
+
+    await user.type(within(dialog).getByLabelText("Name"), "Bin 34");
+    await user.type(
+      within(dialog).getByLabelText("Notes", { exact: false }),
+      "Basement",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create and select" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "New Storage Location" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("combobox", { name: "Storage Location" }),
+    ).toHaveTextContent("Bin 34");
+    expect(parseRequestBody(latestStorageLocationPost())).toEqual({
+      name: "Bin 34",
+      notes: "Basement",
+    });
+  });
+
   it("offers Record loss beside Add another bag and reduces Remaining Weight", async () => {
     const user = userEvent.setup();
     const sourceTray = createTray({
@@ -4575,6 +4617,21 @@ function createPackagingTestState(
       return jsonResponse(state.storageLocations);
     }
 
+    if (url.endsWith("/api/v1/storage-locations") && method === "POST") {
+      const body = parseBody(init);
+      const createdStorageLocation: StorageLocation = {
+        id: "storage-location-new",
+        name: String(body.name),
+        notes: body.notes === null ? null : String(body.notes ?? ""),
+        archived: false,
+      };
+      state.storageLocations = [
+        ...state.storageLocations,
+        createdStorageLocation,
+      ];
+      return jsonResponse(createdStorageLocation);
+    }
+
     if (url.endsWith("/api/v1/package-types") && method === "POST") {
       const body = parseBody(init);
       const createdPackageType: PackageType = {
@@ -5713,6 +5770,15 @@ function latestPackagePostRequests() {
         String(input),
       ) && init?.method === "POST",
   );
+}
+
+function latestStorageLocationPost() {
+  const calls = fetchMock().mock.calls.filter(
+    ([input, init]) =>
+      String(input).endsWith("/api/v1/storage-locations") &&
+      init?.method === "POST",
+  );
+  return calls[calls.length - 1];
 }
 
 function latestLossPost() {

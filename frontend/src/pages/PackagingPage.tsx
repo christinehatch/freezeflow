@@ -42,6 +42,7 @@ import {
   PackageLabelEditor,
   PlannedPackageRecordAction,
 } from "../components/PackagingWorkspaceActions";
+import { CreatableStorageLocationSelect } from "../components/CreatableStorageLocationSelect";
 import { PackageLabelPreview } from "../components/PackageLabelPreview";
 import {
   ButtonLink,
@@ -3321,22 +3322,22 @@ function SingleBagEntryLoop({
                 }
               />
             </Field>
-            <Field htmlFor="bag-storage-location" label="Storage Location">
-              <Select
-                id="bag-storage-location"
-                options={storageLocations
-                  .filter((location) => location.name !== "Unassigned")
-                  .map((location) => ({
-                    value: location.id,
-                    label: location.name,
-                  }))}
-                placeholder="Unassigned"
-                value={draft.storageLocationId}
-                onChange={(storageLocationId) =>
-                  updateDraft({ storageLocationId })
-                }
-              />
-            </Field>
+            <CreatableStorageLocationSelect
+              id="bag-storage-location"
+              invalidateQueryKey={["storage-locations"]}
+              label="Storage Location"
+              options={storageLocations
+                .filter((location) => location.name !== "Unassigned")
+                .map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                }))}
+              placeholder="Unassigned"
+              value={draft.storageLocationId}
+              onChange={(storageLocationId) =>
+                updateDraft({ storageLocationId })
+              }
+            />
             <Field
               className="single-bag-form__notes"
               htmlFor="bag-notes"

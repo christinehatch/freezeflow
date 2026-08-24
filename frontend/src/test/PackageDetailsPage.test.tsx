@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -210,6 +216,37 @@ describe("PackageDetailsPage", () => {
     );
   });
 
+  it("creates a new Storage Location from the Move to dropdown and selects it immediately", async () => {
+    const user = userEvent.setup();
+    const fetch = baseFetch(makePackage());
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByText("Taco Chicken");
+
+    await user.click(screen.getByRole("combobox", { name: "Move to" }));
+    await user.click(
+      screen.getByRole("option", { name: /New Storage Location/ }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "New Storage Location",
+    });
+    await user.type(within(dialog).getByLabelText("Name"), "Bin 34");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create and select" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "New Storage Location" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("combobox", { name: "Move to" })).toHaveTextContent(
+      "Bin 34",
+    );
+  });
+
   it("surfaces a rejected Move as an inline error", async () => {
     const user = userEvent.setup();
     const fetch = baseFetch(makePackage(), { moveShouldFail: true });
@@ -289,6 +326,7 @@ function baseFetch(
   } = {},
 ) {
   let currentPackage = initialPackage;
+  let storageLocations = STORAGE_LOCATIONS;
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     const url = String(input);
@@ -305,8 +343,19 @@ function baseFetch(
     if (url.endsWith("/api/v1/production-batches/batch-1")) {
       return apiResponse(BATCH);
     }
+    if (url.endsWith("/api/v1/storage-locations") && method === "POST") {
+      const body = JSON.parse(String(init?.body));
+      const created: StorageLocation = {
+        id: "storage-location-new",
+        name: String(body.name),
+        notes: body.notes === null ? null : String(body.notes ?? ""),
+        archived: false,
+      };
+      storageLocations = [...storageLocations, created];
+      return apiResponse(created);
+    }
     if (url.includes("/api/v1/storage-locations")) {
-      return apiResponse(STORAGE_LOCATIONS);
+      return apiResponse(storageLocations);
     }
     if (url.endsWith(`/api/v1/packages/${currentPackage.id}/storage-history`)) {
       return apiResponse([]);

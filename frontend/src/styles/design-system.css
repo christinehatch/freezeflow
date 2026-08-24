@@ -261,6 +261,44 @@
   opacity: 0.48;
 }
 
+.ds-select__option--accent .ds-select__primary {
+  color: var(--ff-color-action-primary);
+  font-weight: var(--ff-font-weight-semibold);
+}
+
+.ds-modal-overlay {
+  align-items: center;
+  background: rgb(15 23 42 / 45%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: var(--ff-space-4);
+  position: fixed;
+  z-index: 100;
+}
+
+.ds-modal {
+  background: var(--ff-color-surface);
+  border-radius: var(--ff-radius-medium);
+  box-shadow: var(--ff-elevation-floating);
+  max-width: 26rem;
+  padding: var(--ff-space-6);
+  width: 100%;
+}
+
+.ds-modal__title {
+  font-size: var(--ff-font-size-section-title);
+  font-weight: var(--ff-font-weight-semibold);
+  margin: 0 0 var(--ff-space-4);
+}
+
+.ds-modal__actions {
+  display: flex;
+  gap: var(--ff-space-2);
+  justify-content: flex-end;
+  margin-top: var(--ff-space-5);
+}
+
 .ds-select__check {
   color: var(--ff-color-action-primary);
   font-size: var(--ff-font-size-supporting);
