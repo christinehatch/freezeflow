@@ -34,7 +34,6 @@ import {
   ProductionBatch,
   RecordPackagingLossRequest,
   StorageLocation,
-  inventoryApi,
   packagingApi,
   productionApi,
 } from "../api/client";
@@ -43,12 +42,11 @@ import {
   PackageLabelEditor,
   PlannedPackageRecordAction,
 } from "../components/PackagingWorkspaceActions";
+import { CreatableStorageLocationSelect } from "../components/CreatableStorageLocationSelect";
 import { PackageLabelPreview } from "../components/PackageLabelPreview";
 import {
-  Button,
   ButtonLink,
   Field,
-  Modal,
   NumberField,
   PageHeader,
   Select,
@@ -79,8 +77,6 @@ import {
   getCurrentPackagingStage,
   getPackagingStagePosition,
 } from "./packagingStages";
-
-const CREATE_NEW_STORAGE_LOCATION = "__create_new_storage_location__";
 
 type PackageLineForm = {
   id: string;
@@ -2721,26 +2717,6 @@ function SingleBagEntryLoop({
   const [editingSavedBagIds, setEditingSavedBagIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [isCreatingStorageLocation, setIsCreatingStorageLocation] =
-    useState(false);
-  const [newLocationDraft, setNewLocationDraft] = useState({
-    name: "",
-    notes: "",
-  });
-  const [newLocationError, setNewLocationError] = useState<string | null>(null);
-  const queryClient = useQueryClient();
-  const createStorageLocationMutation = useMutation({
-    mutationFn: inventoryApi.createStorageLocation,
-    onError: (mutationError) =>
-      setNewLocationError(formatApiError(mutationError)),
-    onSuccess: (created) => {
-      setNewLocationError(null);
-      setIsCreatingStorageLocation(false);
-      setNewLocationDraft({ name: "", notes: "" });
-      updateDraft({ storageLocationId: created.id });
-      void queryClient.invalidateQueries({ queryKey: ["storage-locations"] });
-    },
-  });
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushAutosaveRef = useRef<() => void>(() => {});
   const bagHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -3346,105 +3322,22 @@ function SingleBagEntryLoop({
                 }
               />
             </Field>
-            <Field htmlFor="bag-storage-location" label="Storage Location">
-              <Select
-                id="bag-storage-location"
-                options={[
-                  ...storageLocations
-                    .filter((location) => location.name !== "Unassigned")
-                    .map((location) => ({
-                      value: location.id,
-                      label: location.name,
-                    })),
-                  {
-                    value: CREATE_NEW_STORAGE_LOCATION,
-                    label: "+ New Storage Location…",
-                    accent: true,
-                  },
-                ]}
-                placeholder="Unassigned"
-                value={draft.storageLocationId}
-                onChange={(selected) => {
-                  if (selected === CREATE_NEW_STORAGE_LOCATION) {
-                    setNewLocationError(null);
-                    setIsCreatingStorageLocation(true);
-                    return;
-                  }
-                  updateDraft({ storageLocationId: selected });
-                }}
-              />
-            </Field>
-            {isCreatingStorageLocation ? (
-              <Modal
-                onClose={() => setIsCreatingStorageLocation(false)}
-                title="New Storage Location"
-              >
-                {newLocationError ? (
-                  <p className="mb-3 text-sm text-red-700">
-                    {newLocationError}
-                  </p>
-                ) : null}
-                <div className="space-y-3">
-                  <Field htmlFor="new-storage-location-name" label="Name">
-                    <TextField
-                      id="new-storage-location-name"
-                      placeholder="Bin 34"
-                      value={newLocationDraft.name}
-                      onChange={(event) =>
-                        setNewLocationDraft((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                  <Field
-                    htmlFor="new-storage-location-notes"
-                    label="Notes"
-                    optional
-                  >
-                    <TextField
-                      id="new-storage-location-notes"
-                      placeholder="Basement"
-                      value={newLocationDraft.notes}
-                      onChange={(event) =>
-                        setNewLocationDraft((current) => ({
-                          ...current,
-                          notes: event.target.value,
-                        }))
-                      }
-                    />
-                  </Field>
-                </div>
-                <div className="ds-modal__actions">
-                  <Button
-                    disabled={createStorageLocationMutation.isPending}
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setIsCreatingStorageLocation(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    disabled={
-                      !newLocationDraft.name.trim() ||
-                      createStorageLocationMutation.isPending
-                    }
-                    type="button"
-                    onClick={() =>
-                      createStorageLocationMutation.mutate({
-                        name: newLocationDraft.name.trim(),
-                        notes: newLocationDraft.notes.trim() || null,
-                      })
-                    }
-                  >
-                    {createStorageLocationMutation.isPending
-                      ? "Creating…"
-                      : "Create and select"}
-                  </Button>
-                </div>
-              </Modal>
-            ) : null}
+            <CreatableStorageLocationSelect
+              id="bag-storage-location"
+              invalidateQueryKey={["storage-locations"]}
+              label="Storage Location"
+              options={storageLocations
+                .filter((location) => location.name !== "Unassigned")
+                .map((location) => ({
+                  value: location.id,
+                  label: location.name,
+                }))}
+              placeholder="Unassigned"
+              value={draft.storageLocationId}
+              onChange={(storageLocationId) =>
+                updateDraft({ storageLocationId })
+              }
+            />
             <Field
               className="single-bag-form__notes"
               htmlFor="bag-notes"
