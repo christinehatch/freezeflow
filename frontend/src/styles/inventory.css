@@ -55,6 +55,27 @@
   margin-top: var(--ff-space-1);
 }
 
+.storage-location-card__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-2);
+}
+
+.storage-location-card--editing {
+  display: block;
+}
+
+.storage-location-card--editing .storage-location-form {
+  margin-top: 0;
+  width: 100%;
+}
+
+.storage-location-card__edit-actions {
+  display: flex;
+  gap: var(--ff-space-2);
+}
+
 @media (max-width: 48rem) {
   .storage-location-form {
     grid-template-columns: 1fr;

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Package, ProductGroup, StorageLocation } from "../api/client";
@@ -262,6 +262,39 @@ describe("InventoryPage", () => {
     expect(await screen.findByText("Chicken · 1 Package")).toBeVisible();
     expect(screen.queryByText("Strawberries")).not.toBeInTheDocument();
   });
+
+  it("shows the Storage Location's name and a way back when filtered by bin, such as from View Contents", async () => {
+    const user = userEvent.setup();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/v1/storage-locations")) {
+        return apiResponse(STORAGE_LOCATIONS);
+      }
+      if (url.endsWith("/api/v1/inventory/products")) {
+        return apiResponse(PRODUCT_GROUPS);
+      }
+      if (
+        url.includes("/api/v1/inventory?") &&
+        url.includes("storage_location_id=bin-a")
+      ) {
+        return apiResponse([makePackage()]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage(["/inventory?location=bin-a"]);
+
+    expect(await screen.findByText("Bin A · 1 Package")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "← Back to Storage Locations" }),
+    );
+
+    expect(
+      await screen.findByText("Destination: /inventory/storage-locations"),
+    ).toBeVisible();
+  });
 });
 
 function renderPage(initialEntries: string[] = ["/inventory"]) {
@@ -271,10 +304,21 @@ function renderPage(initialEntries: string[] = ["/inventory"]) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
-        <InventoryPage />
+        <Routes>
+          <Route element={<InventoryPage />} path="/inventory" />
+          <Route
+            element={<DestinationProbe />}
+            path="/inventory/storage-locations"
+          />
+        </Routes>
       </QueryClientProvider>
     </MemoryRouter>,
   );
+}
+
+function DestinationProbe() {
+  const location = useLocation();
+  return <div>Destination: {location.pathname}</div>;
 }
 
 function apiResponse(data: unknown, status = 200) {

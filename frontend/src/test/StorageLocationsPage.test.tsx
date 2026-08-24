@@ -139,6 +139,142 @@ describe("StorageLocationsPage", () => {
     ).toBeVisible();
   });
 
+  it("edits a Storage Location's name and notes, and links to its filtered Inventory view", async () => {
+    const user = userEvent.setup();
+    let storageLocations: StorageLocation[] = [
+      {
+        id: "bin-1",
+        name: "Garage Freezer",
+        notes: "Cool and dry",
+        archived: false,
+      },
+    ];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        const url = String(input);
+        if (
+          url.endsWith("/api/v1/storage-locations?include_archived=true") &&
+          method === "GET"
+        ) {
+          return apiResponse(storageLocations);
+        }
+        if (
+          url.endsWith("/api/v1/storage-locations/bin-1") &&
+          method === "PATCH"
+        ) {
+          const body = JSON.parse(String(init?.body));
+          storageLocations = storageLocations.map((location) =>
+            location.id === "bin-1" ? { ...location, ...body } : location,
+          );
+          return apiResponse(storageLocations[0]);
+        }
+        throw new Error(`Unexpected request: ${method} ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Garage Freezer" });
+
+    const card = screen
+      .getByRole("heading", { name: "Garage Freezer" })
+      .closest(".storage-location-card") as HTMLElement;
+    expect(
+      within(card).getByRole("link", { name: "View Contents" }),
+    ).toHaveAttribute("href", "/inventory?location=bin-1");
+
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
+
+    const nameInput = within(card).getByLabelText("Name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Chest Freezer");
+    const notesInput = within(card).getByLabelText("Notes");
+    await user.clear(notesInput);
+    await user.type(notesInput, "Moved to the garage corner");
+    await user.click(within(card).getByRole("button", { name: "Save" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Chest Freezer" }),
+    ).toBeVisible();
+    expect(screen.getByText("Moved to the garage corner")).toBeVisible();
+    const patchCall = fetch.mock.calls.find(
+      ([requestInput, requestInit]) =>
+        String(requestInput).endsWith("/api/v1/storage-locations/bin-1") &&
+        requestInit?.method === "PATCH",
+    );
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
+      name: "Chest Freezer",
+      notes: "Moved to the garage corner",
+    });
+  });
+
+  it("edits Unassigned's notes without sending a rename", async () => {
+    const user = userEvent.setup();
+    let storageLocations: StorageLocation[] = [
+      {
+        id: "unassigned-1",
+        name: "Unassigned",
+        notes: null,
+        archived: false,
+      },
+    ];
+    const fetch = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        const url = String(input);
+        if (
+          url.endsWith("/api/v1/storage-locations?include_archived=true") &&
+          method === "GET"
+        ) {
+          return apiResponse(storageLocations);
+        }
+        if (
+          url.endsWith("/api/v1/storage-locations/unassigned-1") &&
+          method === "PATCH"
+        ) {
+          const body = JSON.parse(String(init?.body));
+          storageLocations = storageLocations.map((location) =>
+            location.id === "unassigned-1"
+              ? { ...location, ...body }
+              : location,
+          );
+          return apiResponse(storageLocations[0]);
+        }
+        throw new Error(`Unexpected request: ${method} ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Unassigned" });
+
+    const card = screen
+      .getByRole("heading", { name: "Unassigned" })
+      .closest(".storage-location-card") as HTMLElement;
+    await user.click(within(card).getByRole("button", { name: "Edit" }));
+
+    expect(within(card).getByLabelText("Name")).toBeDisabled();
+    await user.type(
+      within(card).getByLabelText("Notes"),
+      "Default fallback bin",
+    );
+    await user.click(within(card).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Default fallback bin")).toBeVisible();
+    });
+    const patchCall = fetch.mock.calls.find(
+      ([requestInput, requestInit]) =>
+        String(requestInput).endsWith(
+          "/api/v1/storage-locations/unassigned-1",
+        ) && requestInit?.method === "PATCH",
+    );
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual({
+      notes: "Default fallback bin",
+    });
+  });
+
   it("shows structured backend validation and clears it after a successful retry", async () => {
     const user = userEvent.setup();
     let rejectCreate = true;
