@@ -110,12 +110,13 @@ export function StorageLocationsPage() {
 
   return (
     <div className="storage-locations-page">
+      <nav>
+        <button className="quiet-action -ml-3" type="button" onClick={goBack}>
+          &larr; Back
+        </button>
+      </nav>
+
       <PageHeader
-        action={
-          <Button variant="secondary" onClick={goBack}>
-            &larr; Back
-          </Button>
-        }
         description="Manage the physical places Packages are stored without interrupting active Inventory work."
         eyebrow="Inventory setup"
         title="Storage Locations"
