@@ -9,6 +9,7 @@ from app.api.freeze_dryers import (
 from app.api.health import router as health_router
 from app.api.inventory import router as inventory_router
 from app.api.packaging import router as packaging_router
+from app.api.preparation_presets import router as preparation_presets_router
 from app.api.production import router as production_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -18,3 +19,4 @@ api_router.include_router(physical_trays_router)
 api_router.include_router(production_router)
 api_router.include_router(packaging_router)
 api_router.include_router(inventory_router)
+api_router.include_router(preparation_presets_router)
