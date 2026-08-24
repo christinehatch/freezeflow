@@ -118,6 +118,13 @@ describe("InventoryPage", () => {
     ).toBeVisible();
     expect(screen.getByText("PKG-2026-000002", { exact: false })).toBeVisible();
     expect(screen.getByText("Chicken · 2 Packages")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "← Back to Products" }),
+    );
+
+    expect(await screen.findByText("Strawberries")).toBeVisible();
+    expect(screen.queryByText("Chicken · 2 Packages")).not.toBeInTheDocument();
   });
 
   it("switches to a flat Package list when searching, and back to groups when cleared", async () => {

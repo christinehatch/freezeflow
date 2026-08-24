@@ -161,6 +161,9 @@ export function InventoryPage() {
         />
       ) : (
         <SearchResultsView
+          onBackToProducts={
+            productNameFilter ? () => updateParams({ product: null }) : null
+          }
           productNameFilter={productNameFilter}
           query={searchResultsQuery}
         />
@@ -222,9 +225,11 @@ function ProductGroupsView({
 }
 
 function SearchResultsView({
+  onBackToProducts,
   productNameFilter,
   query,
 }: {
+  onBackToProducts: (() => void) | null;
   productNameFilter: string | null;
   query: UseQueryResult<Package[]>;
 }) {
@@ -232,13 +237,24 @@ function SearchResultsView({
   return (
     <section aria-labelledby="inventory-search-results">
       {productNameFilter ? (
-        <p
-          className="text-sm font-semibold text-slate-700"
-          id="inventory-search-results"
-        >
-          {productNameFilter} · {results.length} Package
-          {results.length === 1 ? "" : "s"}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {onBackToProducts ? (
+            <button
+              className="quiet-action"
+              type="button"
+              onClick={onBackToProducts}
+            >
+              &larr; Back to Products
+            </button>
+          ) : null}
+          <p
+            className="text-sm font-semibold text-slate-700"
+            id="inventory-search-results"
+          >
+            {productNameFilter} · {results.length} Package
+            {results.length === 1 ? "" : "s"}
+          </p>
+        </div>
       ) : (
         <h3 className="sr-only" id="inventory-search-results">
           Matching Packages
