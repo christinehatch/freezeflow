@@ -456,6 +456,75 @@ export type LegacyPackageTraysRequest = {
 
 export type DecimalValue = string | number;
 
+export type ReportFilters = {
+  dateFrom?: string;
+  dateTo?: string;
+  freezeDryerId?: string;
+  productName?: string;
+  preparationPresetId?: string;
+  productionBatchId?: string;
+};
+
+export type FreezeDryerPerformanceRow = {
+  freeze_dryer_id: string;
+  freeze_dryer_name: string;
+  completed_production_batch_count: number;
+  average_dry_time_seconds: number | null;
+  average_weight_loss_percent: DecimalValue | null;
+  average_time_to_completion_seconds: number | null;
+};
+
+export type ProductHistoryRow = {
+  product_name: string;
+  times_produced: number;
+  average_drying_time_seconds: number | null;
+  average_yield_percent: DecimalValue | null;
+  last_batch_completed_at: string | null;
+};
+
+export type PreparationHistoryRow = {
+  preparation_preset_name: string;
+  used_preset: boolean;
+  times_used: number;
+  average_drying_time_seconds: number | null;
+  average_yield_percent: DecimalValue | null;
+  last_used_completed_at: string | null;
+};
+
+export type DryingTimeRow = {
+  production_batch_id: string;
+  batch_number: string;
+  freeze_dryer_name: string;
+  completed_at: string;
+  total_drying_time_seconds: number;
+  drying_run_count: number;
+  voided_drying_run_count: number;
+};
+
+export type ProductionHistoryRow = {
+  production_batch_id: string;
+  batch_number: string;
+  freeze_dryer_name: string;
+  completed_at: string;
+  tray_count: number;
+  products: string[];
+  total_drying_time_seconds: number;
+};
+
+export type MostCommonProduct = {
+  product_name: string;
+  package_count: number;
+};
+
+export type InventorySummary = {
+  packages_in_storage: number;
+  packages_given_away: number;
+  packages_depleted: number;
+  total_packaged_weight_grams: DecimalValue;
+  total_dried_weight_grams: DecimalValue;
+  most_common_products: MostCommonProduct[];
+};
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string | null;
@@ -920,6 +989,49 @@ export const preparationPresetsApi = {
     apiPost<PreparationPreset>(`/preparation-presets/${id}/restore`),
   getSuggestions: (field: "ingredients" | "preparation_methods") =>
     apiGet<string[]>(`/preparation-presets/suggestions?field=${field}`),
+};
+
+function buildReportQuery(filters: ReportFilters = {}): string {
+  const search = new URLSearchParams();
+  if (filters.dateFrom) search.set("date_from", filters.dateFrom);
+  if (filters.dateTo) search.set("date_to", filters.dateTo);
+  if (filters.freezeDryerId)
+    search.set("freeze_dryer_id", filters.freezeDryerId);
+  if (filters.productName) search.set("product_name", filters.productName);
+  if (filters.preparationPresetId) {
+    search.set("preparation_preset_id", filters.preparationPresetId);
+  }
+  if (filters.productionBatchId) {
+    search.set("production_batch_id", filters.productionBatchId);
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
+export const reportsApi = {
+  getFreezeDryerPerformance: (filters?: ReportFilters) =>
+    apiGet<FreezeDryerPerformanceRow[]>(
+      `/reports/freeze-dryer-performance${buildReportQuery(filters)}`,
+    ),
+  getProductHistory: (filters?: ReportFilters) =>
+    apiGet<ProductHistoryRow[]>(
+      `/reports/product-history${buildReportQuery(filters)}`,
+    ),
+  getPreparationHistory: (filters?: ReportFilters) =>
+    apiGet<PreparationHistoryRow[]>(
+      `/reports/preparation-history${buildReportQuery(filters)}`,
+    ),
+  getDryingTime: (filters?: ReportFilters) =>
+    apiGet<DryingTimeRow[]>(`/reports/drying-time${buildReportQuery(filters)}`),
+  getProductionHistory: (filters?: ReportFilters) =>
+    apiGet<ProductionHistoryRow[]>(
+      `/reports/production-history${buildReportQuery(filters)}`,
+    ),
+  getInventorySummary: (filters?: ReportFilters) =>
+    apiGet<InventorySummary>(
+      `/reports/inventory-summary${buildReportQuery(filters)}`,
+    ),
+  listProductNames: () => apiGet<string[]>("/reports/product-names"),
 };
 
 async function packageTraysThroughWorkflow(
