@@ -460,6 +460,216 @@ describe("ReportsPage", () => {
       screen.getByRole("combobox", { name: "Freeze Dryer" }),
     ).toHaveTextContent("Black");
   });
+
+  it("expands a Freeze Dryer Performance card to show its Drying Time detail", async () => {
+    const user = userEvent.setup();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const dropdown = dropdownResponse(url);
+      if (dropdown) return dropdown;
+      if (url.pathname.endsWith("/reports/freeze-dryer-performance")) {
+        return apiResponse(FREEZE_DRYER_PERFORMANCE_ROWS);
+      }
+      if (
+        url.pathname.endsWith("/reports/drying-time") &&
+        url.searchParams.get("freeze_dryer_id") === "fd-black"
+      ) {
+        return apiResponse(DRYING_TIME_ROWS);
+      }
+      throw new Error(`Unexpected request: ${url.toString()}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Black" });
+
+    await user.click(screen.getByText("Show Drying Time detail"));
+
+    expect(await screen.findByText("Batch 001")).toBeVisible();
+  });
+
+  it("expands a Product History row to its Production History detail, and re-expanding after collapse doesn't refetch", async () => {
+    const user = userEvent.setup();
+    let detailFetchCount = 0;
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const dropdown = dropdownResponse(url);
+      if (dropdown) return dropdown;
+      if (url.pathname.endsWith("/reports/freeze-dryer-performance")) {
+        return apiResponse([]);
+      }
+      if (url.pathname.endsWith("/reports/product-history")) {
+        return apiResponse(PRODUCT_HISTORY_ROWS);
+      }
+      if (
+        url.pathname.endsWith("/reports/production-history") &&
+        url.searchParams.get("product_name") === "Chicken"
+      ) {
+        detailFetchCount += 1;
+        return apiResponse(PRODUCTION_HISTORY_ROWS);
+      }
+      throw new Error(`Unexpected request: ${url.toString()}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByText("No production history is available yet.");
+    await selectReportType(user, "Product History");
+    await screen.findByText("Chicken");
+
+    await user.click(screen.getByRole("button", { name: "Chicken" }));
+    expect(await screen.findByText("Batch 001")).toBeVisible();
+    expect(detailFetchCount).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "Chicken" }));
+    expect(screen.queryByText("Batch 001")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Chicken" }));
+    expect(await screen.findByText("Batch 001")).toBeVisible();
+    expect(detailFetchCount).toBe(1);
+  });
+
+  it("Preparation History's No Preset row has no expand control, and a real Preset row expands by its snapshot name", async () => {
+    const user = userEvent.setup();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const dropdown = dropdownResponse(url);
+      if (dropdown) return dropdown;
+      if (url.pathname.endsWith("/reports/freeze-dryer-performance")) {
+        return apiResponse([]);
+      }
+      if (url.pathname.endsWith("/reports/preparation-history")) {
+        return apiResponse(PREPARATION_HISTORY_ROWS);
+      }
+      if (
+        url.pathname.endsWith("/reports/production-history") &&
+        url.searchParams.get("preparation_preset_name") === "Sliced Chicken"
+      ) {
+        return apiResponse(PRODUCTION_HISTORY_ROWS);
+      }
+      throw new Error(`Unexpected request: ${url.toString()}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByText("No production history is available yet.");
+    await selectReportType(user, "Preparation History");
+    await screen.findByText("Sliced Chicken");
+
+    expect(
+      screen.queryByRole("button", { name: "No Preset" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sliced Chicken" }));
+    expect(await screen.findByText("Batch 001")).toBeVisible();
+  });
+
+  it("allows two Production History rows to be expanded simultaneously", async () => {
+    const user = userEvent.setup();
+    const twoRows = [
+      PRODUCTION_HISTORY_ROWS[0],
+      {
+        production_batch_id: "batch-2",
+        batch_number: "Batch 002",
+        freeze_dryer_name: "White",
+        completed_at: "2026-08-21T00:00:00Z",
+        tray_count: 1,
+        products: ["Apples"],
+        total_drying_time_seconds: 21600,
+      },
+    ];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const dropdown = dropdownResponse(url);
+      if (dropdown) return dropdown;
+      if (url.pathname.endsWith("/reports/freeze-dryer-performance")) {
+        return apiResponse([]);
+      }
+      if (url.pathname.endsWith("/reports/production-history")) {
+        return apiResponse(twoRows);
+      }
+      if (url.pathname.endsWith("/production-batches/batch-1")) {
+        return apiResponse({
+          id: "batch-1",
+          trays: [
+            {
+              id: "tray-1",
+              product_name: "Chicken",
+              starting_weight_grams: "1000.000",
+              final_dry_weight_grams: "250.000",
+              status: "Completed",
+            },
+          ],
+        });
+      }
+      if (url.pathname.endsWith("/production-batches/batch-2")) {
+        return apiResponse({
+          id: "batch-2",
+          trays: [
+            {
+              id: "tray-2",
+              product_name: "Apples",
+              starting_weight_grams: "500.000",
+              final_dry_weight_grams: "100.000",
+              status: "Completed",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected request: ${url.toString()}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByText("No production history is available yet.");
+    await selectReportType(user, "Production History");
+    await screen.findByText("Batch 001");
+
+    await user.click(screen.getByRole("button", { name: "Batch 001" }));
+    await user.click(screen.getByRole("button", { name: "Batch 002" }));
+
+    expect(await screen.findAllByText("Starting Weight")).toHaveLength(2);
+  });
+
+  it("expands an Inventory Summary Most Common Products row to its current Packages", async () => {
+    const user = userEvent.setup();
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      const dropdown = dropdownResponse(url);
+      if (dropdown) return dropdown;
+      if (url.pathname.endsWith("/reports/freeze-dryer-performance")) {
+        return apiResponse([]);
+      }
+      if (url.pathname.endsWith("/reports/inventory-summary")) {
+        return apiResponse(INVENTORY_SUMMARY);
+      }
+      if (
+        url.pathname.endsWith("/inventory") &&
+        url.searchParams.get("product_name") === "Chicken"
+      ) {
+        return apiResponse([
+          {
+            id: "package-1",
+            package_identifier: "PKG-2026-000001",
+            finished_product_weight_grams: "240.000",
+            packaged_at: "2026-08-20T00:00:00Z",
+            status: "In Storage",
+          },
+        ]);
+      }
+      throw new Error(`Unexpected request: ${url.toString()}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByText("No production history is available yet.");
+    await selectReportType(user, "Inventory Summary");
+    await screen.findByText("Chicken");
+
+    await user.click(screen.getByRole("button", { name: "Chicken" }));
+
+    expect(await screen.findByText("PKG-2026-000001")).toBeVisible();
+  });
 });
 
 async function selectReportType(
