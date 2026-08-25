@@ -1218,35 +1218,255 @@ PATCH /api/freeze-dryers/{id}
 
 # Reporting Endpoints
 
-## Production Summary
+Reporting endpoints are read-only, derived views over historical production
+data (ADR-0019). No report result is ever cached or persisted; every request
+recomputes its answer directly from current historical records at query
+time. Reports never become the source of truth, and editing a Preparation
+Preset must never change a report that already reflects Trays created from
+it — reports read each Tray's immutable Preparation Metadata snapshot
+(`product_name`, `ingredients`, `preparation_methods`,
+`preparation_preset_name_at_use`), never a live join to the current
+Preparation Preset row.
 
-```http
-GET /api/reports/production
-```
+Unless noted otherwise, every report scopes to completed production history:
+Production Batches only contribute when `status` is `Completed`; Trays only
+contribute when `status` is `Completed` or `Packaged`. Draft, Running, and
+Cancelled Batches and Trays are excluded everywhere except Inventory
+Summary, which includes Packages of every status.
 
----
+## Common Filters
+
+Every report endpoint accepts whichever subset of the following query
+parameters is listed under it; parameters that don't apply to a given
+report are ignored rather than rejected as an error.
+
+* `date_from`, `date_to` — inclusive UTC date-range bounds. Applied to
+  `completed_at` for Production Batch-level and Tray-level reports, and to
+  `packaged_at` for Inventory Summary.
+* `freeze_dryer_id` — restrict to one Freeze Dryer.
+* `product_name` — restrict to one Product (exact match against the Tray's
+  immutable `product_name`).
+* `preparation_preset_id` — restrict to one Preparation Preset.
+* `production_batch_id` — restrict to one Production Batch.
+
+An unrecognized id (a non-existent `freeze_dryer_id`, `preparation_preset_id`,
+or `production_batch_id`) is treated identically to "no matching data" and
+returns an empty result, not a 404 — consistent with how Inventory search
+behaves.
 
 ## Freeze Dryer Performance
 
 ```http
-GET /api/reports/freeze-dryers
+GET /api/v1/reports/freeze-dryer-performance
 ```
 
----
+Applicable filters: `date_from`, `date_to`, `freeze_dryer_id`.
 
-## Product Statistics
+One entry per Freeze Dryer with at least one contributing Completed
+Production Batch in range — a Freeze Dryer with none is omitted entirely,
+not returned with zeroed fields.
+
+```json
+[
+  {
+    "freeze_dryer_id": "freeze-dryer-1",
+    "freeze_dryer_name": "Black",
+    "completed_production_batch_count": 82,
+    "average_dry_time_seconds": 152280,
+    "average_weight_loss_percent": 76.4,
+    "average_time_to_completion_seconds": 165600
+  }
+]
+```
+
+* `average_dry_time_seconds` is the average, across contributing Batches, of
+  each Batch's own total drying time (the sum of its non-voided Drying Run
+  durations). It is averaged at the Batch level, not weighted by how many
+  Trays a Batch contained — a 100-Tray Batch and a 10-Tray Batch each
+  contribute one value to the average.
+* `average_time_to_completion_seconds` is wall-clock `completed_at -
+  started_at`, averaged the same way. It is computed and named separately
+  from `average_dry_time_seconds` per business rule DR-012: Production
+  Batch wall-clock duration must never be reported as drying time.
+* `average_weight_loss_percent` is Tray-level
+  (`(starting_weight_grams - final_dry_weight_grams) / starting_weight_grams`),
+  averaged across every qualifying Tray in that Freeze Dryer's contributing
+  Batches. Trays missing `starting_weight_grams` are excluded from this
+  average; if every contributing Tray lacks it, the field is `null`, not `0`.
+
+## Product History
 
 ```http
-GET /api/reports/products
+GET /api/v1/reports/product-history
 ```
 
----
+Applicable filters: `date_from`, `date_to`, `product_name`.
+
+One entry per distinct `product_name` with at least one qualifying Tray.
+
+```json
+[
+  {
+    "product_name": "Chicken",
+    "times_produced": 14,
+    "average_drying_time_seconds": 148200,
+    "average_yield_percent": 27.8,
+    "last_batch_completed_at": "2026-07-18T00:45:00Z"
+  }
+]
+```
+
+* `average_drying_time_seconds` averages the total drying time of every
+  Production Batch that included at least one Tray of this Product. A Batch
+  that dried two different Products simultaneously contributes its one
+  shared duration to both Products' averages — a deliberate, documented
+  choice, not accidental double-counting, since a mixed Batch genuinely has
+  one shared duration.
+* `average_yield_percent` is `final_dry_weight_grams / starting_weight_grams`
+  per Tray, averaged. Trays with a null or zero `starting_weight_grams` are
+  excluded from the average, not treated as zero yield.
+
+## Preparation History
+
+```http
+GET /api/v1/reports/preparation-history
+```
+
+Applicable filters: `date_from`, `date_to`, `preparation_preset_id`.
+
+Same shape as Product History, grouped by `preparation_preset_name_at_use`
+instead of `product_name`:
+
+```json
+[
+  {
+    "preparation_preset_name": "Sliced Chicken Tacos",
+    "used_preset": true,
+    "times_used": 9,
+    "average_drying_time_seconds": 151200,
+    "average_yield_percent": 28.1,
+    "last_used_completed_at": "2026-07-12T00:30:00Z"
+  },
+  {
+    "preparation_preset_name": "No Preset",
+    "used_preset": false,
+    "times_used": 5,
+    "average_drying_time_seconds": 144000,
+    "average_yield_percent": 26.9,
+    "last_used_completed_at": "2026-07-15T00:15:00Z"
+  }
+]
+```
+
+Trays with no Preparation Preset (free-typed Ingredients/Preparation
+Methods, per ADR-0013's Core Principle) are grouped into their own row
+rather than excluded — a user who mostly enters Preparation Metadata inline
+would otherwise be invisible in this report. That row is distinguished by
+`used_preset: false`, never by matching the display label against a literal
+string, since a real Preparation Preset could itself be named "No Preset."
+
+## Drying Time
+
+```http
+GET /api/v1/reports/drying-time
+```
+
+Applicable filters: `date_from`, `date_to`, `freeze_dryer_id`,
+`production_batch_id`.
+
+One entry per Completed Production Batch — the Batch-level detail that
+Freeze Dryer Performance's per-machine averages roll up from.
+
+```json
+[
+  {
+    "production_batch_id": "batch-42",
+    "batch_number": "Batch 042",
+    "freeze_dryer_name": "Black",
+    "completed_at": "2026-07-18T00:45:00Z",
+    "total_drying_time_seconds": 151200,
+    "drying_run_count": 2,
+    "voided_drying_run_count": 1
+  }
+]
+```
+
+## Production History
+
+```http
+GET /api/v1/reports/production-history
+```
+
+Applicable filters: `date_from`, `date_to`, `freeze_dryer_id`,
+`product_name`, `preparation_preset_id`, `production_batch_id`.
+
+The general-purpose historical browse view — one entry per Completed
+Production Batch, supporting every filter. Replaces the earlier unversioned
+`/api/reports/production` stub, which predated this milestone's full report
+set and was never implemented against.
+
+```json
+[
+  {
+    "production_batch_id": "batch-42",
+    "batch_number": "Batch 042",
+    "freeze_dryer_name": "Black",
+    "completed_at": "2026-07-18T00:45:00Z",
+    "tray_count": 4,
+    "products": ["Chicken", "Apples"],
+    "total_drying_time_seconds": 151200
+  }
+]
+```
 
 ## Inventory Summary
 
 ```http
-GET /api/reports/inventory
+GET /api/v1/reports/inventory-summary
 ```
+
+Applicable filters: `date_from`, `date_to`, `product_name`.
+
+A single object, not a list — the only report scoped to Packages of every
+Inventory Status rather than only completed production, since "how much
+inventory have I produced" includes Packages that have since left storage.
+
+```json
+{
+  "packages_in_storage": 42,
+  "packages_given_away": 11,
+  "packages_depleted": 30,
+  "total_packaged_weight_grams": 123400,
+  "total_dried_weight_grams": 118900,
+  "most_common_products": [
+    { "product_name": "Chicken", "package_count": 21 },
+    { "product_name": "Strawberries", "package_count": 14 }
+  ]
+}
+```
+
+* `total_packaged_weight_grams` sums `finished_product_weight_grams` across
+  every Package ever created, any status. `total_dried_weight_grams` sums
+  `final_dry_weight_grams` across every qualifying Tray. **These two figures
+  are intentionally not expected to match** — the gap represents dried
+  product not yet packaged plus ordinary packaging weight differences, not
+  an error.
+
+## Product Names
+
+```http
+GET /api/v1/reports/product-names
+```
+
+Returns the distinct set of `product_name` values across qualifying Trays,
+used to populate the Product filter's options. There is no `Product` entity
+in the persistence model — `product_name` is a free-text column on both Tray
+and Preparation Preset, with no normalization or uniqueness enforcement (a
+Tray entered as "Chicken" and one entered as "chicken" are distinct values
+here — a known, pre-existing limitation this milestone does not fix). The
+Freeze Dryer, Preparation Preset, and Production Batch filters reuse the
+existing `GET /freeze-dryers`, `GET /preparation-presets`, and
+`GET /production-batches` list endpoints instead of a dedicated lookup.
 
 ---
 

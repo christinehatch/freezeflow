@@ -93,29 +93,18 @@ Completed Batches
 95
 
 ------------------------------------------------------------------------------
-
-Charts
-
-Dry Time Comparison
-
-###########
-
-#########
-
-Weight Loss Comparison
-
-##########
-
-##########
-
-------------------------------------------------------------------------------
-
-Notes
-
-Freeze Dryer #2 averages approximately 2.5 fewer drying hours than Freeze Dryer #1.
-
-------------------------------------------------------------------------------
 ```
+
+Version 1 renders the Summary section above as stat blocks and, for
+row-shaped reports, plain sortable tables — it does not render charts or an
+auto-generated comparison sentence. An earlier draft of this mockup showed a
+"Charts" section and a "Notes" section with a generated comparison sentence;
+both are removed here because they belong to "Future Enhancements" below
+("Interactive charts"), not Version 1, and no charting library exists in the
+frontend today. Leaving them in this mockup while also listing charts under
+Future Enhancements was a direct self-contradiction in this document — see
+`docs/implementation/07-milestone-7.md`'s Open Decisions for the record of
+this resolution.
 
 ---
 
@@ -144,7 +133,22 @@ Reports should support:
 * Preparation Preset
 * Production Batch
 
-Only filters relevant to the selected report should be displayed.
+Only filters relevant to the selected report should be displayed. The
+applicable filters per report:
+
+| Report | Date Range | Freeze Dryer | Product | Preparation Preset | Production Batch |
+| --- | --- | --- | --- | --- | --- |
+| Freeze Dryer Performance | yes | yes | | | |
+| Product History | yes | | yes | | |
+| Preparation History | yes | | | yes | |
+| Drying Time | yes | yes | | | yes |
+| Production History | yes | yes | yes | yes | yes |
+| Inventory Summary | yes | | yes | | |
+
+A report's own grouping dimension is never offered as a filter on itself in
+a way that would collide with it (for example, Freeze Dryer Performance
+already groups by Freeze Dryer, so a Preparation Preset filter there has no
+coherent meaning and is intentionally omitted).
 
 ---
 
@@ -176,6 +180,60 @@ Yield analysis belongs in Reporting (Milestone 7).
 
 Milestone 3 records the underlying weights.
 
+Average Drying Time is the average, across every Production Batch that
+included this Product, of that Batch's own total drying time. A Batch that
+dried more than one Product at once contributes its one shared duration to
+every Product it contained — this is expected, not a counting error.
+
+---
+
+# Preparation History
+
+Users should be able to answer:
+
+* Which Preparation Presets have I used most often?
+* What is the average drying time and yield for this Preparation Preset?
+* When did I last use this Preparation Preset?
+
+Preparation History mirrors Product History, grouped by Preparation Preset
+instead of Product. Trays created without a Preparation Preset — a fully
+supported, equally first-class workflow since Milestone 6 — are not
+excluded from this report. They appear as their own row rather than
+disappearing, so a user who mostly enters Ingredients and Preparation
+Methods inline still sees a complete picture.
+
+Because renaming a Preparation Preset must never change historical reports
+(see Historical Accuracy below), each Preparation Preset row is keyed by
+the immutable name each Tray recorded at the time it was created, not by a
+live lookup of the Preset's current name.
+
+---
+
+# Drying Time
+
+Users should be able to answer:
+
+* How long did this specific Production Batch take to dry?
+* How many Drying Runs did it take, and were any voided?
+
+Drying Time lists individual Production Batches with their computed Total
+Drying Time (the sum of non-voided Drying Run durations), Freeze Dryer, and
+completion date. It is the Batch-level detail that Freeze Dryer
+Performance's per-machine averages are built from.
+
+---
+
+# Production History
+
+Users should be able to answer:
+
+* What has this Freeze Dryer produced recently?
+* What did a specific Production Batch contain?
+
+Production History is a filterable historical log, one row per completed
+Production Batch, supporting every available filter. It is the
+general-purpose browse view underlying the other, more aggregated reports.
+
 ---
 
 # Inventory Summary
@@ -183,9 +241,16 @@ Milestone 3 records the underlying weights.
 Display:
 
 * Packages currently in storage
+* Packages Given Away
 * Packages depleted
 * Most common products
 * Total production
+
+Total production is shown as two distinct figures — total packaged weight
+and total dried weight — rather than one combined number. These are
+intentionally not expected to match: some dried product may not yet be
+packaged, and packaging introduces its own weight differences. Showing one
+merged number would hide that gap instead of explaining it.
 
 This report provides a high-level overview rather than detailed inventory management.
 
@@ -246,7 +311,8 @@ If report generation fails:
 # Mobile Considerations
 
 * Stack report sections vertically.
-* Collapse charts when appropriate.
+* Allow row-shaped report tables to scroll horizontally rather than
+  compressing columns illegibly.
 * Prioritize summary metrics over detailed tables.
 
 ---
