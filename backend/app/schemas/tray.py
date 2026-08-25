@@ -11,9 +11,10 @@ from app.schemas.base import ReadSchema
 class TrayCreate(BaseModel):
     tray_slot_id: UUID
     physical_tray_id: UUID
-    recipe_id: UUID | None = None
+    preparation_preset_id: UUID | None = None
     product_name: str | None = None
-    preparation: str | None = None
+    ingredients: list[str] | None = None
+    preparation_methods: list[str] | None = None
     starting_weight_grams: Decimal | None = None
     notes: str | None = None
 
@@ -22,7 +23,8 @@ class TrayUpdate(BaseModel):
     tray_slot_id: UUID | None = None
     physical_tray_id: UUID | None = None
     product_name: str | None = None
-    preparation: str | None = None
+    ingredients: list[str] | None = None
+    preparation_methods: list[str] | None = None
     starting_weight_grams: Decimal | None = None
     notes: str | None = None
 
@@ -40,9 +42,13 @@ class TrayRead(ReadSchema):
     production_batch_id: UUID
     tray_slot_id: UUID
     physical_tray_id: UUID
-    recipe_id: UUID | None = None
+    preparation_preset_id: UUID | None = None
+    preparation_preset_name_at_use: str | None = None
     product_name: str
-    preparation: str
+    ingredients: list[str] | None = None
+    preparation_methods: list[str] | None = None
+    # Legacy freeform fallback, only populated on pre-Milestone-6 Trays.
+    preparation: str | None = None
     starting_weight_grams: Decimal | None = None
     final_dry_weight_grams: Decimal | None = None
     completed_at: datetime | None = None

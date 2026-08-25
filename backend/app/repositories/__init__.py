@@ -16,8 +16,8 @@ from app.repositories.packaging_operations import (
     planned_package_row_repository,
 )
 from app.repositories.physical_trays import physical_tray_repository
+from app.repositories.preparation_presets import preparation_preset_repository
 from app.repositories.production_batches import production_batch_repository
-from app.repositories.recipes import recipe_repository
 from app.repositories.storage_locations import (
     storage_location_history_repository,
     storage_location_repository,
@@ -41,8 +41,8 @@ __all__ = [
     "planned_package_row_repository",
     "print_event_repository",
     "physical_tray_repository",
+    "preparation_preset_repository",
     "production_batch_repository",
-    "recipe_repository",
     "storage_location_history_repository",
     "storage_location_repository",
     "tray_slot_repository",

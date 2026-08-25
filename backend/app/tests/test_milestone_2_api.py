@@ -46,7 +46,7 @@ def _add_tray(
             "tray_slot_id": tray_slot_id,
             "physical_tray_id": physical_tray_id,
             "product_name": product_name,
-            "preparation": "Cubed and seasoned.",
+            "preparation_methods": ["Cubed and seasoned."],
             "notes": "same as above",
         },
     )
@@ -153,7 +153,7 @@ def test_tray_slot_is_unique_within_batch(client: TestClient) -> None:
             "tray_slot_id": tray_slot_id,
             "physical_tray_id": physical_tray_2["id"],
             "product_name": "Strawberries",
-            "preparation": "Washed, hulled, sliced.",
+            "preparation_methods": ["Washed, hulled, sliced."],
         },
     )
 
@@ -178,7 +178,7 @@ def test_physical_tray_is_unique_within_batch(client: TestClient) -> None:
             "tray_slot_id": freeze_dryer["tray_slots"][1]["id"],
             "physical_tray_id": physical_tray["id"],
             "product_name": "Blueberries",
-            "preparation": "Halved.",
+            "preparation_methods": ["Halved."],
         },
     )
 
@@ -206,7 +206,7 @@ def test_physical_tray_cannot_be_used_in_another_draft_batch(
             "tray_slot_id": freeze_dryer["tray_slots"][1]["id"],
             "physical_tray_id": physical_tray["id"],
             "product_name": "Blueberries",
-            "preparation": "Halved.",
+            "preparation_methods": ["Halved."],
         },
     )
 
@@ -234,7 +234,7 @@ def test_selected_trays_cannot_exceed_freeze_dryer_slot_count(
             "tray_slot_id": freeze_dryer["tray_slots"][0]["id"],
             "physical_tray_id": physical_tray_2["id"],
             "product_name": "Blueberries",
-            "preparation": "Halved.",
+            "preparation_methods": ["Halved."],
         },
     )
 

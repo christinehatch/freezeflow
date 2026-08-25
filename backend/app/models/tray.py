@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     Enum,
     ForeignKey,
@@ -24,8 +25,8 @@ from app.models.mixins import IdMixin
 if TYPE_CHECKING:
     from app.models.packaging_operation import PackagingAllocationSourceTray
     from app.models.physical_tray import PhysicalTray
+    from app.models.preparation_preset import PreparationPreset
     from app.models.production_batch import ProductionBatch
-    from app.models.recipe import Recipe
     from app.models.tray_slot import TraySlot
     from app.models.weight_check import WeightCheck
 
@@ -65,10 +66,21 @@ class Tray(IdMixin, Base):
         ForeignKey("physical_trays.id"),
         nullable=False,
     )
-    recipe_id: Mapped[UUID | None] = mapped_column(GUID(), ForeignKey("recipes.id"))
+    preparation_preset_id: Mapped[UUID | None] = mapped_column(
+        GUID(), ForeignKey("preparation_presets.id")
+    )
+    # Immutable snapshot of the Preset's name at Tray-creation time, so
+    # renaming a Preset later never changes what a historical Tray displays.
+    # preparation_preset_id stays as a live FK only for optional navigation.
+    preparation_preset_name_at_use: Mapped[str | None] = mapped_column(String(255))
     tray_number: Mapped[int | None] = mapped_column()
     product_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    preparation: Mapped[str] = mapped_column(Text, nullable=False)
+    ingredients: Mapped[list[str] | None] = mapped_column(JSON)
+    preparation_methods: Mapped[list[str] | None] = mapped_column(JSON)
+    # Legacy freeform fallback from the pre-Milestone-6 Recipe model. Never
+    # written by new code; kept only so pre-migration Trays keep displaying
+    # their original text. See docs/persistence/04-preparation-preset.md.
+    preparation: Mapped[str | None] = mapped_column(Text)
     starting_weight_grams: Mapped[Decimal | None] = mapped_column(
         Numeric(12, 3),
     )
@@ -90,7 +102,9 @@ class Tray(IdMixin, Base):
     production_batch: Mapped[ProductionBatch] = relationship(back_populates="trays")
     tray_slot: Mapped[TraySlot] = relationship(back_populates="trays")
     physical_tray: Mapped[PhysicalTray] = relationship(back_populates="trays")
-    recipe: Mapped[Recipe | None] = relationship(back_populates="trays")
+    preparation_preset: Mapped[PreparationPreset | None] = relationship(
+        back_populates="trays"
+    )
     weight_checks: Mapped[list[WeightCheck]] = relationship(back_populates="tray")
     packaging_allocation_links: Mapped[list[PackagingAllocationSourceTray]] = (
         relationship(back_populates="tray")

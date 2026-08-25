@@ -5,21 +5,23 @@ from pydantic import BaseModel
 from app.schemas.base import ReadSchema
 
 
-class RecipeCreate(BaseModel):
+class PreparationPresetCreate(BaseModel):
     name: str
     product_name: str
-    preparation: str
+    ingredients: list[str] = []
+    preparation_methods: list[str] = []
     notes: str | None = None
     archived: bool = False
 
 
-class RecipeUpdate(BaseModel):
+class PreparationPresetUpdate(BaseModel):
     name: str | None = None
     product_name: str | None = None
-    preparation: str | None = None
+    ingredients: list[str] | None = None
+    preparation_methods: list[str] | None = None
     notes: str | None = None
     archived: bool | None = None
 
 
-class RecipeRead(RecipeCreate, ReadSchema):
+class PreparationPresetRead(PreparationPresetCreate, ReadSchema):
     id: UUID

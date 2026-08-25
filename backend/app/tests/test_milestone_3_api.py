@@ -43,7 +43,7 @@ def _add_tray(
             "tray_slot_id": tray_slot_id,
             "physical_tray_id": physical_tray_id,
             "product_name": product_name,
-            "preparation": "Prepared for drying.",
+            "preparation_methods": ["Prepared for drying."],
         },
     )
     assert response.status_code == 201
@@ -102,7 +102,7 @@ def test_tray_creation_can_include_starting_weight(client: TestClient) -> None:
             "tray_slot_id": freeze_dryer["tray_slots"][0]["id"],
             "physical_tray_id": physical_tray["id"],
             "product_name": "Chicken",
-            "preparation": "Cubed.",
+            "preparation_methods": ["Cubed."],
             "starting_weight_grams": "907.000",
         },
     )

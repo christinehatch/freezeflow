@@ -26,10 +26,10 @@ from app.models import (
     PackagingOperationStatus,
     PhysicalTray,
     PlannedPackageRow,
+    PreparationPreset,
     PrintEvent,
     ProductionBatch,
     ProductionBatchStatus,
-    Recipe,
     StorageLocation,
     StorageLocationHistory,
     Tray,
@@ -46,7 +46,7 @@ class DeveloperDataService:
         FreezeDryer,
         TraySlot,
         PhysicalTray,
-        Recipe,
+        PreparationPreset,
         ProductionBatch,
         Tray,
         DryingRun,
@@ -101,7 +101,7 @@ class DeveloperDataService:
             dryer=data["dryers"][0],
             slots=data["slots"][0],
             physical_trays=data["physical_trays"][0:4],
-            recipes=data["recipes"],
+            preparation_presets=data["preparation_presets"],
             batch_number="Batch 021",
             status=ProductionBatchStatus.RUNNING,
             products=("Taco Chicken", "Taco Chicken", "Strawberries", "Apples"),
@@ -116,7 +116,7 @@ class DeveloperDataService:
             dryer=data["dryers"][1],
             slots=data["slots"][1],
             physical_trays=data["physical_trays"][4:7],
-            recipes=data["recipes"],
+            preparation_presets=data["preparation_presets"],
             batch_number="Batch 020",
             status=ProductionBatchStatus.COMPLETED,
             products=("Pork Shoulder", "Pork Shoulder", "Apples"),
@@ -138,7 +138,7 @@ class DeveloperDataService:
             dryer=data["dryers"][0],
             slots=data["slots"][0],
             physical_trays=data["physical_trays"][7:10],
-            recipes=data["recipes"],
+            preparation_presets=data["preparation_presets"],
             batch_number="Batch 019",
             status=ProductionBatchStatus.COMPLETED,
             products=("Taco Chicken", "Taco Chicken", "Taco Chicken"),
@@ -159,7 +159,7 @@ class DeveloperDataService:
             dryer=data["dryers"][1],
             slots=data["slots"][1],
             physical_trays=data["physical_trays"][10:12],
-            recipes=data["recipes"],
+            preparation_presets=data["preparation_presets"],
             batch_number="Batch 022",
             status=ProductionBatchStatus.DRAFT,
             products=("Strawberries", "Apples"),
@@ -187,7 +187,9 @@ class DeveloperDataService:
                 .order_by(PhysicalTray.label)
             )
         )
-        recipes = list(self.db.scalars(select(Recipe).order_by(Recipe.name)))
+        preparation_presets = list(
+            self.db.scalars(select(PreparationPreset).order_by(PreparationPreset.name))
+        )
         slots = list(
             self.db.scalars(
                 select(TraySlot)
@@ -199,7 +201,7 @@ class DeveloperDataService:
             dryer=dryers[1],
             slots=slots,
             physical_trays=trays,
-            recipes=recipes,
+            preparation_presets=preparation_presets,
             batch_number="Batch 023",
             status=ProductionBatchStatus.RUNNING,
             products=("Strawberries", "Apples", "Pork Shoulder"),
@@ -299,44 +301,44 @@ class DeveloperDataService:
         self.db.flush()
         storage_bins = data["locations"][1:] + extra_locations
 
-        extra_recipes = [
-            Recipe(
+        extra_preparation_presets = [
+            PreparationPreset(
                 name="Blanched Green Beans",
                 product_name="Green Beans",
-                preparation="Blanched and trimmed",
+                preparation_methods=["Blanched", "Trimmed"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Whole Blueberries",
                 product_name="Blueberries",
-                preparation="Rinsed and dried whole",
+                preparation_methods=["Rinsed", "Dried whole"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Sweet Corn",
                 product_name="Corn",
-                preparation="Kernels cut from the cob",
+                preparation_methods=["Kernels cut from the cob"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Chicken Bone Broth",
                 product_name="Chicken Broth",
-                preparation="Simmered, strained, and portioned",
+                preparation_methods=["Simmered", "Strained", "Portioned"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Sliced Mango",
                 product_name="Mango",
-                preparation="Peeled and sliced",
+                preparation_methods=["Peeled", "Sliced"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Beef Stew",
                 product_name="Beef Stew",
-                preparation="Fully cooked and portioned",
+                preparation_methods=["Fully cooked", "Portioned"],
             ),
         ]
-        self.db.add_all(extra_recipes)
+        self.db.add_all(extra_preparation_presets)
         self.db.flush()
-        recipes = data["recipes"] + extra_recipes
+        preparation_presets = data["preparation_presets"] + extra_preparation_presets
 
         package_types = data["package_types"]
-        products = [recipe.product_name for recipe in recipes]
+        products = [preset.product_name for preset in preparation_presets]
 
         global_index = 0
         batch_count = 20
@@ -346,7 +348,7 @@ class DeveloperDataService:
             slots = data["slots"][dryer_index]
             product_index = batch_index % len(products)
             product = products[product_index]
-            recipe = recipes[product_index]
+            preset = preparation_presets[product_index]
 
             package_count = rng.randint(12, 22)
             package_weights = [
@@ -371,7 +373,7 @@ class DeveloperDataService:
                 dryer=dryer,
                 slots=slots,
                 physical_trays=[physical_tray],
-                recipes=recipes,
+                preparation_presets=preparation_presets,
                 batch_number=f"Batch {200 + batch_index}",
                 status=ProductionBatchStatus.COMPLETED,
                 products=(product,),
@@ -472,7 +474,11 @@ class DeveloperDataService:
                         package=package,
                         status=PackageLabelStatus.READY,
                         display_name=product,
-                        preparation_summary=recipe.preparation,
+                        preparation_summary=(
+                            ", ".join(preset.preparation_methods)
+                            if preset.preparation_methods
+                            else "Prepared for freeze drying"
+                        ),
                         net_weight_display=f"{weight} g freeze-dried",
                     )
                 )
@@ -558,7 +564,7 @@ class DeveloperDataService:
                 dryer=dryer,
                 slots=slots,
                 physical_trays=physical_trays,
-                recipes=data["recipes"],
+                preparation_presets=data["preparation_presets"],
                 batch_number=f"Demo {index + 1:03d}",
                 status=status,
                 products=products,
@@ -698,27 +704,29 @@ class DeveloperDataService:
             )
             for number in range(1, 13)
         ]
-        recipes = [
-            Recipe(
+        preparation_presets = [
+            PreparationPreset(
                 name="Taco Chicken",
                 product_name="Taco Chicken",
-                preparation="Cooked, shredded, seasoned with taco spices",
-                notes="Family batch recipe.",
+                ingredients=["Taco seasoning"],
+                preparation_methods=["Cooked", "Shredded"],
+                notes="Family batch preset.",
             ),
-            Recipe(
+            PreparationPreset(
                 name="Sliced Strawberries",
                 product_name="Strawberries",
-                preparation="Washed and sliced evenly",
+                preparation_methods=["Washed", "Sliced evenly"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Apple Slices",
                 product_name="Apples",
-                preparation="Peeled, cored, and sliced",
+                preparation_methods=["Peeled", "Cored", "Sliced"],
             ),
-            Recipe(
+            PreparationPreset(
                 name="Shredded Pork Shoulder",
                 product_name="Pork Shoulder",
-                preparation="Cooked, shredded, salt and pepper",
+                ingredients=["Salt", "Pepper"],
+                preparation_methods=["Cooked", "Shredded"],
             ),
         ]
         locations = [
@@ -743,13 +751,15 @@ class DeveloperDataService:
                 default_label_template="Avery 5163",
             ),
         ]
-        self.db.add_all(physical_trays + recipes + locations + package_types)
+        self.db.add_all(
+            physical_trays + preparation_presets + locations + package_types
+        )
         self.db.flush()
         return {
             "dryers": dryers,
             "slots": slots,
             "physical_trays": physical_trays,
-            "recipes": recipes,
+            "preparation_presets": preparation_presets,
             "locations": locations,
             "package_types": package_types,
         }
@@ -760,7 +770,7 @@ class DeveloperDataService:
         dryer: FreezeDryer,
         slots: list[TraySlot],
         physical_trays: list[PhysicalTray],
-        recipes: list[Recipe],
+        preparation_presets: list[PreparationPreset],
         batch_number: str,
         status: ProductionBatchStatus,
         products: tuple[str, ...],
@@ -784,7 +794,9 @@ class DeveloperDataService:
         self.db.add(batch)
         self.db.flush()
 
-        recipe_by_product = {recipe.product_name: recipe for recipe in recipes}
+        preset_by_product = {
+            preset.product_name: preset for preset in preparation_presets
+        }
         trays = []
         for index, product in enumerate(products):
             tray_status = {
@@ -793,18 +805,18 @@ class DeveloperDataService:
                 ProductionBatchStatus.COMPLETED: TrayStatus.COMPLETED,
                 ProductionBatchStatus.CANCELLED: TrayStatus.CANCELLED,
             }[status]
+            preset = preset_by_product.get(product)
             tray = Tray(
                 production_batch=batch,
                 tray_slot=slots[index],
                 physical_tray=physical_trays[index],
-                recipe=recipe_by_product.get(product),
+                preparation_preset=preset,
+                preparation_preset_name_at_use=preset.name if preset else None,
                 tray_number=index + 1,
                 product_name=product,
-                preparation=(
-                    recipe_by_product[product].preparation
-                    if product in recipe_by_product
-                    else "Prepared for freeze drying"
-                ),
+                ingredients=(preset.ingredients if preset else None) or [],
+                preparation_methods=(preset.preparation_methods if preset else None)
+                or ["Prepared for freeze drying"],
                 starting_weight_grams=Decimal(starting[index]),
                 final_dry_weight_grams=(
                     Decimal(latest[index])

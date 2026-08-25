@@ -35,7 +35,7 @@ def test_basic_demo_seeds_a_consistent_lifecycle(
     assert payload["action"] == "basic"
     for table_name in (
         "freeze_dryers",
-        "recipes",
+        "preparation_presets",
         "production_batches",
         "trays",
         "packaging_operations",

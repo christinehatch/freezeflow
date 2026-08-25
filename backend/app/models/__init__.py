@@ -22,9 +22,9 @@ from app.models.packaging_operation import (
 )
 from app.models.physical_tray import PhysicalTray
 from app.models.planned_package_row import PlannedPackageRow
+from app.models.preparation_preset import PreparationPreset
 from app.models.print_event import PrintEvent
 from app.models.production_batch import ProductionBatch
-from app.models.recipe import Recipe
 from app.models.storage_location import StorageLocation, StorageLocationHistory
 from app.models.tray import Tray
 from app.models.tray_slot import TraySlot
@@ -53,11 +53,11 @@ __all__ = [
     "PackagingOperationTray",
     "PackagingOperationStatus",
     "PlannedPackageRow",
+    "PreparationPreset",
     "PrintEvent",
     "PhysicalTray",
     "ProductionBatch",
     "ProductionBatchStatus",
-    "Recipe",
     "StorageLocation",
     "StorageLocationHistory",
     "Tray",
