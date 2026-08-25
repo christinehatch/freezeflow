@@ -13,6 +13,7 @@ from app.models import (
     PackagingOperation,
     PhysicalTray,
     PlannedPackageRow,
+    PreparationPreset,
     PrintEvent,
     ProductionBatch,
     StorageLocation,
@@ -164,6 +165,18 @@ def storage_location_data(storage_location: StorageLocation) -> dict[str, object
         "name": storage_location.name,
         "notes": storage_location.notes,
         "archived": storage_location.archived,
+    }
+
+
+def preparation_preset_data(preset: PreparationPreset) -> dict[str, object]:
+    return {
+        "id": preset.id,
+        "name": preset.name,
+        "product_name": preset.product_name,
+        "ingredients": preset.ingredients,
+        "preparation_methods": preset.preparation_methods,
+        "notes": preset.notes,
+        "archived": preset.archived,
     }
 
 

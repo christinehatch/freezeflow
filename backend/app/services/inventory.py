@@ -27,6 +27,7 @@ from app.schemas import (
     StorageLocationCreate,
     StorageLocationUpdate,
 )
+from app.services._naming import normalize_name
 from app.services.errors import BusinessRuleError
 
 UNASSIGNED_STORAGE_LOCATION_NAME = "Unassigned"
@@ -371,10 +372,7 @@ def _get_or_create_unassigned_storage_location(db: Session) -> StorageLocation:
 
 
 def _normalize_name(name: str) -> str:
-    trimmed = name.strip()
-    if not trimmed:
-        raise BusinessRuleError("Storage Location name is required.")
-    return trimmed
+    return normalize_name(name, label="Storage Location")
 
 
 def _ensure_name_valid_and_available(
