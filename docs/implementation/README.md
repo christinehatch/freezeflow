@@ -49,7 +49,7 @@ Future milestones should extend previous work rather than replacing it.
 | 03 | Complete | Weight Tracking |
 | 04 | Complete | Packaging and Package Labels |
 | 05 | Complete | Inventory |
-| 06 | Planned | Preparation Presets |
+| 06 | Complete | Preparation Presets |
 | 07 | Planned | Reporting |
 | 08 | Planned | Corrections & Audit History |
 | 09 | Planned | Polish & Production Readiness |
@@ -199,7 +199,7 @@ Includes:
 
 ## Milestone 6 - Preparation Presets
 
-Status: Planned
+Status: Complete
 
 Goal: Build optional reusable Preparation Metadata presets.
 

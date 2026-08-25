@@ -42,7 +42,7 @@ Later milestones extend existing functionality rather than replacing it.
 | 3 - Weight Tracking | Complete |
 | 4 - Packaging | Complete |
 | 5 - Inventory | Complete |
-| 6 - Preparation Presets | Planned |
+| 6 - Preparation Presets | Complete |
 | 7 - Reporting | Planned |
 | 8 - Application Polish | Planned |
 | 9 - Version 1 Release | Planned |
