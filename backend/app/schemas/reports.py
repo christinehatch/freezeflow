@@ -18,6 +18,7 @@ class ReportFilters(BaseModel):
     freeze_dryer_id: UUID | None = None
     product_name: str | None = None
     preparation_preset_id: UUID | None = None
+    preparation_preset_name: str | None = None
     production_batch_id: UUID | None = None
 
 

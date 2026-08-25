@@ -704,6 +704,76 @@ def test_freeze_dryer_filter_narrows_results(
     assert rows[0]["freeze_dryer_name"] == "Black"
 
 
+def test_production_history_filters_by_preparation_preset_name(
+    client: TestClient, db_session: Session
+) -> None:
+    freeze_dryer = _create_freeze_dryer(client, "Black")
+    pt1 = _create_physical_tray(client, "Tray 1")
+    pt2 = _create_physical_tray(client, "Tray 2")
+    preset = _create_preparation_preset(client, "Sliced Chicken", "Chicken")
+
+    _complete_batch(
+        client,
+        db_session,
+        freeze_dryer=freeze_dryer,
+        batch_number="Batch 001",
+        trays=[
+            {
+                "physical_tray_id": pt1["id"],
+                "product_name": "Chicken",
+                "starting_weight": 1000,
+                "final_weight": 250,
+                "preparation_preset_id": preset["id"],
+            }
+        ],
+        completed_at=datetime(2026, 1, 2, tzinfo=UTC),
+        drying_hours=12,
+    )
+    _complete_batch(
+        client,
+        db_session,
+        freeze_dryer=freeze_dryer,
+        batch_number="Batch 002",
+        trays=[
+            {
+                "physical_tray_id": pt2["id"],
+                "product_name": "Apples",
+                "starting_weight": 500,
+                "final_weight": 100,
+            }
+        ],
+        completed_at=datetime(2026, 1, 3, tzinfo=UTC),
+        drying_hours=12,
+    )
+
+    rows = _data(
+        client.get(
+            "/api/v1/reports/production-history",
+            params={"preparation_preset_name": "Sliced Chicken"},
+        )
+    )
+    assert len(rows) == 1
+    assert rows[0]["batch_number"] == "Batch 001"
+
+    # Renaming the Preset afterward must not change which Batch this filter
+    # matches - it reads the Tray's immutable snapshot name, never a live
+    # join to the Preset's current name (ADR-0019/RP-005).
+    rename_response = client.patch(
+        f"/api/v1/preparation-presets/{preset['id']}",
+        json={"name": "Renamed Preset"},
+    )
+    assert rename_response.status_code == 200
+
+    rows_after_rename = _data(
+        client.get(
+            "/api/v1/reports/production-history",
+            params={"preparation_preset_name": "Sliced Chicken"},
+        )
+    )
+    assert len(rows_after_rename) == 1
+    assert rows_after_rename[0]["batch_number"] == "Batch 001"
+
+
 def test_unrecognized_filter_id_returns_empty_result_not_an_error(
     client: TestClient,
 ) -> None:
