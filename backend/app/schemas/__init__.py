@@ -74,6 +74,16 @@ from app.schemas.production_batch import (
     ProductionBatchStart,
     ProductionBatchUpdate,
 )
+from app.schemas.reports import (
+    DryingTimeRow,
+    FreezeDryerPerformanceRow,
+    InventorySummary,
+    MostCommonProduct,
+    PreparationHistoryRow,
+    ProductHistoryRow,
+    ProductionHistoryRow,
+    ReportFilters,
+)
 from app.schemas.storage_location import (
     StorageLocationCreate,
     StorageLocationHistoryCreate,
@@ -149,6 +159,14 @@ __all__ = [
     "PlannedPackageRowUpdate",
     "PrintEventCreate",
     "PrintEventRead",
+    "DryingTimeRow",
+    "FreezeDryerPerformanceRow",
+    "InventorySummary",
+    "MostCommonProduct",
+    "PreparationHistoryRow",
+    "ProductHistoryRow",
+    "ProductionHistoryRow",
+    "ReportFilters",
     "PhysicalTrayCreate",
     "PhysicalTrayRead",
     "PhysicalTrayUpdate",
