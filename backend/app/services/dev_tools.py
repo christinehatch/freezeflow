@@ -37,6 +37,7 @@ from app.models import (
     TrayStatus,
     WeightCheck,
 )
+from app.services.packaging import tray_preparation_summary
 
 
 class DeveloperDataService:
@@ -964,7 +965,7 @@ class DeveloperDataService:
                     notes="Recorded package retained from the packaging plan.",
                     label_status=PackageLabelStatus.READY,
                     label_display_name=trays[0].product_name,
-                    label_preparation_summary=trays[0].preparation,
+                    label_preparation_summary=tray_preparation_summary(trays[0]),
                     label_net_weight_display=f"{product_weight} g freeze-dried",
                     recorded_package=package,
                 )
@@ -1003,7 +1004,7 @@ class DeveloperDataService:
                 package=package,
                 status=PackageLabelStatus.READY,
                 display_name=trays[0].product_name,
-                preparation_summary=trays[0].preparation,
+                preparation_summary=tray_preparation_summary(trays[0]),
                 net_weight_display=f"{product_weight} g freeze-dried",
             )
             self.db.add(label)
@@ -1063,7 +1064,7 @@ class DeveloperDataService:
                     notes="Planned bag from the two selected pork Trays.",
                     label_status=PackageLabelStatus.DRAFT,
                     label_display_name="Pork Shoulder",
-                    label_preparation_summary=trays[index].preparation,
+                    label_preparation_summary=tray_preparation_summary(trays[index]),
                     label_net_weight_display=f"{product_weight} g freeze-dried",
                 )
             )

@@ -15,6 +15,7 @@ export { SectionHeader } from "./SectionHeader";
 export { StatusBadge } from "./StatusBadge";
 export { StatusBanner } from "./StatusBanner";
 export { Surface } from "./Surface";
+export { TagAutocompleteField } from "./TagAutocompleteField";
 export { SummaryPanel, type SummaryPanelItem } from "./SummaryPanel";
 export {
   WorkflowStage,
