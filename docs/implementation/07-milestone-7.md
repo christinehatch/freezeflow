@@ -2,16 +2,17 @@
 
 ## Status
 
-Planned.
+Complete.
 
 All architecture and scope decisions below were resolved in authoritative
 documentation (this file, `docs/09-api-design.md`, `docs/04-business-rules.md`,
 `docs/wireframes/07-reports.md`, and new ADR-0019) before implementation
-began, per AGENTS.md's documentation-first process. Implementation proceeds
+began, per AGENTS.md's documentation-first process. Implementation proceeded
 in eight phases: documentation groundwork, backend response schemas and
 report queries, backend API endpoints, backend tests, frontend API client,
 the Reports page itself, frontend tests, and a final regression/verification
-pass. This section is updated to Complete once all phases have merged.
+pass. All eight phases have merged; every item in the Definition of Done
+below has been verified.
 
 ---
 
