@@ -9,6 +9,7 @@ import { InventoryPage } from "../pages/InventoryPage";
 import { PackageDetailsPage } from "../pages/PackageDetailsPage";
 import { PackagingPage } from "../pages/PackagingPage";
 import { PackageTypesPage } from "../pages/PackageTypesPage";
+import { PreparationPresetsPage } from "../pages/PreparationPresetsPage";
 import { PrintTodaysLabelsPage } from "../pages/PrintTodaysLabelsPage";
 import { ProductionBatchPage } from "../pages/ProductionBatchPage";
 import { ProductionPage } from "../pages/ProductionPage";
@@ -22,6 +23,10 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <DashboardPage /> },
       { path: "/production", element: <ProductionPage /> },
+      {
+        path: "/production/preparation-presets",
+        element: <PreparationPresetsPage />,
+      },
       { path: "/production/:batchId", element: <ProductionBatchPage /> },
       { path: "/trays/:trayId", element: <TrayDetailsPage /> },
       { path: "/packages/:packageId", element: <PackageDetailsPage /> },
