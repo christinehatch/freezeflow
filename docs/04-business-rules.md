@@ -934,6 +934,41 @@ Reports should always reflect those records.
 
 ---
 
+## RP-003
+
+Reports scope to completed production history.
+
+Production Batches contribute only when Completed. Trays contribute only
+when Completed or Packaged. Draft, Running, and Cancelled Batches and Trays
+are excluded from every report.
+
+Inventory Summary is the one exception: it includes Packages of every
+Inventory Status, because a Package that has left storage is still part of
+what was produced.
+
+---
+
+## RP-004
+
+Each report's Date Range filter applies to the one immutable timestamp
+already guaranteed present on the records that report includes: Production
+Batch and Tray-level reports filter on Completed Time; Inventory Summary
+filters on Packaged Time. Date Range bounds are inclusive on both ends.
+
+---
+
+## RP-005
+
+Reports must read each Tray's immutable Preparation Metadata snapshot
+(Product Name, Ingredients, Preparation Methods, and the Preparation
+Preset name captured at Tray-creation time) rather than the current values
+on a live Preparation Preset record.
+
+Editing or archiving a Preparation Preset must never change a report that
+already reflects Trays created from it.
+
+---
+
 # Validation Rules
 
 The application should prevent users from performing actions that violate these rules.
