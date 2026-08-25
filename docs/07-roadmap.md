@@ -43,7 +43,7 @@ Later milestones extend existing functionality rather than replacing it.
 | 4 - Packaging | Complete |
 | 5 - Inventory | Complete |
 | 6 - Preparation Presets | Complete |
-| 7 - Reporting | Planned |
+| 7 - Reporting | Complete |
 | 8 - Application Polish | Planned |
 | 9 - Version 1 Release | Planned |
 
