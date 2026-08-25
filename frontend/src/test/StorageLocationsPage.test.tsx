@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { StorageLocation } from "../api/client";
+import type { Package, StorageLocation } from "../api/client";
 import { StorageLocationsPage } from "../pages/StorageLocationsPage";
 
 describe("StorageLocationsPage", () => {
@@ -348,6 +348,114 @@ describe("StorageLocationsPage", () => {
 
     expect(await screen.findByText("Origin view: /packaging")).toBeVisible();
   });
+
+  it("prints a bin's contents when it has Packages", async () => {
+    const user = userEvent.setup();
+    const { createObjectURL, openSpy } = mockPrintPopup();
+    const storageLocations: StorageLocation[] = [
+      { id: "bin-1", name: "Garage Freezer", notes: null, archived: false },
+    ];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/storage-locations?include_archived=true")) {
+        return apiResponse(storageLocations);
+      }
+      if (
+        url.includes("/api/v1/inventory?") &&
+        url.includes("storage_location_id=bin-1")
+      ) {
+        return apiResponse([makePackage("Chicken", storageLocations[0])]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Garage Freezer" });
+
+    await user.click(screen.getByRole("button", { name: "Print Contents" }));
+
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+    expect(openSpy).toHaveBeenCalled();
+    expect(
+      screen.queryByText("nothing in it", { exact: false }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an inline message and creates no PDF when a bin is empty", async () => {
+    const user = userEvent.setup();
+    const { createObjectURL } = mockPrintPopup();
+    const storageLocations: StorageLocation[] = [
+      { id: "bin-1", name: "Garage Freezer", notes: null, archived: false },
+    ];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/storage-locations?include_archived=true")) {
+        return apiResponse(storageLocations);
+      }
+      if (
+        url.includes("/api/v1/inventory?") &&
+        url.includes("storage_location_id=bin-1")
+      ) {
+        return apiResponse([]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Garage Freezer" });
+
+    await user.click(screen.getByRole("button", { name: "Print Contents" }));
+
+    expect(
+      await screen.findByText("Garage Freezer has nothing in it to print."),
+    ).toBeVisible();
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("Print All Bins includes only non-empty active Storage Locations", async () => {
+    const user = userEvent.setup();
+    const { createObjectURL } = mockPrintPopup();
+    const storageLocations: StorageLocation[] = [
+      { id: "bin-1", name: "Bin With Stock", notes: null, archived: false },
+      { id: "bin-2", name: "Empty Bin", notes: null, archived: false },
+    ];
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/storage-locations?include_archived=true")) {
+        return apiResponse(storageLocations);
+      }
+      if (
+        url.includes("/api/v1/inventory?") &&
+        url.includes("storage_location_id=bin-1")
+      ) {
+        return apiResponse([makePackage("Apples", storageLocations[0])]);
+      }
+      if (
+        url.includes("/api/v1/inventory?") &&
+        url.includes("storage_location_id=bin-2")
+      ) {
+        return apiResponse([]);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    renderPage();
+    await screen.findByRole("heading", { name: "Bin With Stock" });
+
+    await user.click(screen.getByRole("button", { name: "Print All Bins" }));
+
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+    const inventoryCalls = fetch.mock.calls.filter(([requestInput]) =>
+      String(requestInput).includes("/api/v1/inventory?"),
+    );
+    expect(inventoryCalls).toHaveLength(2);
+    expect(
+      screen.queryByText("nothing to print", { exact: false }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 function renderPage(
@@ -376,6 +484,77 @@ function renderPage(
 function OriginProbe() {
   const location = useLocation();
   return <div>Origin view: {location.pathname + location.search}</div>;
+}
+
+function mockPrintPopup() {
+  const openSpy = vi.spyOn(window, "open").mockReturnValue({
+    closed: false,
+    close: vi.fn(),
+    document: {
+      title: "",
+      body: { replaceChildren: vi.fn(), append: vi.fn() },
+      createElement: vi.fn(() => ({
+        textContent: "",
+        style: { cssText: "" },
+      })),
+    },
+    location: { replace: vi.fn() },
+  } as unknown as Window);
+  const createObjectURL = vi.fn(() => "blob:print-test");
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: createObjectURL,
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  return { createObjectURL, openSpy };
+}
+
+function makePackage(
+  productName: string,
+  storageLocation: StorageLocation,
+): Package {
+  return {
+    id: `package-${productName}`,
+    packaging_allocation_id: "allocation-1",
+    packaging_operation_id: "operation-1",
+    package_type_id: "package-type-1",
+    package_type: {
+      id: "package-type-1",
+      name: "Quart Mylar",
+      default_oxygen_absorber: null,
+      default_label_template: null,
+      notes: null,
+      archived: false,
+    },
+    package_identifier: "PKG-2026-000001",
+    packaged_at: "2026-05-03T00:00:00Z",
+    package_weight_grams: "245.000",
+    finished_product_weight_grams: "240.000",
+    oxygen_absorber: null,
+    storage_location_id: storageLocation.id,
+    storage_location: storageLocation,
+    status: "In Storage",
+    notes: null,
+    label: {
+      id: "label-1",
+      package_id: "package-1",
+      status: "Ready",
+      display_name: productName,
+      description: null,
+      ingredients_summary: null,
+      preparation_summary: null,
+      rehydration_instructions: null,
+      serving_notes: null,
+      net_weight_display: null,
+      fresh_equivalent_display: null,
+      created_at: "2026-05-03T00:00:00Z",
+      updated_at: "2026-05-03T00:00:00Z",
+      print_events: [],
+    },
+  };
 }
 
 function apiResponse(data: unknown, status = 200) {

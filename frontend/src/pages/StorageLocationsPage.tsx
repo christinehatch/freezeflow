@@ -12,6 +12,10 @@ import {
   Surface,
 } from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
+import {
+  reserveBinContentsPrintOutput,
+  toBinContents,
+} from "../utils/binContentsPrintouts";
 
 const UNASSIGNED_LOCATION_NAME = "Unassigned";
 
@@ -27,6 +31,7 @@ export function StorageLocationsPage() {
   });
   const [draft, setDraft] = useState({ name: "", notes: "" });
   const [error, setError] = useState<string | null>(null);
+  const [printNotice, setPrintNotice] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ name: "", notes: "" });
 
@@ -70,6 +75,64 @@ export function StorageLocationsPage() {
       setError(null);
       setEditingId(null);
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+
+  const printContentsMutation = useMutation({
+    mutationFn: async (location: StorageLocation) => {
+      const output = reserveBinContentsPrintOutput();
+      const packages = await inventoryApi.searchInventory({
+        storageLocationId: location.id,
+        status: "In Storage",
+        limit: 500,
+      });
+      if (packages.length === 0) {
+        output?.close();
+        return { notice: `${location.name} has nothing in it to print.` };
+      }
+      output?.load([toBinContents(location, packages)]);
+      return { notice: null };
+    },
+    onError: (mutationError) => setError(formatApiError(mutationError)),
+    onSuccess: (result) => {
+      setError(null);
+      setPrintNotice(result.notice);
+    },
+  });
+
+  const printAllBinsMutation = useMutation({
+    mutationFn: async () => {
+      const output = reserveBinContentsPrintOutput();
+      const targets = (storageLocationsQuery.data ?? []).filter(
+        (item) => !item.archived,
+      );
+      const results = await Promise.all(
+        targets.map((target) =>
+          inventoryApi.searchInventory({
+            storageLocationId: target.id,
+            status: "In Storage",
+            limit: 500,
+          }),
+        ),
+      );
+      const bins = targets
+        .map((target, index) => ({ target, packages: results[index] }))
+        .filter(({ packages }) => packages.length > 0)
+        .map(({ target, packages }) => toBinContents(target, packages));
+      if (bins.length === 0) {
+        output?.close();
+        return {
+          notice:
+            "No active Storage Locations currently have anything to print.",
+        };
+      }
+      output?.load(bins);
+      return { notice: null };
+    },
+    onError: (mutationError) => setError(formatApiError(mutationError)),
+    onSuccess: (result) => {
+      setError(null);
+      setPrintNotice(result.notice);
     },
   });
 
@@ -130,6 +193,10 @@ export function StorageLocationsPage() {
         />
       ) : null}
 
+      {printNotice ? (
+        <StatusBanner body={printNotice} title="Nothing to print" tone="calm" />
+      ) : null}
+
       <Surface>
         <SectionHeader title="Create Storage Location" />
         <form className="storage-location-form" onSubmit={handleSubmit}>
@@ -168,6 +235,17 @@ export function StorageLocationsPage() {
 
       <section aria-labelledby="active-storage-locations">
         <SectionHeader
+          action={
+            activeLocations.length ? (
+              <Button
+                disabled={printAllBinsMutation.isPending}
+                variant="secondary"
+                onClick={() => printAllBinsMutation.mutate()}
+              >
+                Print All Bins
+              </Button>
+            ) : null
+          }
           id="active-storage-locations"
           title="Active Storage Locations"
         />
@@ -202,8 +280,10 @@ export function StorageLocationsPage() {
                 }
                 onCancelEdit={() => setEditingId(null)}
                 onChangeDraft={setEditDraft}
+                onPrintContents={() => printContentsMutation.mutate(location)}
                 onStartEdit={() => startEditing(location)}
                 onSubmitEdit={() => submitEdit(location)}
+                printPending={printContentsMutation.isPending}
               />
             ))}
           </div>
@@ -256,8 +336,10 @@ function StorageLocationCard({
   secondaryAction,
   onCancelEdit,
   onChangeDraft,
+  onPrintContents,
   onStartEdit,
   onSubmitEdit,
+  printPending = false,
 }: {
   editDraft: { name: string; notes: string };
   isEditing: boolean;
@@ -266,8 +348,10 @@ function StorageLocationCard({
   secondaryAction: ReactNode;
   onCancelEdit: () => void;
   onChangeDraft: (draft: { name: string; notes: string }) => void;
+  onPrintContents?: () => void;
   onStartEdit: () => void;
   onSubmitEdit: () => void;
+  printPending?: boolean;
 }) {
   const isUnassigned = location.name === UNASSIGNED_LOCATION_NAME;
 
@@ -332,6 +416,15 @@ function StorageLocationCard({
         >
           View Contents
         </ButtonLink>
+        {onPrintContents ? (
+          <Button
+            disabled={printPending}
+            variant="secondary"
+            onClick={onPrintContents}
+          >
+            Print Contents
+          </Button>
+        ) : null}
         <Button variant="secondary" onClick={onStartEdit}>
           Edit
         </Button>
