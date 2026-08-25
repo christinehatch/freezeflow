@@ -1398,12 +1398,24 @@ GET /api/v1/reports/production-history
 ```
 
 Applicable filters: `date_from`, `date_to`, `freeze_dryer_id`,
-`product_name`, `preparation_preset_id`, `production_batch_id`.
+`product_name`, `preparation_preset_id`, `preparation_preset_name`,
+`production_batch_id`.
 
 The general-purpose historical browse view — one entry per Completed
 Production Batch, supporting every filter. Replaces the earlier unversioned
 `/api/reports/production` stub, which predated this milestone's full report
 set and was never implemented against.
+
+`preparation_preset_name` narrows to Batches containing a Tray whose
+immutable `preparation_preset_name_at_use` snapshot exactly matches the
+given string — the same field Preparation History groups its own rows by.
+It is deliberately name-based rather than ID-based: Preparation History's
+rows have no Preset ID to filter by (by design, per ADR-0019/RP-005 — a
+report never carries a live-joinable identity for a Preset), and matching
+by the immutable snapshot name is the only way to guarantee this filter
+returns exactly the Batches that produced a given Preparation History row's
+aggregate, even in the edge case where a Preset was renamed and its old
+name later reused by a different Preset.
 
 ```json
 [

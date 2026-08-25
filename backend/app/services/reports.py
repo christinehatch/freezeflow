@@ -319,7 +319,11 @@ def production_history(
         )
     )
 
-    if filters.product_name is not None or filters.preparation_preset_id is not None:
+    if (
+        filters.product_name is not None
+        or filters.preparation_preset_id is not None
+        or filters.preparation_preset_name is not None
+    ):
         matching_batches = select(Tray.production_batch_id).where(
             Tray.status.in_(QUALIFYING_TRAY_STATUSES)
         )
@@ -330,6 +334,13 @@ def production_history(
         if filters.preparation_preset_id is not None:
             matching_batches = matching_batches.where(
                 Tray.preparation_preset_id == filters.preparation_preset_id
+            )
+        if filters.preparation_preset_name is not None:
+            # Matches the same immutable snapshot column Preparation History
+            # groups by (Tray.preparation_preset_name_at_use), not a live
+            # join to the current Preparation Preset - see ADR-0019/RP-005.
+            matching_batches = matching_batches.where(
+                Tray.preparation_preset_name_at_use == filters.preparation_preset_name
             )
         stmt = stmt.where(batches.c.id.in_(matching_batches))
 
