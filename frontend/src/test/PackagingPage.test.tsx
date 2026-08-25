@@ -239,6 +239,40 @@ describe("PackagingPage", () => {
     expect(latestAllocationPost()).toBeUndefined();
   });
 
+  it("shows a structured Preparation summary for a Tray with no legacy preparation text", async () => {
+    const user = userEvent.setup();
+    const structuredTray = createTray({
+      id: "tray-structured",
+      product_name: "Shredded Pork Shoulder",
+      preparation: null,
+      ingredients: ["Salt", "Pepper"],
+      preparation_methods: ["Cooked", "Shredded"],
+      final_dry_weight_grams: "300.0",
+    });
+    const batch = createProductionBatch({ trays: [structuredTray] });
+    const testState = createPackagingTestState({
+      worksheet: [
+        {
+          production_batch: batch,
+          eligible_trays: [structuredTray],
+          source_weight_grams: "300.0",
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", vi.fn(testState.fetch));
+
+    renderPackagingPage();
+    await startPackagingWorkspace(user);
+
+    expect(
+      await screen.findByText("Shredded Pork Shoulder"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Salt, Pepper, Cooked, Shredded"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No preparation")).not.toBeInTheDocument();
+  });
+
   it("opens Stage 3 with one focused Bag form and records one Bag at a time", async () => {
     const user = userEvent.setup();
     const sourceTray = defaultWorksheet()[0].eligible_trays[0];

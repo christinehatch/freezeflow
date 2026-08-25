@@ -59,6 +59,7 @@ import {
   type WorkflowStepStatus,
 } from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
+import { trayPreparationSummary } from "../utils/preparation";
 import {
   ALLOCATION_TOLERANCE_GRAMS,
   WEIGHT_UNIT_OPTIONS,
@@ -654,7 +655,7 @@ export function PackagingPage() {
         selectedTrays.map((tray) => tray.product_name),
       ),
       preparation_summary: uniqueSummary(
-        selectedTrays.map((tray) => tray.preparation),
+        selectedTrays.map((tray) => trayPreparationSummary(tray)),
       ),
       source_starting_weight_grams: selectedTrays.reduce(
         (total, tray) => total + Number(tray.starting_weight_grams ?? 0),
@@ -1051,10 +1052,10 @@ export function PackagingPage() {
                               <span className="font-semibold">
                                 {tray.product_name}
                               </span>
-                              {tray.preparation ? (
+                              {trayPreparationSummary(tray) ? (
                                 <span className="text-slate-600">
                                   {" "}
-                                  · {tray.preparation}
+                                  · {trayPreparationSummary(tray)}
                                 </span>
                               ) : null}
                             </span>
@@ -1216,7 +1217,8 @@ export function PackagingPage() {
                                           )}
                                         </td>
                                         <td>
-                                          {tray.preparation || "No preparation"}
+                                          {trayPreparationSummary(tray) ||
+                                            "No preparation"}
                                           {tray.notes ? (
                                             <span className="block text-sm text-slate-600">
                                               {tray.notes}
