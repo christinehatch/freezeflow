@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import Subquery, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -9,10 +9,8 @@ from app.models import (
     PackageLabel,
     PackageStatusHistory,
     PackageType,
-    PackagingAllocationSourceTray,
     StorageLocation,
     StorageLocationHistory,
-    Tray,
 )
 from app.models.mixins import utc_now
 from app.repositories import (
@@ -28,6 +26,7 @@ from app.schemas import (
     StorageLocationUpdate,
 )
 from app.services._naming import normalize_name
+from app.services._product_identity import product_identity_query
 from app.services.errors import BusinessRuleError
 
 UNASSIGNED_STORAGE_LOCATION_NAME = "Unassigned"
@@ -197,7 +196,7 @@ def search_inventory(
     limit = min(max(limit, 1), MAX_SEARCH_LIMIT)
     offset = max(offset, 0)
 
-    product_name_subquery = _product_name_subquery()
+    product_name_subquery = product_identity_query()
     product_name_column = product_name_subquery.c.product_name
 
     statement = (
@@ -248,7 +247,7 @@ def search_inventory(
 
 
 def list_product_groups(db: Session) -> list[dict[str, object]]:
-    product_name_subquery = _product_name_subquery()
+    product_name_subquery = product_identity_query()
     product_name_column = product_name_subquery.c.product_name
 
     aggregate_statement = (
@@ -269,7 +268,7 @@ def list_product_groups(db: Session) -> list[dict[str, object]]:
     )
     rows = db.execute(aggregate_statement).all()
 
-    locations_subquery = _product_name_subquery()
+    locations_subquery = product_identity_query()
     locations_statement = (
         select(locations_subquery.c.product_name, StorageLocation.name)
         .join(
@@ -295,20 +294,6 @@ def list_product_groups(db: Session) -> list[dict[str, object]]:
         }
         for row in rows
     ]
-
-
-def _product_name_subquery() -> Subquery:
-    return (
-        select(
-            PackagingAllocationSourceTray.packaging_allocation_id.label(
-                "packaging_allocation_id"
-            ),
-            func.min(Tray.product_name).label("product_name"),
-        )
-        .join(Tray, Tray.id == PackagingAllocationSourceTray.tray_id)
-        .group_by(PackagingAllocationSourceTray.packaging_allocation_id)
-        .subquery()
-    )
 
 
 def _transition_package_status(
