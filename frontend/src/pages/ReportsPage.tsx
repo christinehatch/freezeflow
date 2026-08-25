@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 
 import {
+  inventoryApi,
   preparationPresetsApi,
   productionApi,
   reportsApi,
@@ -11,9 +12,12 @@ import {
   type DryingTimeRow,
   type FreezeDryerPerformanceRow,
   type InventorySummary,
+  type MostCommonProduct,
+  type Package,
   type PreparationHistoryRow,
   type ProductHistoryRow,
   type ProductionHistoryRow,
+  type Tray,
 } from "../api/client";
 import {
   Button,
@@ -441,33 +445,57 @@ function FreezeDryerPerformanceView({
       {(rows) => (
         <div className="grid gap-4 sm:grid-cols-2">
           {rows.map((row) => (
-            <SummaryPanel
-              items={[
-                {
-                  label: "Average Dry Time",
-                  value: formatDuration(row.average_dry_time_seconds),
-                },
-                {
-                  label: "Average Weight Loss",
-                  value: formatPercent(row.average_weight_loss_percent),
-                },
-                {
-                  label: "Completed Batches",
-                  value: row.completed_production_batch_count,
-                  emphasis: true,
-                },
-                {
-                  label: "Average Time to Completion",
-                  value: formatDuration(row.average_time_to_completion_seconds),
-                },
-              ]}
-              key={row.freeze_dryer_id}
-              title={row.freeze_dryer_name}
-            />
+            <FreezeDryerPerformanceCard key={row.freeze_dryer_id} row={row} />
           ))}
         </div>
       )}
     </ReportStateWrapper>
+  );
+}
+
+function FreezeDryerPerformanceCard({
+  row,
+}: {
+  row: FreezeDryerPerformanceRow;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <SummaryPanel
+      items={[
+        {
+          label: "Average Dry Time",
+          value: formatDuration(row.average_dry_time_seconds),
+        },
+        {
+          label: "Average Weight Loss",
+          value: formatPercent(row.average_weight_loss_percent),
+        },
+        {
+          label: "Completed Batches",
+          value: row.completed_production_batch_count,
+          emphasis: true,
+        },
+        {
+          label: "Average Time to Completion",
+          value: formatDuration(row.average_time_to_completion_seconds),
+        },
+      ]}
+      title={row.freeze_dryer_name}
+    >
+      <details
+        open={isOpen}
+        onToggle={(event) => setIsOpen(event.currentTarget.open)}
+      >
+        <summary className="text-link cursor-pointer">
+          {isOpen ? "Hide" : "Show"} Drying Time detail
+        </summary>
+        {isOpen ? (
+          <div className="mt-2">
+            <DryingTimeDetail freezeDryerId={row.freeze_dryer_id} />
+          </div>
+        ) : null}
+      </details>
+    </SummaryPanel>
   );
 }
 
@@ -480,33 +508,60 @@ function ProductHistoryView({
 }) {
   return (
     <ReportStateWrapper hasFilters={hasFilters} query={query}>
-      {(rows) => (
-        <Surface className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Times Produced</th>
-                <th>Average Drying Time</th>
-                <th>Average Yield</th>
-                <th>Last Batch</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.product_name}>
-                  <td>{row.product_name}</td>
+      {(rows) => <ExpandableProductHistoryTable rows={rows} />}
+    </ReportStateWrapper>
+  );
+}
+
+function ExpandableProductHistoryTable({
+  rows,
+}: {
+  rows: ProductHistoryRow[];
+}) {
+  const { expanded, toggle } = useExpandedRows();
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Times Produced</th>
+            <th>Average Drying Time</th>
+            <th>Average Yield</th>
+            <th>Last Batch</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isExpanded = expanded.has(row.product_name);
+            return (
+              <Fragment key={row.product_name}>
+                <tr>
+                  <td>
+                    <ExpandToggle
+                      isExpanded={isExpanded}
+                      label={row.product_name}
+                      onClick={() => toggle(row.product_name)}
+                    />
+                  </td>
                   <td>{row.times_produced}</td>
                   <td>{formatDuration(row.average_drying_time_seconds)}</td>
                   <td>{formatPercent(row.average_yield_percent)}</td>
                   <td>{formatDate(row.last_batch_completed_at)}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
-      )}
-    </ReportStateWrapper>
+                {isExpanded ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <ProductionHistoryDetail productName={row.product_name} />
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </Surface>
   );
 }
 
@@ -519,27 +574,50 @@ function PreparationHistoryView({
 }) {
   return (
     <ReportStateWrapper hasFilters={hasFilters} query={query}>
-      {(rows) => (
-        <Surface className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Preparation Preset</th>
-                <th>Times Used</th>
-                <th>Average Drying Time</th>
-                <th>Average Yield</th>
-                <th>Last Used</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.preparation_preset_name}-${row.used_preset}`}>
+      {(rows) => <ExpandablePreparationHistoryTable rows={rows} />}
+    </ReportStateWrapper>
+  );
+}
+
+function ExpandablePreparationHistoryTable({
+  rows,
+}: {
+  rows: PreparationHistoryRow[];
+}) {
+  const { expanded, toggle } = useExpandedRows();
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Preparation Preset</th>
+            <th>Times Used</th>
+            <th>Average Drying Time</th>
+            <th>Average Yield</th>
+            <th>Last Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const key = `${row.preparation_preset_name}-${row.used_preset}`;
+            const isExpanded = expanded.has(key);
+            return (
+              <Fragment key={key}>
+                <tr>
                   <td>
-                    {row.preparation_preset_name}
-                    {row.used_preset ? null : (
-                      <span className="ml-1 text-sm text-slate-500">
-                        (no Preparation Preset used)
-                      </span>
+                    {row.used_preset ? (
+                      <ExpandToggle
+                        isExpanded={isExpanded}
+                        label={row.preparation_preset_name}
+                        onClick={() => toggle(key)}
+                      />
+                    ) : (
+                      <>
+                        {row.preparation_preset_name}
+                        <span className="ml-1 text-sm text-slate-500">
+                          (no Preparation Preset used)
+                        </span>
+                      </>
                     )}
                   </td>
                   <td>{row.times_used}</td>
@@ -547,12 +625,21 @@ function PreparationHistoryView({
                   <td>{formatPercent(row.average_yield_percent)}</td>
                   <td>{formatDate(row.last_used_completed_at)}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
-      )}
-    </ReportStateWrapper>
+                {row.used_preset && isExpanded ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <ProductionHistoryDetail
+                        preparationPresetName={row.preparation_preset_name}
+                      />
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </Surface>
   );
 }
 
@@ -566,34 +653,72 @@ function DryingTimeView({
   return (
     <ReportStateWrapper hasFilters={hasFilters} query={query}>
       {(rows) => (
-        <Surface className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Batch</th>
-                <th>Freeze Dryer</th>
-                <th>Completed</th>
-                <th>Total Drying Time</th>
-                <th>Drying Runs</th>
-                <th>Voided Runs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.production_batch_id}>
-                  <td>{row.batch_number}</td>
+        <DryingTimeTable
+          renderExpansion={(row) => (
+            <BatchTraysDetail productionBatchId={row.production_batch_id} />
+          )}
+          rows={rows}
+        />
+      )}
+    </ReportStateWrapper>
+  );
+}
+
+function DryingTimeTable({
+  renderExpansion,
+  rows,
+}: {
+  renderExpansion?: (row: DryingTimeRow) => ReactNode;
+  rows: DryingTimeRow[];
+}) {
+  const { expanded, toggle } = useExpandedRows();
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Freeze Dryer</th>
+            <th>Completed</th>
+            <th>Total Drying Time</th>
+            <th>Drying Runs</th>
+            <th>Voided Runs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isExpanded = expanded.has(row.production_batch_id);
+            return (
+              <Fragment key={row.production_batch_id}>
+                <tr>
+                  <td>
+                    {renderExpansion ? (
+                      <ExpandToggle
+                        isExpanded={isExpanded}
+                        label={row.batch_number}
+                        onClick={() => toggle(row.production_batch_id)}
+                      />
+                    ) : (
+                      row.batch_number
+                    )}
+                  </td>
                   <td>{row.freeze_dryer_name}</td>
                   <td>{formatDate(row.completed_at)}</td>
                   <td>{formatDuration(row.total_drying_time_seconds)}</td>
                   <td>{row.drying_run_count}</td>
                   <td>{row.voided_drying_run_count}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
-      )}
-    </ReportStateWrapper>
+                {renderExpansion && isExpanded ? (
+                  <tr>
+                    <td colSpan={6}>{renderExpansion(row)}</td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </Surface>
   );
 }
 
@@ -607,34 +732,72 @@ function ProductionHistoryView({
   return (
     <ReportStateWrapper hasFilters={hasFilters} query={query}>
       {(rows) => (
-        <Surface className="overflow-x-auto">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Batch</th>
-                <th>Freeze Dryer</th>
-                <th>Completed</th>
-                <th>Trays</th>
-                <th>Products</th>
-                <th>Total Drying Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.production_batch_id}>
-                  <td>{row.batch_number}</td>
+        <ProductionHistoryTable
+          renderExpansion={(row) => (
+            <BatchTraysDetail productionBatchId={row.production_batch_id} />
+          )}
+          rows={rows}
+        />
+      )}
+    </ReportStateWrapper>
+  );
+}
+
+function ProductionHistoryTable({
+  renderExpansion,
+  rows,
+}: {
+  renderExpansion?: (row: ProductionHistoryRow) => ReactNode;
+  rows: ProductionHistoryRow[];
+}) {
+  const { expanded, toggle } = useExpandedRows();
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Freeze Dryer</th>
+            <th>Completed</th>
+            <th>Trays</th>
+            <th>Products</th>
+            <th>Total Drying Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const isExpanded = expanded.has(row.production_batch_id);
+            return (
+              <Fragment key={row.production_batch_id}>
+                <tr>
+                  <td>
+                    {renderExpansion ? (
+                      <ExpandToggle
+                        isExpanded={isExpanded}
+                        label={row.batch_number}
+                        onClick={() => toggle(row.production_batch_id)}
+                      />
+                    ) : (
+                      row.batch_number
+                    )}
+                  </td>
                   <td>{row.freeze_dryer_name}</td>
                   <td>{formatDate(row.completed_at)}</td>
                   <td>{row.tray_count}</td>
                   <td>{row.products.join(", ")}</td>
                   <td>{formatDuration(row.total_drying_time_seconds)}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
-      )}
-    </ReportStateWrapper>
+                {renderExpansion && isExpanded ? (
+                  <tr>
+                    <td colSpan={6}>{renderExpansion(row)}</td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </Surface>
   );
 }
 
@@ -716,28 +879,287 @@ function InventorySummaryView({
         </p>
       </SummaryPanel>
       {summary.most_common_products.length > 0 ? (
-        <Surface className="overflow-x-auto">
-          <h3 className="section-title">Most Common Products</h3>
-          <table className="data-table mt-2">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Packages</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.most_common_products.map((product) => (
-                <tr key={product.product_name}>
-                  <td>{product.product_name}</td>
-                  <td>{product.package_count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Surface>
+        <ExpandableMostCommonProductsTable
+          products={summary.most_common_products}
+        />
       ) : null}
     </div>
   );
+}
+
+function ExpandableMostCommonProductsTable({
+  products,
+}: {
+  products: MostCommonProduct[];
+}) {
+  const { expanded, toggle } = useExpandedRows();
+  return (
+    <Surface className="overflow-x-auto">
+      <h3 className="section-title">Most Common Products</h3>
+      <table className="data-table mt-2">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Packages</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((product) => {
+            const isExpanded = expanded.has(product.product_name);
+            return (
+              <Fragment key={product.product_name}>
+                <tr>
+                  <td>
+                    <ExpandToggle
+                      isExpanded={isExpanded}
+                      label={product.product_name}
+                      onClick={() => toggle(product.product_name)}
+                    />
+                  </td>
+                  <td>{product.package_count}</td>
+                </tr>
+                {isExpanded ? (
+                  <tr>
+                    <td colSpan={2}>
+                      <CurrentPackagesDetail
+                        productName={product.product_name}
+                      />
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </Surface>
+  );
+}
+
+function useExpandedRows() {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  function toggle(key: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+  return { expanded, toggle };
+}
+
+function ExpandToggle({
+  isExpanded,
+  label,
+  onClick,
+}: {
+  isExpanded: boolean;
+  label: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-expanded={isExpanded}
+      className="text-link"
+      type="button"
+      onClick={onClick}
+    >
+      <span aria-hidden="true">{isExpanded ? "▾" : "▸"}</span> {label}
+    </button>
+  );
+}
+
+/**
+ * Expanded row detail is fetched once and kept for the life of the page -
+ * collapsing a row never invalidates its cached detail, so re-expanding it
+ * is instant and never refetches (Design Decision #3).
+ */
+const NESTED_QUERY_STALE_TIME = Infinity;
+
+function DryingTimeDetail({ freezeDryerId }: { freezeDryerId: string }) {
+  const query = useQuery({
+    queryKey: ["report-drying-time-detail", freezeDryerId],
+    queryFn: () => reportsApi.getDryingTime({ freezeDryerId }),
+    staleTime: NESTED_QUERY_STALE_TIME,
+  });
+  return (
+    <ReportStateWrapper hasFilters query={query}>
+      {(rows) => <DryingTimeTable rows={rows} />}
+    </ReportStateWrapper>
+  );
+}
+
+function ProductionHistoryDetail({
+  preparationPresetName,
+  productName,
+}: {
+  preparationPresetName?: string;
+  productName?: string;
+}) {
+  const query = useQuery({
+    queryKey: [
+      "report-production-history-detail",
+      productName ?? "",
+      preparationPresetName ?? "",
+    ],
+    queryFn: () =>
+      reportsApi.getProductionHistory({ preparationPresetName, productName }),
+    staleTime: NESTED_QUERY_STALE_TIME,
+  });
+  return (
+    <ReportStateWrapper hasFilters query={query}>
+      {(rows) => <ProductionHistoryTable rows={rows} />}
+    </ReportStateWrapper>
+  );
+}
+
+function BatchTraysDetail({
+  productionBatchId,
+}: {
+  productionBatchId: string;
+}) {
+  const query = useQuery({
+    queryKey: ["report-batch-trays-detail", productionBatchId],
+    queryFn: () => productionApi.getProductionBatch(productionBatchId),
+    staleTime: NESTED_QUERY_STALE_TIME,
+  });
+  if (query.isLoading) {
+    return <Surface>Loading Trays…</Surface>;
+  }
+  if (query.isError) {
+    return (
+      <StatusBanner
+        action={
+          <Button variant="secondary" onClick={() => void query.refetch()}>
+            Retry
+          </Button>
+        }
+        body={formatApiError(query.error)}
+        title="Batch detail could not be loaded"
+        tone="danger"
+      />
+    );
+  }
+  const trays = query.data?.trays ?? [];
+  if (trays.length === 0) {
+    return <Surface>This Batch has no Trays.</Surface>;
+  }
+  return <BatchTraysTable trays={trays} />;
+}
+
+function BatchTraysTable({ trays }: { trays: Tray[] }) {
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Starting Weight</th>
+            <th>Final Dry Weight</th>
+            <th>Weight Loss</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trays.map((tray) => (
+            <tr key={tray.id}>
+              <td>{tray.product_name}</td>
+              <td>{formatGrams(tray.starting_weight_grams)}</td>
+              <td>{formatGrams(tray.final_dry_weight_grams)}</td>
+              <td>
+                {formatWeightLoss(
+                  tray.starting_weight_grams,
+                  tray.final_dry_weight_grams,
+                )}
+              </td>
+              <td>{tray.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Surface>
+  );
+}
+
+function CurrentPackagesDetail({ productName }: { productName: string }) {
+  const query = useQuery({
+    queryKey: ["report-current-packages-detail", productName],
+    queryFn: () => inventoryApi.searchInventory({ limit: 200, productName }),
+    staleTime: NESTED_QUERY_STALE_TIME,
+  });
+  if (query.isLoading) {
+    return <Surface>Loading Packages…</Surface>;
+  }
+  if (query.isError) {
+    return (
+      <StatusBanner
+        action={
+          <Button variant="secondary" onClick={() => void query.refetch()}>
+            Retry
+          </Button>
+        }
+        body={formatApiError(query.error)}
+        title="Packages could not be loaded"
+        tone="danger"
+      />
+    );
+  }
+  const packages = query.data ?? [];
+  if (packages.length === 0) {
+    return <Surface>No current Packages of this Product.</Surface>;
+  }
+  return <CurrentPackagesList packages={packages} />;
+}
+
+function CurrentPackagesList({ packages }: { packages: Package[] }) {
+  return (
+    <Surface className="overflow-x-auto">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Weight</th>
+            <th>Packaged</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {packages.map((item) => (
+            <tr key={item.id}>
+              <td>{item.package_identifier}</td>
+              <td>
+                {formatGrams(
+                  item.finished_product_weight_grams === null
+                    ? null
+                    : String(item.finished_product_weight_grams),
+                )}
+              </td>
+              <td>{formatDate(item.packaged_at)}</td>
+              <td>{item.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Surface>
+  );
+}
+
+function formatWeightLoss(
+  startingWeightGrams: string | null,
+  finalDryWeightGrams: string | null,
+) {
+  if (startingWeightGrams === null || finalDryWeightGrams === null) {
+    return "—";
+  }
+  const starting = Number(startingWeightGrams);
+  if (!(starting > 0)) return "—";
+  const final = Number(finalDryWeightGrams);
+  const lossPercent = ((starting - final) / starting) * 100;
+  return `${lossPercent.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
 function formatDuration(seconds: number | null) {

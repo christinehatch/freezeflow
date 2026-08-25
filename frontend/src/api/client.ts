@@ -462,6 +462,7 @@ export type ReportFilters = {
   freezeDryerId?: string;
   productName?: string;
   preparationPresetId?: string;
+  preparationPresetName?: string;
   productionBatchId?: string;
 };
 
@@ -1000,6 +1001,9 @@ function buildReportQuery(filters: ReportFilters = {}): string {
   if (filters.productName) search.set("product_name", filters.productName);
   if (filters.preparationPresetId) {
     search.set("preparation_preset_id", filters.preparationPresetId);
+  }
+  if (filters.preparationPresetName) {
+    search.set("preparation_preset_name", filters.preparationPresetName);
   }
   if (filters.productionBatchId) {
     search.set("production_batch_id", filters.productionBatchId);
