@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { productionApi } from "../api/client";
+import { ButtonLink } from "../components/design-system";
 
 export function ProductionPage() {
   const [searchParams] = useSearchParams();
@@ -58,12 +59,17 @@ export function ProductionPage() {
 
   return (
     <div className="space-y-8">
-      <section>
-        <h2 className="text-3xl font-semibold">Production</h2>
-        <p className="mt-2 max-w-2xl text-slate-600">
-          Create Draft Production Batches and organize trays before drying
-          starts.
-        </p>
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-semibold">Production</h2>
+          <p className="mt-2 max-w-2xl text-slate-600">
+            Create Draft Production Batches and organize trays before drying
+            starts.
+          </p>
+        </div>
+        <ButtonLink to="/production/preparation-presets" variant="secondary">
+          Preparation Presets
+        </ButtonLink>
       </section>
 
       <form
