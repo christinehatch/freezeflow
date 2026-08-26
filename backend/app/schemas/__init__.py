@@ -4,6 +4,7 @@ from app.schemas.drying_run import (
     DryingRunCreate,
     DryingRunRead,
     DryingRunStart,
+    DryingRunTimestampCorrection,
     DryingRunUpdate,
     DryingRunVoid,
 )
@@ -13,7 +14,13 @@ from app.schemas.freeze_dryer import (
     FreezeDryerUpdate,
 )
 from app.schemas.inventory import PackageDeplete, PackageGiveAway, PackageMove
-from app.schemas.package import PackageCreate, PackageRead, PackageUpdate
+from app.schemas.package import (
+    PackageCreate,
+    PackageNotesCorrection,
+    PackageRead,
+    PackageUpdate,
+    PackageWeightCorrection,
+)
 from app.schemas.package_label import (
     PackageLabelCreate,
     PackageLabelRead,
@@ -70,6 +77,7 @@ from app.schemas.preparation_preset import (
 from app.schemas.print_event import PrintEventCreate, PrintEventRead
 from app.schemas.production_batch import (
     ProductionBatchCreate,
+    ProductionBatchNotesCorrection,
     ProductionBatchRead,
     ProductionBatchStart,
     ProductionBatchUpdate,
@@ -95,7 +103,11 @@ from app.schemas.storage_location import (
 from app.schemas.tray import (
     TrayComplete,
     TrayCreate,
+    TrayFinalDryWeightCorrection,
+    TrayNotesCorrection,
+    TrayPreparationCorrection,
     TrayRead,
+    TrayStartingWeightCorrection,
     TrayStartingWeightUpdate,
     TrayUpdate,
 )
@@ -115,6 +127,7 @@ __all__ = [
     "DryingRunCreate",
     "DryingRunRead",
     "DryingRunStart",
+    "DryingRunTimestampCorrection",
     "DryingRunUpdate",
     "DryingRunVoid",
     "FreezeDryerCreate",
@@ -127,10 +140,12 @@ __all__ = [
     "PackageLabelCreate",
     "PackageLabelRead",
     "PackageLabelUpdate",
+    "PackageNotesCorrection",
     "PackageRead",
     "PackageStatusHistoryCreate",
     "PackageStatusHistoryRead",
     "PackageUpdate",
+    "PackageWeightCorrection",
     "PackageTypeCreate",
     "PackageTypeRead",
     "PackageTypeUpdate",
@@ -174,6 +189,7 @@ __all__ = [
     "PreparationPresetRead",
     "PreparationPresetUpdate",
     "ProductionBatchCreate",
+    "ProductionBatchNotesCorrection",
     "ProductionBatchRead",
     "ProductionBatchStart",
     "ProductionBatchUpdate",
@@ -185,7 +201,11 @@ __all__ = [
     "StorageLocationUpdate",
     "TrayComplete",
     "TrayCreate",
+    "TrayFinalDryWeightCorrection",
+    "TrayNotesCorrection",
+    "TrayPreparationCorrection",
     "TrayRead",
+    "TrayStartingWeightCorrection",
     "TrayStartingWeightUpdate",
     "TraySlotCreate",
     "TraySlotRead",

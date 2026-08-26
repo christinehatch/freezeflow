@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -31,17 +32,24 @@ from app.repositories import (
 from app.schemas import (
     DryingRunComplete,
     DryingRunStart,
+    DryingRunTimestampCorrection,
     DryingRunVoid,
     ProductionBatchCreate,
+    ProductionBatchNotesCorrection,
     ProductionBatchStart,
     ProductionBatchUpdate,
     TrayComplete,
     TrayCreate,
+    TrayFinalDryWeightCorrection,
+    TrayNotesCorrection,
+    TrayPreparationCorrection,
+    TrayStartingWeightCorrection,
     TrayStartingWeightUpdate,
     TrayUpdate,
     WeightCheckCorrection,
     WeightCheckCreate,
 )
+from app.services.corrections import record_correction
 from app.services.errors import BusinessRuleError
 
 
@@ -528,6 +536,229 @@ def correct_weight_check(
     db.add(weight_check)
     db.commit()
     return get_weight_check(db, weight_check.id)
+
+
+def correct_tray_notes(db: Session, tray_id: UUID, data: TrayNotesCorrection) -> Tray:
+    tray = get_tray(db, tray_id)
+    previous_notes = tray.notes or ""
+    if data.notes.strip() == previous_notes.strip():
+        raise BusinessRuleError("Corrected notes must differ from the current notes.")
+    record_correction(
+        db,
+        entity_type="Tray",
+        entity_id=tray.id,
+        field_name="notes",
+        previous_value=previous_notes,
+        current_value=data.notes,
+        observed_at=None,
+        reason=data.reason,
+    )
+    tray.notes = data.notes
+    db.add(tray)
+    db.commit()
+    return get_tray(db, tray.id)
+
+
+def correct_tray_preparation_metadata(
+    db: Session, tray_id: UUID, data: TrayPreparationCorrection
+) -> Tray:
+    tray = get_tray(db, tray_id)
+    changed = False
+
+    if data.product_name is not None:
+        if not data.product_name.strip():
+            raise BusinessRuleError("Product name is required.")
+        if data.product_name.strip() != tray.product_name.strip():
+            record_correction(
+                db,
+                entity_type="Tray",
+                entity_id=tray.id,
+                field_name="productName",
+                previous_value=tray.product_name,
+                current_value=data.product_name,
+                observed_at=None,
+                reason=data.reason,
+            )
+            tray.product_name = data.product_name
+            changed = True
+
+    if data.ingredients is not None:
+        previous_ingredients = json.dumps(tray.ingredients or [])
+        current_ingredients = json.dumps(data.ingredients)
+        if current_ingredients != previous_ingredients:
+            record_correction(
+                db,
+                entity_type="Tray",
+                entity_id=tray.id,
+                field_name="ingredients",
+                previous_value=previous_ingredients,
+                current_value=current_ingredients,
+                observed_at=None,
+                reason=data.reason,
+            )
+            tray.ingredients = data.ingredients
+            changed = True
+
+    if data.preparation_methods is not None:
+        previous_methods = json.dumps(tray.preparation_methods or [])
+        current_methods = json.dumps(data.preparation_methods)
+        if current_methods != previous_methods:
+            record_correction(
+                db,
+                entity_type="Tray",
+                entity_id=tray.id,
+                field_name="preparationMethods",
+                previous_value=previous_methods,
+                current_value=current_methods,
+                observed_at=None,
+                reason=data.reason,
+            )
+            tray.preparation_methods = data.preparation_methods
+            changed = True
+
+    if not changed:
+        raise BusinessRuleError(
+            "At least one Preparation Metadata field must differ from its "
+            "current value."
+        )
+
+    db.add(tray)
+    db.commit()
+    return get_tray(db, tray.id)
+
+
+def correct_tray_starting_weight(
+    db: Session, tray_id: UUID, data: TrayStartingWeightCorrection
+) -> Tray:
+    tray = get_tray(db, tray_id)
+    if data.starting_weight_grams <= 0:
+        raise BusinessRuleError("Starting Weight must be greater than zero.")
+    previous = tray.starting_weight_grams
+    if previous is not None and data.starting_weight_grams == previous:
+        raise BusinessRuleError(
+            "Corrected Starting Weight must differ from the current value."
+        )
+    record_correction(
+        db,
+        entity_type="Tray",
+        entity_id=tray.id,
+        field_name="startingWeightGrams",
+        previous_value=str(previous) if previous is not None else "",
+        current_value=str(data.starting_weight_grams),
+        observed_at=None,
+        reason=data.reason,
+    )
+    tray.starting_weight_grams = data.starting_weight_grams
+    db.add(tray)
+    db.commit()
+    return get_tray(db, tray.id)
+
+
+def correct_tray_final_dry_weight(
+    db: Session, tray_id: UUID, data: TrayFinalDryWeightCorrection
+) -> Tray:
+    tray = get_tray(db, tray_id)
+    if data.final_dry_weight_grams <= 0:
+        raise BusinessRuleError("Final Dry Weight must be greater than zero.")
+    previous = tray.final_dry_weight_grams
+    if previous is not None and data.final_dry_weight_grams == previous:
+        raise BusinessRuleError(
+            "Corrected Final Dry Weight must differ from the current value."
+        )
+    record_correction(
+        db,
+        entity_type="Tray",
+        entity_id=tray.id,
+        field_name="finalDryWeightGrams",
+        previous_value=str(previous) if previous is not None else "",
+        current_value=str(data.final_dry_weight_grams),
+        observed_at=None,
+        reason=data.reason,
+    )
+    tray.final_dry_weight_grams = data.final_dry_weight_grams
+    db.add(tray)
+    db.commit()
+    return get_tray(db, tray.id)
+
+
+def correct_production_batch_notes(
+    db: Session, batch_id: UUID, data: ProductionBatchNotesCorrection
+) -> ProductionBatch:
+    batch = get_production_batch(db, batch_id)
+    previous_notes = batch.notes or ""
+    if data.notes.strip() == previous_notes.strip():
+        raise BusinessRuleError("Corrected notes must differ from the current notes.")
+    record_correction(
+        db,
+        entity_type="ProductionBatch",
+        entity_id=batch.id,
+        field_name="notes",
+        previous_value=previous_notes,
+        current_value=data.notes,
+        observed_at=None,
+        reason=data.reason,
+    )
+    batch.notes = data.notes
+    db.add(batch)
+    db.commit()
+    return get_production_batch(db, batch.id)
+
+
+def correct_drying_run_timestamps(
+    db: Session, drying_run_id: UUID, data: DryingRunTimestampCorrection
+) -> DryingRun:
+    drying_run = get_drying_run(db, drying_run_id)
+    if data.started_at is None and data.ended_at is None:
+        raise BusinessRuleError("At least one of startedAt or endedAt is required.")
+
+    new_started_at = (
+        data.started_at if data.started_at is not None else drying_run.started_at
+    )
+    new_ended_at = data.ended_at if data.ended_at is not None else drying_run.ended_at
+    if new_ended_at is not None and new_started_at >= new_ended_at:
+        raise BusinessRuleError("Drying Run startedAt must be before endedAt.")
+
+    changed = False
+
+    if data.started_at is not None and data.started_at != drying_run.started_at:
+        record_correction(
+            db,
+            entity_type="DryingRun",
+            entity_id=drying_run.id,
+            field_name="startedAt",
+            previous_value=drying_run.started_at.isoformat(),
+            current_value=data.started_at.isoformat(),
+            observed_at=None,
+            reason=data.reason,
+        )
+        drying_run.started_at = data.started_at
+        changed = True
+
+    if data.ended_at is not None and data.ended_at != drying_run.ended_at:
+        record_correction(
+            db,
+            entity_type="DryingRun",
+            entity_id=drying_run.id,
+            field_name="endedAt",
+            previous_value=(
+                drying_run.ended_at.isoformat() if drying_run.ended_at else ""
+            ),
+            current_value=data.ended_at.isoformat(),
+            observed_at=None,
+            reason=data.reason,
+        )
+        drying_run.ended_at = data.ended_at
+        changed = True
+
+    if not changed:
+        raise BusinessRuleError(
+            "At least one of startedAt or endedAt must differ from its "
+            "current value."
+        )
+
+    db.add(drying_run)
+    db.commit()
+    return get_drying_run(db, drying_run.id)
 
 
 def complete_tray(db: Session, tray_id: UUID, data: TrayComplete) -> Tray:

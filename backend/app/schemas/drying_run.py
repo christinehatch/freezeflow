@@ -21,6 +21,12 @@ class DryingRunVoid(BaseModel):
     notes: str
 
 
+class DryingRunTimestampCorrection(BaseModel):
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    reason: str | None = None
+
+
 class DryingRunCreate(BaseModel):
     production_batch_id: UUID
     status: DryingRunStatus = DryingRunStatus.ACTIVE

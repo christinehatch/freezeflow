@@ -15,12 +15,18 @@ from app.database.session import get_db
 from app.schemas import (
     DryingRunComplete,
     DryingRunStart,
+    DryingRunTimestampCorrection,
     DryingRunVoid,
     ProductionBatchCreate,
+    ProductionBatchNotesCorrection,
     ProductionBatchStart,
     ProductionBatchUpdate,
     TrayComplete,
     TrayCreate,
+    TrayFinalDryWeightCorrection,
+    TrayNotesCorrection,
+    TrayPreparationCorrection,
+    TrayStartingWeightCorrection,
     TrayStartingWeightUpdate,
     TrayUpdate,
     WeightCheckCorrection,
@@ -33,6 +39,12 @@ from app.services.production import (
     complete_drying_run,
     complete_production_batch,
     complete_tray,
+    correct_drying_run_timestamps,
+    correct_production_batch_notes,
+    correct_tray_final_dry_weight,
+    correct_tray_notes,
+    correct_tray_preparation_metadata,
+    correct_tray_starting_weight,
     correct_weight_check,
     create_production_batch,
     delete_tray,
@@ -276,6 +288,84 @@ def correct_weight_check_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(weight_check_data(weight_check))
+
+
+@router.post("/trays/{tray_id}/correct-notes")
+def correct_tray_notes_endpoint(
+    tray_id: UUID,
+    data: TrayNotesCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = correct_tray_notes(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/trays/{tray_id}/correct-preparation")
+def correct_tray_preparation_endpoint(
+    tray_id: UUID,
+    data: TrayPreparationCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = correct_tray_preparation_metadata(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/trays/{tray_id}/correct-starting-weight")
+def correct_tray_starting_weight_endpoint(
+    tray_id: UUID,
+    data: TrayStartingWeightCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = correct_tray_starting_weight(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/trays/{tray_id}/correct-final-dry-weight")
+def correct_tray_final_dry_weight_endpoint(
+    tray_id: UUID,
+    data: TrayFinalDryWeightCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        tray = correct_tray_final_dry_weight(db, tray_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(tray_data(tray))
+
+
+@router.post("/production-batches/{batch_id}/correct-notes")
+def correct_production_batch_notes_endpoint(
+    batch_id: UUID,
+    data: ProductionBatchNotesCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        batch = correct_production_batch_notes(db, batch_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(production_batch_data(batch))
+
+
+@router.post("/drying-runs/{drying_run_id}/correct-timestamps")
+def correct_drying_run_timestamps_endpoint(
+    drying_run_id: UUID,
+    data: DryingRunTimestampCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        drying_run = correct_drying_run_timestamps(db, drying_run_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(drying_run_data(drying_run))
 
 
 @router.post("/trays/{tray_id}/complete")

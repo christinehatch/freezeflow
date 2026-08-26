@@ -919,14 +919,14 @@ def test_completion_reports_each_blocker_and_succeeds_explicitly(
     )
     _assert_business_error(repeat_response, "Only an Open Packaging Operation")
 
+    # Milestone 8 (ADR-0005): Package Label edits are allowed even after
+    # the Packaging Operation completes, recorded as an Audit Entry.
     completed_label_edit = client.patch(
         f"/api/v1/packages/{success_recorded['packages'][0]['id']}/label",
         json={"display_name": "Changed after completion"},
     )
-    _assert_business_error(
-        completed_label_edit,
-        "Completed Packaging Operations cannot be changed",
-    )
+    assert completed_label_edit.status_code == 200
+    assert _data(completed_label_edit)["display_name"] == "Changed after completion"
 
 
 def test_package_finished_weight_remains_structured_and_not_derived(
