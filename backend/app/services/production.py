@@ -704,6 +704,10 @@ def correct_production_batch_notes(
     return get_production_batch(db, batch.id)
 
 
+def _as_aware_utc(value: datetime) -> datetime:
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
 def correct_drying_run_timestamps(
     db: Session, drying_run_id: UUID, data: DryingRunTimestampCorrection
 ) -> DryingRun:
@@ -715,7 +719,9 @@ def correct_drying_run_timestamps(
         data.started_at if data.started_at is not None else drying_run.started_at
     )
     new_ended_at = data.ended_at if data.ended_at is not None else drying_run.ended_at
-    if new_ended_at is not None and new_started_at >= new_ended_at:
+    if new_ended_at is not None and _as_aware_utc(new_started_at) >= _as_aware_utc(
+        new_ended_at
+    ):
         raise BusinessRuleError("Drying Run startedAt must be before endedAt.")
 
     changed = False
