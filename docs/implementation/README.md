@@ -51,7 +51,7 @@ Future milestones should extend previous work rather than replacing it.
 | 05 | Complete | Inventory |
 | 06 | Complete | Preparation Presets |
 | 07 | Planned | Reporting |
-| 08 | Planned | Corrections & Audit History |
+| 08 | Complete | Corrections & Audit History |
 | 09 | Planned | Polish & Production Readiness |
 
 ---
@@ -234,7 +234,7 @@ Includes:
 
 ## Milestone 8 - Corrections & Audit History
 
-Status: Planned
+Status: Complete
 
 Goal: Allow safe corrections while preserving complete history.
 
