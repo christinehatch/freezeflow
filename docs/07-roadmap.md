@@ -44,8 +44,8 @@ Later milestones extend existing functionality rather than replacing it.
 | 5 - Inventory | Complete |
 | 6 - Preparation Presets | Complete |
 | 7 - Reporting | Complete |
-| 8 - Application Polish | Planned |
-| 9 - Version 1 Release | Planned |
+| 8 - Corrections & Audit History | Planned |
+| 9 - Polish & Production Readiness | Planned |
 
 ---
 
@@ -229,31 +229,38 @@ Packaging data from Milestone 4 enables additional comparisons between tray outp
 
 ---
 
-## Milestone 8 — Application Polish
+## Milestone 8 — Corrections & Audit History
 
-Improve usability and reliability.
+Allow safe corrections while preserving complete history.
 
 Includes:
 
-- Validation improvements
-- Accessibility
-- Performance
-- User experience refinements
-- Error handling
+- Record corrections
+- Audit entries
+- Correction history
+- Immutable production records
+- Historical reconstruction
+- Storage movement history
+
+Corrections never overwrite what actually happened — a correction appends a new record rather than editing history in place, matching the append-only pattern already established for Package Status History and Storage Location History (ADR-0006).
 
 ---
 
-## Milestone 9 — Version 1 Release
+## Milestone 9 — Polish & Production Readiness
 
-Prepare Freezeflow for production release.
+Prepare Freezeflow for real-world use.
 
 Includes:
 
-- Bug fixing
-- Final testing
-- Documentation review
-- Release validation
-- Version 1 launch readiness
+- Performance optimization
+- UX refinement
+- Accessibility
+- Mobile responsiveness
+- Error handling
+- Validation improvements
+- Documentation cleanup
+- End-to-end testing
+- Deployment readiness
 
 ---
 
