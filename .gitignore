@@ -8,6 +8,7 @@ __pycache__/
 backend/.env
 backend/freezeflow.db
 backend/*.db.*
+backend/uploads/
 
 # Frontend
 frontend/dist/

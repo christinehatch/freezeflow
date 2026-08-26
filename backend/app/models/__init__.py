@@ -2,6 +2,8 @@ from app.models.audit_entry import AuditEntry
 from app.models.drying_run import DryingRun
 from app.models.enums import (
     DryingRunStatus,
+    FeedbackCategory,
+    FeedbackStatus,
     InventoryStatus,
     PackageLabelStatus,
     PackagingLossReason,
@@ -9,6 +11,7 @@ from app.models.enums import (
     ProductionBatchStatus,
     TrayStatus,
 )
+from app.models.feedback import Feedback
 from app.models.freeze_dryer import FreezeDryer
 from app.models.package import Package
 from app.models.package_label import PackageLabel
@@ -38,6 +41,9 @@ __all__ = [
     "AuditEntry",
     "DryingRun",
     "DryingRunStatus",
+    "Feedback",
+    "FeedbackCategory",
+    "FeedbackStatus",
     "FreezeDryer",
     "InventoryStatus",
     "Package",
