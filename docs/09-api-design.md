@@ -698,8 +698,9 @@ Validation:
 * `reasonDetail` is rejected unless `reason` is `Other`.
 
 Packaging Loss entries are append-only: no update or delete endpoint exists.
-An incorrectly recorded entry is corrected under the Milestone 8 Corrections
-workflow, the same as other Milestone 8 fields.
+Packaging Loss is not a Milestone 8 correctable field (see ADR-0005); an
+incorrectly recorded entry is out of scope for Milestone 8 and remains a
+future consideration.
 
 ## Complete Packaging
 
@@ -730,6 +731,11 @@ PATCH /api/v1/packages/{id}/label
 Updates editable Package Label presentation fields and returns the updated
 label. It does not modify Production History, Package facts, or inventory.
 Editing printable content after a Print Event changes the label to Needs Reprint.
+
+Label edits are allowed both while the Packaging Operation is Open and after
+it completes (ADR-0005, PK-019). Each changed field is recorded as an
+append-only Audit Entry, readable through `GET /api/v1/audit-entries` (see
+Corrections & Audit History Endpoints).
 
 ## Preview and Print Selected Labels
 
@@ -1212,6 +1218,157 @@ POST /api/freeze-dryers
 
 ```http
 PATCH /api/freeze-dryers/{id}
+```
+
+---
+
+# Corrections & Audit History Endpoints
+
+These endpoints implement ADR-0005 for every correctable field not already
+covered by its own domain section (Weight Check correction is documented
+under Weight Check Endpoints; Package Label correction under Update Package
+Label; Storage Location correction is handled entirely by Move Package and
+Get Package Storage History under Inventory Endpoints — it does not use
+Audit Entries, see CR-003).
+
+Every correction endpoint below follows the same shape as Correct Weight
+Check: the current value is updated, the previous value and an optional
+reason are preserved in an append-only Audit Entry, and the corrected value
+becomes what the rest of the application sees. A correction is rejected when
+the submitted value equals the current value (after trimming, for text
+fields).
+
+## List Audit Entries
+
+```http
+GET /api/v1/audit-entries
+```
+
+Query parameters (both required):
+
+* `entityType` — the corrected entity's type, e.g. `Tray`, `ProductionBatch`,
+  `DryingRun`, `Package`, `WeightCheck`, `PackageLabel`.
+* `entityId` — the corrected entity's id.
+
+Returns every Audit Entry for that entity, oldest first, each with
+`fieldName`, `previousValue`, `currentValue`, `observedAt` (when
+applicable), `correctedAt`, and `reason`.
+
+---
+
+## Correct Tray Notes
+
+```http
+POST /api/v1/trays/{id}/correct-notes
+```
+
+```json
+{ "notes": "Corrected note text.", "reason": null }
+```
+
+---
+
+## Correct Tray Preparation Metadata
+
+```http
+POST /api/v1/trays/{id}/correct-preparation
+```
+
+```json
+{
+  "productName": "Strawberries",
+  "ingredients": ["Strawberries"],
+  "preparationMethods": ["Sliced"],
+  "reason": "Product name was misspelled at entry."
+}
+```
+
+Accepts any subset of `productName`, `ingredients`, and `preparationMethods`.
+Records one Audit Entry per field actually changed; a field omitted or equal
+to its current value produces no entry. Does not affect RC-004/RC-005 —
+correcting a Tray's own snapshot never re-syncs it from a Preparation Preset.
+
+---
+
+## Correct Tray Starting Weight
+
+```http
+POST /api/v1/trays/{id}/correct-starting-weight
+```
+
+```json
+{ "startingWeightGrams": 452.0, "reason": "Scale misread." }
+```
+
+Weight must be greater than zero.
+
+---
+
+## Correct Tray Final Dry Weight
+
+```http
+POST /api/v1/trays/{id}/correct-final-dry-weight
+```
+
+```json
+{ "finalDryWeightGrams": 38.5, "reason": null }
+```
+
+Weight must be greater than zero.
+
+---
+
+## Correct Production Batch Notes
+
+```http
+POST /api/v1/production-batches/{id}/correct-notes
+```
+
+```json
+{ "notes": "Corrected note text.", "reason": null }
+```
+
+---
+
+## Correct Drying Run Timestamps
+
+```http
+POST /api/v1/drying-runs/{id}/correct-timestamps
+```
+
+```json
+{ "startedAt": "2026-04-25T08:00:00Z", "endedAt": null, "reason": "Clock was set incorrectly." }
+```
+
+Accepts either or both of `startedAt`/`endedAt`. Records one Audit Entry per
+field actually changed. `startedAt` must be before `endedAt` when both are
+present or both already exist on the Drying Run after the correction.
+
+---
+
+## Correct Package Weight
+
+```http
+POST /api/v1/packages/{id}/correct-weight
+```
+
+```json
+{ "packageWeightGrams": 226.8, "reason": null }
+```
+
+Weight must be greater than zero, matching the existing Package weight
+constraint.
+
+---
+
+## Correct Package Notes
+
+```http
+POST /api/v1/packages/{id}/correct-notes
+```
+
+```json
+{ "notes": "Corrected note text.", "reason": null }
 ```
 
 ---

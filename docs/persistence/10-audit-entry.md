@@ -43,11 +43,31 @@ Examples include:
 - Drying Run
 - Production Batch
 - Package
-- Storage Location
+- Package Label
 
 Entities may have zero or more Audit Entries.
 
 Audit Entries are never shared between entities.
+
+Storage Location is a documented exception: it is correctable, per ADR-0005,
+but through the Storage Movement history mechanism (ADR-0006), not through
+Audit Entries. Moving a Package to its correct Storage Location already
+preserves the previous location as a Storage Location History record, so no
+Audit Entry is written for Storage Location corrections.
+
+---
+
+# API
+
+```http
+GET /api/v1/audit-entries?entityType={type}&entityId={id}
+```
+
+Returns every Audit Entry belonging to one entity, oldest first. Both query
+parameters are required — there is no unscoped listing of every Audit Entry
+in the system. See `docs/09-api-design.md`'s Corrections & Audit History
+Endpoints section for the full request/response shape, and for every
+correction endpoint that writes to this entity.
 
 ---
 

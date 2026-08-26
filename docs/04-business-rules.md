@@ -161,7 +161,7 @@ Voided Drying Runs remain historical records.
 
 ## DR-011
 
-Corrections to Drying Run timestamps follow the Audit History model.
+Corrections to Drying Run timestamps follow the Audit History model. See CR-002 for the full list of correctable fields.
 
 ---
 
@@ -546,9 +546,10 @@ inventory state.
 
 ## PK-019
 
-Package Label content may be edited after Package creation. Editing a previously
-printed label sets its state to `Needs Reprint`. Before Milestone 8, the current
-content is overwritten; Milestone 8 adds label-edit Audit history.
+Package Label content may be edited after Package creation, including after its
+Packaging Operation completes. Editing a previously printed label sets its state
+to `Needs Reprint`. Every label edit records an Audit Entry for each changed
+field (ADR-0005, CR-002).
 
 ---
 
@@ -913,6 +914,63 @@ Examples include Weight Checks, Packaging Operations, Storage Location History, 
 ## HD-006
 
 Current state may be stored for usability, but it must not replace the historical records needed to explain how that state was reached.
+
+---
+
+# Correction Rules
+
+## CR-001
+
+A correction updates an entity's current canonical value, preserves the previous value, and records the change as an Audit Entry (ADR-0005).
+
+A correction is only recorded when the new value differs from the current value. For text fields, comparison ignores leading and trailing whitespace only, so a whitespace-only edit is not treated as a correction.
+
+An Audit Entry preserves the original observation time, when the entity has one, separately from the time the correction itself was made. Correcting a record never changes when the original event occurred.
+
+---
+
+## CR-002
+
+The following fields are correctable in Version 1, per ADR-0005:
+
+* Production Batch notes
+* Tray notes
+* Tray Product Name, Ingredients, and Preparation Methods, corrected together as Preparation Metadata
+* Tray Starting Weight
+* Tray Final Dry Weight
+* Weight Checks (WC-003, WC-004)
+* Drying Run startedAt and endedAt (DR-011)
+* Package Weight
+* Package notes
+* Package Label content (PK-019)
+
+Correcting Preparation Metadata or a Drying Run's timestamps records an Audit Entry only for the field or fields that actually changed.
+
+Additional fields may become correctable in future versions.
+
+---
+
+## CR-003
+
+Storage Location corrections are handled by the Storage Movement history mechanism (ADR-0006), not by an Audit Entry. Moving a Package to its correct Storage Location already preserves the previous location as a Storage Location History record, satisfying ADR-0005's Storage Location correction requirement without a second, redundant mechanism.
+
+---
+
+## CR-004
+
+Corrections never reverse a lifecycle state. A completed Tray remains Completed; a depleted Package remains Depleted (ADR-0005, IN-010). An incorrect lifecycle action is corrected by recording a new historical event, never by editing or deleting the original one.
+
+---
+
+## CR-005
+
+Reports, searches, and calculations always use the corrected canonical value, never a historical value from Audit History (AE-005).
+
+---
+
+## CR-006
+
+Correcting a Tray's own Preparation Metadata to fix a mistake (CR-002) is distinct from editing a Preparation Preset. A Tray correction is an explicit, reasoned, user-initiated action preserved in Audit History. It does not change how Preset edits behave: editing a Preset still never modifies any historical Tray that previously used it (RC-004, RC-005).
 
 ---
 
