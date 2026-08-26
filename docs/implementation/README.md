@@ -269,6 +269,20 @@ Includes:
 
 ---
 
+# Standalone Features
+
+Some features are documented and implemented with the same rigor as a
+milestone but are deliberately kept outside the numbered Milestone 0-9
+sequence above, because they don't extend the production/inventory
+workflow the milestones are organized around. Each has its own
+implementation document under `docs/implementation/`.
+
+- **Feedback & Support** (`docs/implementation/feedback-and-support.md`) —
+  lets the operator report a bug, confusing behavior, an idea, or a
+  question from inside the app, with automatic technical context capture.
+
+---
+
 # Milestone Rules
 
 Each milestone should:

@@ -480,6 +480,35 @@ record; existing records are never edited or deleted (ADR-0006).
 
 ---
 
+# Feedback
+
+Represents one operator-submitted report — a bug, confusing behavior, an
+improvement idea, a feature request, or a question — captured from inside
+the app rather than over the phone. Deliberately unlinked from every other
+entity: `page` and `contextJson` capture whatever is relevant at submission
+time without needing a foreign key into Production Batches, Trays, or
+Packages.
+
+## Fields
+
+| Field | Type |
+| ----- | ---- |
+| id | UUID |
+| category | Enum |
+| description | Text |
+| page | String, nullable |
+| contextJson | JSON, nullable |
+| attachments | JSON (list of stored filenames), default empty |
+| status | Enum, default New |
+| submittedAt | DateTime |
+
+`contextJson` holds whatever automatic context was available at submission
+time — the current route, a Production Batch/Tray/Package/Freeze Dryer id
+when derivable from the URL, browser information, and a short history of
+the operator's recent actions. See ADR-0020.
+
+---
+
 # Enumerations
 
 ## Tray Status
@@ -504,6 +533,36 @@ In Storage
 Given Away
 
 Depleted
+```
+
+---
+
+## Feedback Category
+
+```text
+Bug
+
+Confusing
+
+Improvement
+
+Feature Request
+
+Question
+```
+
+---
+
+## Feedback Status
+
+```text
+New
+
+Reviewed
+
+Fixed
+
+Closed
 ```
 
 ---
@@ -648,8 +707,6 @@ Possible future entities include:
 * Suppliers
 * Additional printable label layout and style definitions
 * QR Codes
-* Attachments
-* Photos
 * Audit History
 
 These entities should extend the existing model without changing the core relationships between Production Batches, Trays, Weight Checks, Packages, and Inventory.

@@ -1482,6 +1482,55 @@ existing `GET /freeze-dryers`, `GET /preparation-presets`, and
 
 ---
 
+# Feedback Endpoints
+
+## Submit Feedback
+
+```http
+POST /api/v1/feedback
+```
+
+A `multipart/form-data` request, not JSON — the only endpoint in the API
+that accepts a file. Fields:
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| category | Yes | One of `Bug`, `Confusing`, `Improvement`, `Feature Request`, `Question` |
+| description | Yes | Free text |
+| page | No | The application route the operator was on |
+| context_json | No | A JSON-encoded string of automatically captured context (entity ids derivable from the URL, browser information, recent action history) |
+| attachments | No | Up to 5 image files, 10 MB each |
+
+### Validation
+
+* `category` and `description` are the only required fields (FB-002).
+* Each attachment must be an image (`image/*`) no larger than 10 MB;
+  submitting more than 5 attachments, a non-image file, or an oversized
+  file is rejected.
+* No authentication is required.
+
+### Response
+
+```json
+{
+  "id": "feedback-1",
+  "category": "Bug",
+  "description": "The Save button on Tray setup did nothing.",
+  "status": "New",
+  "submitted_at": "2026-08-25T14:32:00Z"
+}
+```
+
+### Behavior
+
+The Feedback record is always persisted first; a best-effort notification
+email to the developer is sent afterward and never blocks or fails the
+response if it can't be delivered (FB-001, ADR-0020). There is no `GET`
+endpoint for Feedback yet — status management is a developer-side concern
+outside the operator-facing app for now (ADR-0020).
+
+---
+
 # Common Response Format
 
 Successful responses should follow a consistent structure.
