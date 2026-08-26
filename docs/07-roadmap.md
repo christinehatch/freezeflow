@@ -44,7 +44,7 @@ Later milestones extend existing functionality rather than replacing it.
 | 5 - Inventory | Complete |
 | 6 - Preparation Presets | Complete |
 | 7 - Reporting | Complete |
-| 8 - Corrections & Audit History | Planned |
+| 8 - Corrections & Audit History | Complete |
 | 9 - Polish & Production Readiness | Planned |
 
 ---
