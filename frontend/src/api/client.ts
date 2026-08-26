@@ -1179,6 +1179,33 @@ function toPrintablePackageLabel(
   };
 }
 
+export type Feedback = {
+  id: string;
+  category: string;
+  description: string;
+  status: string;
+  submitted_at: string;
+};
+
+export const feedbackApi = {
+  submit: (formData: FormData) => submitFeedback(formData),
+};
+
+async function submitFeedback(formData: FormData): Promise<Feedback> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/feedback`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw toApiError(response.status, errorBody, "Feedback submission failed");
+  }
+
+  const payload = (await response.json()) as ApiResponse<Feedback>;
+  return payload.data;
+}
+
 export const developerToolsApi = {
   reset: () => devRequest<DevToolResult>("/dev/reset"),
   seedBasic: () => devRequest<DevToolResult>("/dev/demo/basic"),
