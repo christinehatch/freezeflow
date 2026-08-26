@@ -40,6 +40,7 @@ export function CorrectableField({
           {displayValue ?? (value.trim() === "" ? "Not recorded" : value)}
         </span>
         <button
+          aria-label={`Correct ${label}`}
           className="quiet-action"
           type="button"
           onClick={() => {

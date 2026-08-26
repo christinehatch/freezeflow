@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { Tray, WeightCheck, packagingApi, productionApi } from "../api/client";
+import { WeightCheck, packagingApi, productionApi } from "../api/client";
+import { AuditHistoryViewer } from "../components/AuditHistoryViewer";
+import { CorrectableField } from "../components/CorrectableField";
+import { WeightCorrectableField } from "../components/WeightCorrectableField";
 import { printAvery5163Labels } from "../utils/avery5163Labels";
 import { trayPreparationSummary } from "../utils/preparation";
-import { WEIGHT_UNIT_OPTIONS, WeightUnit, toGrams } from "../utils/weights";
 
 export function TrayDetailsPage() {
   const { trayId } = useParams();
@@ -17,6 +18,10 @@ export function TrayDetailsPage() {
   });
 
   const tray = trayQuery.data;
+
+  function invalidateTray() {
+    return queryClient.invalidateQueries({ queryKey: ["tray", trayId] });
+  }
   const labelMutation = useMutation({
     mutationFn: packagingApi.labelsForPackages,
     onSuccess: (labels) =>
@@ -69,7 +74,10 @@ export function TrayDetailsPage() {
           </p>
           <h2 className="text-3xl font-semibold">{tray.product_name}</h2>
         </div>
-        <p className="text-lg font-semibold">{tray.status}</p>
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-lg font-semibold">{tray.status}</p>
+          <AuditHistoryViewer entityId={tray.id} entityType="Tray" />
+        </div>
       </section>
 
       <section className="panel">
@@ -90,50 +98,124 @@ export function TrayDetailsPage() {
             <dd>{tray.preparation_preset_name ?? "No Preparation Preset"}</dd>
           </div>
           <div>
-            <dt className="label-text">Notes</dt>
-            <dd>{tray.notes ?? "No notes"}</dd>
+            <CorrectableField
+              fieldId="tray-notes"
+              label="Notes"
+              multiline
+              value={tray.notes ?? ""}
+              displayValue={tray.notes ?? "No notes"}
+              onSave={async (correctedValue, reason) => {
+                await productionApi.correctTrayNotes({
+                  id: tray.id,
+                  body: { notes: correctedValue, reason },
+                });
+                await invalidateTray();
+              }}
+            />
           </div>
         </dl>
       </section>
 
       <section className="panel">
         <h3 className="section-title">Preparation</h3>
-        {tray.ingredients && tray.ingredients.length > 0 ? (
-          <p className="mt-3 text-slate-700">
-            <span className="label-text">Ingredients: </span>
-            {tray.ingredients.join(", ")}
-          </p>
-        ) : null}
-        {tray.preparation_methods && tray.preparation_methods.length > 0 ? (
-          <p className="mt-3 text-slate-700">
-            <span className="label-text">Preparation Methods: </span>
-            {tray.preparation_methods.join(", ")}
-          </p>
-        ) : null}
-        {(!tray.ingredients || tray.ingredients.length === 0) &&
-        (!tray.preparation_methods || tray.preparation_methods.length === 0) ? (
-          <p className="mt-3 whitespace-pre-wrap text-slate-700">
-            {tray.preparation ?? "No preparation recorded."}
-          </p>
-        ) : null}
+        <div className="mt-4 space-y-4">
+          <CorrectableField
+            fieldId="tray-product-name"
+            label="Product Name"
+            value={tray.product_name}
+            onSave={async (correctedValue, reason) => {
+              await productionApi.correctTrayPreparation({
+                id: tray.id,
+                body: { product_name: correctedValue, reason },
+              });
+              await invalidateTray();
+            }}
+          />
+          <CorrectableField
+            fieldId="tray-ingredients"
+            label="Ingredients"
+            value={tray.ingredients?.join(", ") ?? ""}
+            displayValue={
+              tray.ingredients && tray.ingredients.length > 0
+                ? tray.ingredients.join(", ")
+                : "No ingredients recorded."
+            }
+            onSave={async (correctedValue, reason) => {
+              await productionApi.correctTrayPreparation({
+                id: tray.id,
+                body: { ingredients: parseCsvList(correctedValue), reason },
+              });
+              await invalidateTray();
+            }}
+          />
+          <CorrectableField
+            fieldId="tray-preparation-methods"
+            label="Preparation Methods"
+            value={tray.preparation_methods?.join(", ") ?? ""}
+            displayValue={
+              tray.preparation_methods && tray.preparation_methods.length > 0
+                ? tray.preparation_methods.join(", ")
+                : "No preparation methods recorded."
+            }
+            onSave={async (correctedValue, reason) => {
+              await productionApi.correctTrayPreparation({
+                id: tray.id,
+                body: {
+                  preparation_methods: parseCsvList(correctedValue),
+                  reason,
+                },
+              });
+              await invalidateTray();
+            }}
+          />
+          {(!tray.ingredients || tray.ingredients.length === 0) &&
+          (!tray.preparation_methods ||
+            tray.preparation_methods.length === 0) ? (
+            <p className="whitespace-pre-wrap text-slate-700">
+              {tray.preparation ?? "No preparation recorded."}
+            </p>
+          ) : null}
+        </div>
       </section>
 
       <section className="panel">
         <h3 className="section-title">Production</h3>
-        <dl className="mt-4 grid gap-4 md:grid-cols-3">
-          <div>
-            <dt className="label-text">Starting Weight</dt>
-            <dd>{formatWeight(tray.starting_weight_grams)}</dd>
-          </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <WeightCorrectableField
+            fieldId="tray-starting-weight"
+            label="Starting Weight"
+            valueGrams={tray.starting_weight_grams ?? "0"}
+            onSave={async (correctedGrams, reason) => {
+              await productionApi.correctTrayStartingWeight({
+                id: tray.id,
+                body: {
+                  starting_weight_grams: correctedGrams,
+                  reason,
+                },
+              });
+              await invalidateTray();
+            }}
+          />
           <div>
             <dt className="label-text">Latest Weight</dt>
             <dd>{formatWeight(tray.latest_weight_grams)}</dd>
           </div>
-          <div>
-            <dt className="label-text">Final Dry Weight</dt>
-            <dd>{formatWeight(tray.final_dry_weight_grams)}</dd>
-          </div>
-        </dl>
+          <WeightCorrectableField
+            fieldId="tray-final-dry-weight"
+            label="Final Dry Weight"
+            valueGrams={tray.final_dry_weight_grams ?? "0"}
+            onSave={async (correctedGrams, reason) => {
+              await productionApi.correctTrayFinalDryWeight({
+                id: tray.id,
+                body: {
+                  final_dry_weight_grams: correctedGrams,
+                  reason,
+                },
+              });
+              await invalidateTray();
+            }}
+          />
+        </div>
       </section>
 
       {packaging ? (
@@ -228,7 +310,6 @@ export function TrayDetailsPage() {
                   <th>Observed</th>
                   <th>Weight</th>
                   <th>Notes</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -236,32 +317,7 @@ export function TrayDetailsPage() {
                   <WeightCheckHistoryRow
                     check={check}
                     key={check.id}
-                    onCorrected={(correctedCheck) => {
-                      queryClient.setQueryData<Tray>(
-                        ["tray", trayId],
-                        (currentTray) => {
-                          if (!currentTray) return currentTray;
-                          const latestCheck =
-                            currentTray.weight_checks[
-                              currentTray.weight_checks.length - 1
-                            ];
-                          const isLatest =
-                            latestCheck?.id === correctedCheck.id;
-                          return {
-                            ...currentTray,
-                            latest_weight_grams: isLatest
-                              ? correctedCheck.weight_grams
-                              : currentTray.latest_weight_grams,
-                            weight_checks: currentTray.weight_checks.map(
-                              (item) =>
-                                item.id === correctedCheck.id
-                                  ? correctedCheck
-                                  : item,
-                            ),
-                          };
-                        },
-                      );
-                    }}
+                    onCorrected={invalidateTray}
                     runNumber={index + 1}
                   />
                 ))}
@@ -280,110 +336,37 @@ function WeightCheckHistoryRow({
   runNumber,
 }: {
   check: WeightCheck;
-  onCorrected: (check: WeightCheck) => void;
+  onCorrected: () => Promise<unknown>;
   runNumber: number;
 }) {
-  const [isCorrecting, setIsCorrecting] = useState(false);
-  const [weight, setWeight] = useState(check.weight_grams);
-  const [displayWeight, setDisplayWeight] = useState(check.weight_grams);
-  const [unit, setUnit] = useState<WeightUnit>("g");
-  const [reason, setReason] = useState("");
-  const correction = useMutation({
-    mutationFn: productionApi.correctWeightCheck,
-    onSuccess: (correctedCheck) => {
-      setDisplayWeight(correctedCheck.weight_grams);
-      setIsCorrecting(false);
-      onCorrected(correctedCheck);
-    },
-  });
-
   return (
     <tr>
       <td>Run {runNumber}</td>
       <td>{formatDate(check.observed_at)}</td>
       <td>
-        {isCorrecting ? (
-          <div className="min-w-64 space-y-2">
-            <div className="flex gap-2">
-              <input
-                aria-label={`Correct weight for Run ${runNumber}`}
-                className="table-input"
-                min="0"
-                step="0.001"
-                type="number"
-                value={weight}
-                onChange={(event) => setWeight(event.target.value)}
-              />
-              <select
-                aria-label={`Correct weight unit for Run ${runNumber}`}
-                className="table-input"
-                value={unit}
-                onChange={(event) => setUnit(event.target.value as WeightUnit)}
-              >
-                {WEIGHT_UNIT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <input
-              aria-label={`Correction reason for Run ${runNumber}`}
-              className="table-input"
-              placeholder="reason (optional)"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
-          </div>
-        ) : (
-          formatWeight(displayWeight)
-        )}
+        <WeightCorrectableField
+          fieldId={`weight-check-${check.id}`}
+          label={`Weight for Run ${runNumber}`}
+          valueGrams={check.weight_grams}
+          onSave={async (correctedGrams, reason) => {
+            await productionApi.correctWeightCheck({
+              id: check.id,
+              body: { weight_grams: correctedGrams, reason },
+            });
+            await onCorrected();
+          }}
+        />
       </td>
       <td>{check.notes || "No notes"}</td>
-      <td>
-        {isCorrecting ? (
-          <div className="flex gap-2">
-            <button
-              className="quiet-action"
-              disabled={weight === "" || correction.isPending}
-              onClick={() =>
-                correction.mutate({
-                  id: check.id,
-                  body: {
-                    weight_grams: toGrams(weight, unit),
-                    reason: reason.trim() === "" ? null : reason.trim(),
-                  },
-                })
-              }
-              type="button"
-            >
-              Save Correction
-            </button>
-            <button
-              className="quiet-action"
-              onClick={() => setIsCorrecting(false)}
-              type="button"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            className="quiet-action"
-            onClick={() => {
-              setWeight(displayWeight);
-              setUnit("g");
-              setReason("");
-              setIsCorrecting(true);
-            }}
-            type="button"
-          >
-            Correct Weight
-          </button>
-        )}
-      </td>
     </tr>
   );
+}
+
+function parseCsvList(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
 }
 
 function formatDate(value: string) {
