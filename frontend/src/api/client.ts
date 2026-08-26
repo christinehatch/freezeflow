@@ -1,3 +1,6 @@
+import { describeApiCall } from "../utils/actionDescriptions";
+import { logAction } from "../utils/actionLog";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -583,6 +586,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
 }
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = String(init.method ?? "GET").toUpperCase();
   const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -593,7 +597,15 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    throw toApiError(response.status, errorBody, "API request failed");
+    const error = toApiError(response.status, errorBody, "API request failed");
+    if (method !== "GET") {
+      logAction(`Failed: ${describeApiCall(method, path)} — ${error.message}`);
+    }
+    throw error;
+  }
+
+  if (method !== "GET") {
+    logAction(describeApiCall(method, path));
   }
 
   const payload = (await response.json()) as ApiResponse<T>;

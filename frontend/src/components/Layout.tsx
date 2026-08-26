@@ -1,4 +1,7 @@
-import { NavLink, Outlet } from "react-router";
+import { useEffect } from "react";
+import { NavLink, Outlet, useLocation } from "react-router";
+
+import { logAction } from "../utils/actionLog";
 
 const navigationItems = [
   { to: "/", label: "Dashboard" },
@@ -12,7 +15,32 @@ const navigationItems = [
     : []),
 ];
 
+const PAGE_LABELS: Record<string, string> = {
+  "/": "Dashboard",
+  "/production": "Production",
+  "/production/preparation-presets": "Preparation Presets",
+  "/freeze-dryers": "Freeze Dryers",
+  "/packaging": "Packaging",
+  "/packaging/package-types": "Package Types",
+  "/packaging/print-today": "Print Today's Labels",
+  "/inventory": "Inventory",
+  "/inventory/storage-locations": "Storage Locations",
+  "/reports": "Reports",
+  "/developer-tools": "Developer Tools",
+  "/developer-tools/design-system": "Design System",
+};
+
+function describePage(pathname: string): string {
+  return PAGE_LABELS[pathname] ?? pathname;
+}
+
 export function Layout() {
+  const location = useLocation();
+
+  useEffect(() => {
+    logAction(`Opened ${describePage(location.pathname)}`);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
