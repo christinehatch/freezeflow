@@ -37,6 +37,7 @@ describe("Avery 5163 PDF output", () => {
     expect(pdf.match(/\/MediaBox \[0 0 612 792\]/g)).toHaveLength(2);
     expect(pdf).toContain("/Count 2");
     expect(locationReplace).toHaveBeenCalledWith("blob:avery-5163-test");
+    expect(pdf).toContain("Quart Mylar - Jul 18, 2026");
 
     for (const match of pdf.matchAll(
       /<< \/Length (\d+) >>\nstream\n([\s\S]*?)\nendstream/g,

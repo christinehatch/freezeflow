@@ -132,7 +132,7 @@ function renderLabel(label: Avery5163Label, index: number) {
   const preparationLines = wrapText(label.preparationSummary, 48, 2);
   const equivalence = freshEquivalentLine(label);
   const detailLines = [
-    `${label.packageType} · ${formatPackagingDate(label.packagedAt)}`,
+    `${label.packageType} - ${formatPackagingDate(label.packagedAt)}`,
     label.batchLine,
     `Oxygen absorber: ${label.oxygenAbsorber ?? "None"}`,
   ].filter((line): line is string => Boolean(line));
