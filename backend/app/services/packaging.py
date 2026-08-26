@@ -38,8 +38,10 @@ from app.schemas import (
     PackageLabelSelection,
     PackageLabelUpdate,
     PackageLineCreate,
+    PackageNotesCorrection,
     PackageTypeCreate,
     PackageTypeUpdate,
+    PackageWeightCorrection,
     PackagingAllocationCreateRequest,
     PackagingAllocationUpdateRequest,
     PackagingLossCreate,
@@ -49,7 +51,18 @@ from app.schemas import (
     RecordAllocationPackages,
     RecordPackagingLoss,
 )
+from app.services.corrections import record_correction
 from app.services.errors import BusinessRuleError
+
+_LABEL_CORRECTION_FIELD_NAMES = {
+    "display_name": "displayName",
+    "description": "description",
+    "ingredients_summary": "ingredientsSummary",
+    "preparation_summary": "preparationSummary",
+    "rehydration_instructions": "rehydrationInstructions",
+    "serving_notes": "servingNotes",
+    "net_weight_display": "netWeightDisplay",
+}
 
 ALLOCATION_TOLERANCE_GRAMS = Decimal("0.001")
 
@@ -478,18 +491,14 @@ def update_package_label(
     db: Session, package_id: UUID, data: PackageLabelUpdate
 ) -> PackageLabel:
     label = get_package_label(db, package_id)
-    if (
-        label.package.packaging_allocation.packaging_operation.status
-        != PackagingOperationStatus.OPEN
-    ):
-        raise BusinessRuleError("Completed Packaging Operations cannot be changed.")
     values = data.model_dump(exclude_unset=True, exclude={"status"})
+    changes: list[tuple[str, str, str]] = []
     for field, value in values.items():
-        setattr(
-            label,
-            field,
-            _clean_optional_text(value) if isinstance(value, str) else value,
-        )
+        cleaned = _clean_optional_text(value) if isinstance(value, str) else value
+        previous = getattr(label, field)
+        if cleaned != previous:
+            changes.append((field, previous or "", cleaned or ""))
+        setattr(label, field, cleaned)
     if not label.display_name or not label.display_name.strip():
         raise BusinessRuleError("Package Label display name is required.")
     label.status = (
@@ -497,10 +506,68 @@ def update_package_label(
         if label.print_events
         else PackageLabelStatus.READY
     )
+    for field, previous, current in changes:
+        record_correction(
+            db,
+            entity_type="PackageLabel",
+            entity_id=label.id,
+            field_name=_LABEL_CORRECTION_FIELD_NAMES[field],
+            previous_value=previous,
+            current_value=current,
+            observed_at=None,
+            reason=None,
+        )
     db.add(label)
     db.commit()
     db.refresh(label)
     return label
+
+
+def correct_package_weight(
+    db: Session, package_id: UUID, data: PackageWeightCorrection
+) -> Package:
+    package = get_package(db, package_id)
+    if data.package_weight_grams == package.package_weight_grams:
+        raise BusinessRuleError(
+            "Corrected Package Weight must differ from the current weight."
+        )
+    record_correction(
+        db,
+        entity_type="Package",
+        entity_id=package.id,
+        field_name="packageWeightGrams",
+        previous_value=str(package.package_weight_grams),
+        current_value=str(data.package_weight_grams),
+        observed_at=None,
+        reason=data.reason,
+    )
+    package.package_weight_grams = data.package_weight_grams
+    db.add(package)
+    db.commit()
+    return get_package(db, package.id)
+
+
+def correct_package_notes(
+    db: Session, package_id: UUID, data: PackageNotesCorrection
+) -> Package:
+    package = get_package(db, package_id)
+    previous_notes = package.notes or ""
+    if data.notes.strip() == previous_notes.strip():
+        raise BusinessRuleError("Corrected notes must differ from the current notes.")
+    record_correction(
+        db,
+        entity_type="Package",
+        entity_id=package.id,
+        field_name="notes",
+        previous_value=previous_notes,
+        current_value=data.notes,
+        observed_at=None,
+        reason=data.reason,
+    )
+    package.notes = data.notes
+    db.add(package)
+    db.commit()
+    return get_package(db, package.id)
 
 
 def preview_package_labels(

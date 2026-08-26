@@ -37,6 +37,28 @@ class TrayComplete(BaseModel):
     final_dry_weight_grams: Decimal
 
 
+class TrayNotesCorrection(BaseModel):
+    notes: str
+    reason: str | None = None
+
+
+class TrayPreparationCorrection(BaseModel):
+    product_name: str | None = None
+    ingredients: list[str] | None = None
+    preparation_methods: list[str] | None = None
+    reason: str | None = None
+
+
+class TrayStartingWeightCorrection(BaseModel):
+    starting_weight_grams: Decimal
+    reason: str | None = None
+
+
+class TrayFinalDryWeightCorrection(BaseModel):
+    final_dry_weight_grams: Decimal
+    reason: str | None = None
+
+
 class TrayRead(ReadSchema):
     id: UUID
     production_batch_id: UUID

@@ -19,8 +19,10 @@ from app.database.session import get_db
 from app.schemas import (
     PackageLabelSelection,
     PackageLabelUpdate,
+    PackageNotesCorrection,
     PackageTypeCreate,
     PackageTypeUpdate,
+    PackageWeightCorrection,
     PackagingAllocationCreateRequest,
     PackagingAllocationUpdateRequest,
     PackagingOperationComplete,
@@ -31,6 +33,8 @@ from app.schemas import (
 from app.services.errors import BusinessRuleError
 from app.services.packaging import (
     complete_packaging_operation,
+    correct_package_notes,
+    correct_package_weight,
     create_package_type,
     create_packaging_allocation,
     get_batch_packaging_operation,
@@ -294,6 +298,32 @@ def update_package_label_endpoint(
     except BusinessRuleError as error:
         raise_api_error(error)
     return success(package_label_data(label))
+
+
+@router.post("/packages/{package_id}/correct-weight")
+def correct_package_weight_endpoint(
+    package_id: UUID,
+    data: PackageWeightCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        package = correct_package_weight(db, package_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(package_data(package))
+
+
+@router.post("/packages/{package_id}/correct-notes")
+def correct_package_notes_endpoint(
+    package_id: UUID,
+    data: PackageNotesCorrection,
+    db: DBSession,
+) -> dict[str, object]:
+    try:
+        package = correct_package_notes(db, package_id, data)
+    except BusinessRuleError as error:
+        raise_api_error(error)
+    return success(package_data(package))
 
 
 @router.post("/package-labels/preview")

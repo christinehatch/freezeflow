@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from app.models import (
+    AuditEntry,
     DryingRun,
     DryingRunStatus,
     Feedback,
@@ -53,6 +54,20 @@ def physical_tray_data(physical_tray: PhysicalTray) -> dict[str, object]:
         "tare_weight_grams": physical_tray.tare_weight_grams,
         "notes": physical_tray.notes,
         "archived": physical_tray.archived,
+    }
+
+
+def audit_entry_data(entry: AuditEntry) -> dict[str, object]:
+    return {
+        "id": entry.id,
+        "entity_type": entry.entity_type,
+        "entity_id": entry.entity_id,
+        "field_name": entry.field_name,
+        "previous_value": entry.previous_value,
+        "current_value": entry.current_value,
+        "observed_at": entry.observed_at,
+        "corrected_at": entry.corrected_at,
+        "reason": entry.reason,
     }
 
 

@@ -33,6 +33,16 @@ class PackageUpdate(BaseModel):
     notes: str | None = None
 
 
+class PackageWeightCorrection(BaseModel):
+    package_weight_grams: Decimal = Field(gt=0)
+    reason: str | None = None
+
+
+class PackageNotesCorrection(BaseModel):
+    notes: str
+    reason: str | None = None
+
+
 class PackageRead(ReadSchema):
     id: UUID
     packaging_allocation_id: UUID

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.audit_entries import router as audit_entries_router
 from app.api.feedback import router as feedback_router
 from app.api.freeze_dryers import (
     physical_trays_router,
@@ -24,3 +25,4 @@ api_router.include_router(inventory_router)
 api_router.include_router(preparation_presets_router)
 api_router.include_router(reports_router)
 api_router.include_router(feedback_router)
+api_router.include_router(audit_entries_router)
