@@ -9,6 +9,7 @@ import "./styles/dashboard.css";
 import "./styles/packaging.css";
 import "./styles/production.css";
 import "./styles/inventory.css";
+import "./styles/corrections.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

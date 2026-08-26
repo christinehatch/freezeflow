@@ -180,6 +180,18 @@ export type StorageLocationHistoryEntry = {
   notes: string | null;
 };
 
+export type AuditEntry = {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  field_name: string;
+  previous_value: string;
+  current_value: string;
+  observed_at: string | null;
+  corrected_at: string;
+  reason: string | null;
+};
+
 export type PackageStatusHistoryEntry = {
   id: string;
   package_id: string;
@@ -771,6 +783,58 @@ export const productionApi = {
     id: string;
     body: { weight_grams: string; reason: string | null };
   }) => apiPost<WeightCheck>(`/weight-checks/${id}/correct`, body),
+  correctTrayNotes: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { notes: string; reason: string | null };
+  }) => apiPost<Tray>(`/trays/${id}/correct-notes`, body),
+  correctTrayPreparation: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: {
+      product_name?: string;
+      ingredients?: string[];
+      preparation_methods?: string[];
+      reason: string | null;
+    };
+  }) => apiPost<Tray>(`/trays/${id}/correct-preparation`, body),
+  correctTrayStartingWeight: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { starting_weight_grams: string; reason: string | null };
+  }) => apiPost<Tray>(`/trays/${id}/correct-starting-weight`, body),
+  correctTrayFinalDryWeight: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { final_dry_weight_grams: string; reason: string | null };
+  }) => apiPost<Tray>(`/trays/${id}/correct-final-dry-weight`, body),
+  correctProductionBatchNotes: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: { notes: string; reason: string | null };
+  }) =>
+    apiPost<ProductionBatch>(`/production-batches/${id}/correct-notes`, body),
+  correctDryingRunTimestamps: ({
+    id,
+    body,
+  }: {
+    id: string;
+    body: {
+      started_at?: string;
+      ended_at?: string;
+      reason: string | null;
+    };
+  }) => apiPost<DryingRun>(`/drying-runs/${id}/correct-timestamps`, body),
   completeTray: ({
     id,
     body,
@@ -891,6 +955,20 @@ export const packagingApi = {
     packageId: string;
     body: PackageLabelUpdate;
   }) => apiPatch<PackageLabel>(`/packages/${packageId}/label`, body),
+  correctPackageWeight: ({
+    packageId,
+    body,
+  }: {
+    packageId: string;
+    body: { package_weight_grams: string; reason: string | null };
+  }) => apiPost<Package>(`/packages/${packageId}/correct-weight`, body),
+  correctPackageNotes: ({
+    packageId,
+    body,
+  }: {
+    packageId: string;
+    body: { notes: string; reason: string | null };
+  }) => apiPost<Package>(`/packages/${packageId}/correct-notes`, body),
   previewPackageLabels: (body: PackageLabelSelection) =>
     apiPost<PackageLabel[]>("/package-labels/preview", body),
   printPackageLabels: (body: PackageLabelSelection) =>
@@ -968,6 +1046,22 @@ export const inventoryApi = {
     apiGet<PackageStatusHistoryEntry[]>(
       `/packages/${packageId}/status-history`,
     ),
+};
+
+export const auditApi = {
+  list: ({
+    entityType,
+    entityId,
+  }: {
+    entityType: string;
+    entityId: string;
+  }) => {
+    const search = new URLSearchParams({
+      entity_type: entityType,
+      entity_id: entityId,
+    });
+    return apiGet<AuditEntry[]>(`/audit-entries?${search.toString()}`);
+  },
 };
 
 export const preparationPresetsApi = {
