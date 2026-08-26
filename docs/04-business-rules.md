@@ -969,6 +969,27 @@ already reflects Trays created from it.
 
 ---
 
+# Feedback Rules
+
+## FB-001
+
+Feedback is always persisted before any notification is attempted.
+
+Notification failure never fails or rolls back a submission — a report
+that was successfully saved is never lost because email delivery failed.
+
+---
+
+## FB-002
+
+Feedback submission requires no authentication and is never blocked by
+validation failures elsewhere in the app.
+
+Category and description are the only required fields. Attachments,
+automatic context, and everything else are best-effort.
+
+---
+
 # Validation Rules
 
 The application should prevent users from performing actions that violate these rules.
