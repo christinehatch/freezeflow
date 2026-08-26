@@ -3,6 +3,7 @@ from decimal import Decimal
 from app.models import (
     DryingRun,
     DryingRunStatus,
+    Feedback,
     FreezeDryer,
     Package,
     PackageLabel,
@@ -52,6 +53,16 @@ def physical_tray_data(physical_tray: PhysicalTray) -> dict[str, object]:
         "tare_weight_grams": physical_tray.tare_weight_grams,
         "notes": physical_tray.notes,
         "archived": physical_tray.archived,
+    }
+
+
+def feedback_data(feedback: Feedback) -> dict[str, object]:
+    return {
+        "id": feedback.id,
+        "category": feedback.category,
+        "description": feedback.description,
+        "status": feedback.status,
+        "submitted_at": feedback.submitted_at,
     }
 
 
