@@ -1,0 +1,97 @@
+.correctable-field {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-2);
+}
+
+.correctable-field__label {
+  color: var(--ff-color-text-muted);
+  font-size: var(--ff-font-size-supporting);
+  font-weight: var(--ff-font-weight-semibold);
+}
+
+.correctable-field__value {
+  color: var(--ff-color-text-primary);
+  flex: 1 1 auto;
+  font-size: var(--ff-font-size-body);
+}
+
+.correctable-field--editing {
+  align-items: end;
+  display: grid;
+  gap: var(--ff-space-4);
+  grid-template-columns: minmax(14rem, 1.3fr) minmax(12rem, 1fr) auto;
+  min-width: 0;
+}
+
+.correctable-field__error {
+  color: var(--ff-color-danger-text);
+  font-size: var(--ff-font-size-caption);
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.correctable-field__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-2);
+}
+
+@media (max-width: 40rem) {
+  .correctable-field--editing {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audit-history-trigger {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--ff-space-1);
+}
+
+.audit-history-list {
+  display: grid;
+  gap: var(--ff-space-4);
+}
+
+.audit-history-entry {
+  border-bottom: 1px solid var(--ff-color-border);
+  display: grid;
+  gap: var(--ff-space-1);
+  padding-bottom: var(--ff-space-4);
+}
+
+.audit-history-entry:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.audit-history-entry__field {
+  color: var(--ff-color-text-muted);
+  font-size: var(--ff-font-size-caption);
+  font-weight: var(--ff-font-weight-semibold);
+  text-transform: uppercase;
+}
+
+.audit-history-entry__values {
+  color: var(--ff-color-text-primary);
+  font-size: var(--ff-font-size-body);
+}
+
+.audit-history-entry__timestamps {
+  color: var(--ff-color-text-muted);
+  font-size: var(--ff-font-size-caption);
+}
+
+.audit-history-entry__reason {
+  color: var(--ff-color-text-secondary);
+  font-size: var(--ff-font-size-supporting);
+  font-style: italic;
+}
+
+.audit-history-empty {
+  color: var(--ff-color-text-muted);
+  font-size: var(--ff-font-size-supporting);
+}
