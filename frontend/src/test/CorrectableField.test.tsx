@@ -22,7 +22,7 @@ describe("CorrectableField", () => {
     );
 
     expect(screen.getByText("Original note.")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
 
     expect(screen.getByLabelText("Corrected Notes")).toHaveValue(
       "Original note.",
@@ -41,7 +41,7 @@ describe("CorrectableField", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
     const input = screen.getByLabelText("Corrected Notes");
     await user.clear(input);
     await user.type(input, "Corrected note.");
@@ -66,7 +66,7 @@ describe("CorrectableField", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
     const input = screen.getByLabelText("Corrected Notes");
     await user.clear(input);
     await user.type(input, "Corrected note.");
@@ -87,7 +87,7 @@ describe("CorrectableField", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
 
     expect(
       screen.getByRole("button", { name: "Save Correction" }),
@@ -106,7 +106,7 @@ describe("CorrectableField", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
     const input = screen.getByLabelText("Corrected Notes");
     await user.clear(input);
     await user.type(input, "Corrected note.");
@@ -130,7 +130,7 @@ describe("CorrectableField", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Correct" }));
+    await user.click(screen.getByRole("button", { name: "Correct Notes" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.getByText("Original note.")).toBeVisible();

@@ -38,6 +38,7 @@ export function WeightCorrectableField({
           {formatGrams(valueGrams)}
         </span>
         <button
+          aria-label={`Correct ${label}`}
           className="quiet-action"
           type="button"
           onClick={() => {

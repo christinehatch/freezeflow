@@ -32,6 +32,8 @@ import {
   TagAutocompleteField,
   TextField,
 } from "../components/design-system";
+import { AuditHistoryViewer } from "../components/AuditHistoryViewer";
+import { CorrectableField } from "../components/CorrectableField";
 
 export function ProductionBatchPage() {
   const { batchId } = useParams();
@@ -254,6 +256,10 @@ export function ProductionBatchPage() {
             <StatusBadge tone={batchStatusTone(batch.status)}>
               {batch.status}
             </StatusBadge>
+            <AuditHistoryViewer
+              entityId={batch.id}
+              entityType="ProductionBatch"
+            />
             <span className="production-batch-header__meta-item">
               <CalendarIcon />
               {batch.started_at
@@ -348,8 +354,22 @@ export function ProductionBatchPage() {
                 <dd>{batch.freeze_dryer.tray_slot_count}</dd>
               </div>
               <div>
-                <dt>Batch Notes</dt>
-                <dd>{batch.notes || "No batch notes."}</dd>
+                <CorrectableField
+                  fieldId="production-batch-notes"
+                  label="Batch Notes"
+                  multiline
+                  value={batch.notes ?? ""}
+                  displayValue={batch.notes || "No batch notes."}
+                  onSave={async (correctedValue, reason) => {
+                    await productionApi.correctProductionBatchNotes({
+                      id: batch.id,
+                      body: { notes: correctedValue, reason },
+                    });
+                    await queryClient.invalidateQueries({
+                      queryKey: ["production-batch", batchId],
+                    });
+                  }}
+                />
               </div>
             </dl>
           )}
@@ -449,6 +469,21 @@ export function ProductionBatchPage() {
           </div>
         )}
       </section>
+
+      {batch.drying_runs.length > 0 ? (
+        <section className="panel">
+          <h3 className="section-title">Drying Runs</h3>
+          <div className="mt-4 space-y-4">
+            {batch.drying_runs.map((dryingRun) => (
+              <DryingRunCorrectionRow
+                batchId={batch.id}
+                dryingRun={dryingRun}
+                key={dryingRun.id}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {batch.status === "Running" || batch.status === "Completed" ? (
         <DryingWorkflowPanel
@@ -1399,6 +1434,61 @@ function WeightMetric({ label, value }: { label: string; value: string }) {
     <div className="production-weight-metric">
       <dt>{label}</dt>
       <dd>{value}</dd>
+    </div>
+  );
+}
+
+function DryingRunCorrectionRow({
+  batchId,
+  dryingRun,
+}: {
+  batchId: string;
+  dryingRun: DryingRun;
+}) {
+  const queryClient = useQueryClient();
+
+  function invalidateBatch() {
+    return queryClient.invalidateQueries({
+      queryKey: ["production-batch", batchId],
+    });
+  }
+
+  return (
+    <div className="border-b border-slate-200 pb-4 last:border-0 last:pb-0">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-700">{dryingRun.status}</p>
+        <AuditHistoryViewer entityId={dryingRun.id} entityType="DryingRun" />
+      </div>
+      <div className="mt-2 grid gap-4 md:grid-cols-2">
+        <CorrectableField
+          fieldId={`drying-run-${dryingRun.id}-started-at`}
+          label="Started At"
+          value={dryingRun.started_at}
+          displayValue={formatDate(dryingRun.started_at)}
+          onSave={async (correctedValue, reason) => {
+            await productionApi.correctDryingRunTimestamps({
+              id: dryingRun.id,
+              body: { started_at: correctedValue, reason },
+            });
+            await invalidateBatch();
+          }}
+        />
+        <CorrectableField
+          fieldId={`drying-run-${dryingRun.id}-ended-at`}
+          label="Ended At"
+          value={dryingRun.ended_at ?? ""}
+          displayValue={
+            dryingRun.ended_at ? formatDate(dryingRun.ended_at) : "Not ended"
+          }
+          onSave={async (correctedValue, reason) => {
+            await productionApi.correctDryingRunTimestamps({
+              id: dryingRun.id,
+              body: { ended_at: correctedValue, reason },
+            });
+            await invalidateBatch();
+          }}
+        />
+      </div>
     </div>
   );
 }

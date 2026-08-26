@@ -4420,18 +4420,33 @@ describe("TrayDetailsPage packaging labels", () => {
     expect(screen.getByText("Sealed package: 246.6 g")).toBeInTheDocument();
     expect(screen.getByText("Status: In Storage")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Correct Weight" }));
+    await user.click(
+      screen.getByRole("button", { name: "Correct Weight for Run 1" }),
+    );
     const correctionInput = screen.getByRole("spinbutton", {
-      name: "Correct weight for Run 1",
+      name: "Corrected Weight for Run 1",
     });
     await user.clear(correctionInput);
     await user.type(correctionInput, "600");
     await user.type(
-      screen.getByRole("textbox", { name: "Correction reason for Run 1" }),
+      screen.getByRole("textbox", { name: /Correction reason/ }),
       "Wrong unit selected",
     );
     await user.click(screen.getByRole("button", { name: "Save Correction" }));
-    expect(await screen.findByText("600 g")).toBeInTheDocument();
+    await waitFor(() => {
+      const correctionCall = fetchMock().mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith(
+            "/api/v1/weight-checks/weight-check-1/correct",
+          ) && init?.method === "POST",
+      );
+      expect(correctionCall).toBeDefined();
+      const body = JSON.parse(String(correctionCall?.[1]?.body));
+      expect(body).toEqual({
+        weight_grams: "600.000",
+        reason: "Wrong unit selected",
+      });
+    });
 
     await user.click(
       screen.getByRole("button", { name: "Reprint Avery 5163 Labels" }),

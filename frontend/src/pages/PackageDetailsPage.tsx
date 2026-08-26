@@ -9,8 +9,11 @@ import {
   type PackageLabel,
   type PackagingAllocationSourceTray,
 } from "../api/client";
+import { AuditHistoryViewer } from "../components/AuditHistoryViewer";
+import { CorrectableField } from "../components/CorrectableField";
 import { CreatableStorageLocationSelect } from "../components/CreatableStorageLocationSelect";
 import { PackageLabelEditor } from "../components/PackagingWorkspaceActions";
+import { WeightCorrectableField } from "../components/WeightCorrectableField";
 import { StatusBadge, type SelectOption } from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
 import {
@@ -219,9 +222,12 @@ export function PackageDetailsPage() {
             </span>
           </div>
         </div>
-        <StatusBadge tone={isInStorage ? "active" : "neutral"}>
-          {pkg.status}
-        </StatusBadge>
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge tone={isInStorage ? "active" : "neutral"}>
+            {pkg.status}
+          </StatusBadge>
+          <AuditHistoryViewer entityId={pkg.id} entityType="Package" />
+        </div>
       </section>
 
       <section className="panel">
@@ -242,8 +248,18 @@ export function PackageDetailsPage() {
             </dd>
           </div>
           <div>
-            <dt className="label-text">Sealed Package Weight</dt>
-            <dd>{formatGrams(String(pkg.package_weight_grams))}</dd>
+            <WeightCorrectableField
+              fieldId="package-weight"
+              label="Sealed Package Weight"
+              valueGrams={String(pkg.package_weight_grams)}
+              onSave={async (correctedGrams, reason) => {
+                await packagingApi.correctPackageWeight({
+                  packageId: pkg.id,
+                  body: { package_weight_grams: correctedGrams, reason },
+                });
+                invalidatePackage();
+              }}
+            />
           </div>
           <div>
             <dt className="label-text">Current Storage Location</dt>
@@ -263,8 +279,18 @@ export function PackageDetailsPage() {
       <section className="panel">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <h3 className="section-title">Package Label</h3>
-          <p className="text-sm text-slate-600">Status: {label.status}</p>
+          <StatusBadge
+            tone={label.status === "Needs Reprint" ? "attention" : "neutral"}
+          >
+            {label.status}
+          </StatusBadge>
         </div>
+        {label.status === "Needs Reprint" ? (
+          <p className="mt-2 text-sm font-medium text-amber-800" role="status">
+            This label was corrected after it was last printed. Reprint it so
+            the physical label matches the current content.
+          </p>
+        ) : null}
 
         {printError ? (
           <p className="mt-3 text-sm text-red-700" role="alert">
@@ -393,8 +419,20 @@ export function PackageDetailsPage() {
             <dd>{pkg.oxygen_absorber || "None"}</dd>
           </div>
           <div>
-            <dt className="label-text">Packaging Notes</dt>
-            <dd>{pkg.notes || "No notes"}</dd>
+            <CorrectableField
+              fieldId="package-notes"
+              label="Packaging Notes"
+              multiline
+              value={pkg.notes ?? ""}
+              displayValue={pkg.notes || "No notes"}
+              onSave={async (correctedValue, reason) => {
+                await packagingApi.correctPackageNotes({
+                  packageId: pkg.id,
+                  body: { notes: correctedValue, reason },
+                });
+                invalidatePackage();
+              }}
+            />
           </div>
         </dl>
         {batchQuery.data ? (
