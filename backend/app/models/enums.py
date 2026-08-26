@@ -46,5 +46,20 @@ class PackagingLossReason(StrEnum):
     OTHER = "Other"
 
 
+class FeedbackCategory(StrEnum):
+    BUG = "Bug"
+    CONFUSING = "Confusing"
+    IMPROVEMENT = "Improvement"
+    FEATURE_REQUEST = "Feature Request"
+    QUESTION = "Question"
+
+
+class FeedbackStatus(StrEnum):
+    NEW = "New"
+    REVIEWED = "Reviewed"
+    FIXED = "Fixed"
+    CLOSED = "Closed"
+
+
 def enum_values(enum_class: type[StrEnum]) -> list[str]:
     return [member.value for member in enum_class]
