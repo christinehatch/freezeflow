@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 
+import { FeedbackModal } from "./FeedbackModal";
 import { logAction } from "../utils/actionLog";
 
 const navigationItems = [
@@ -36,6 +37,7 @@ function describePage(pathname: string): string {
 
 export function Layout() {
   const location = useLocation();
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   useEffect(() => {
     logAction(`Opened ${describePage(location.pathname)}`);
@@ -74,6 +76,16 @@ export function Layout() {
       <main className="mx-auto max-w-6xl px-6 py-8">
         <Outlet />
       </main>
+      <button
+        className="fixed bottom-4 right-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-slate-800"
+        type="button"
+        onClick={() => setIsFeedbackOpen(true)}
+      >
+        Send Feedback
+      </button>
+      {isFeedbackOpen ? (
+        <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />
+      ) : null}
     </div>
   );
 }
