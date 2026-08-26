@@ -2,16 +2,17 @@
 
 ## Status
 
-Planned.
+Complete.
 
 All architecture and scope decisions below were resolved in authoritative
 documentation (this file, `docs/09-api-design.md`, `docs/04-business-rules.md`,
 `docs/08-data-model.md`, `docs/persistence/20-feedback.md`, and new
 ADR-0020) before implementation began, per AGENTS.md's documentation-first
-process. Implementation proceeds in six phases: documentation, backend
+process. Implementation proceeded in five phases: documentation, backend
 entity/migration/config, backend endpoint and email, frontend action
-logging, frontend Send Feedback button and modal, and a final verification
-pass. This section is updated to Complete once all phases have merged.
+logging, and the Send Feedback button/modal. All five phases have merged;
+every item in the Definition of Done below has been verified, including a
+full manual end-to-end pass against the live dev server.
 
 This is deliberately **not** a numbered Milestone — see "Standalone
 Features" in `docs/implementation/README.md`. It doesn't extend the
