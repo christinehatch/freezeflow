@@ -271,13 +271,15 @@ def test_correct_tray_starting_weight(client: TestClient, db_session: Session) -
 def test_correct_tray_starting_weight_rejects_non_positive(
     client: TestClient,
 ) -> None:
+    # Milestone 9 moved this validation to the schema layer (Field(gt=0)),
+    # so a non-positive weight is now a 422, not a BusinessRuleError.
     batch, trays = _create_completed_batch(client, batch_number="Batch neg weight")
     response = client.post(
         f"/api/v1/trays/{trays[0]['id']}/correct-starting-weight",
         json={"starting_weight_grams": "0.000", "reason": None},
     )
 
-    _assert_business_error(response, "Starting Weight must be greater than zero.")
+    assert response.status_code == 422
 
 
 def test_correct_tray_final_dry_weight(client: TestClient, db_session: Session) -> None:

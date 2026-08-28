@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./freezeflow.db"
     environment: Literal["development", "test", "production"] = "development"
 
+    # Comma-separated list of allowed frontend origins for CORS. The default
+    # preserves today's local-dev-only behavior; a real deployment sets this
+    # to its own frontend origin(s) (see ADR-0021).
+    cors_allowed_origins: str = "http://127.0.0.1:5173,http://localhost:5173"
+
     # Feedback attachments (ADR-0020). Always available - a local directory
     # requires no configuration.
     feedback_upload_dir: str = "uploads/feedback"

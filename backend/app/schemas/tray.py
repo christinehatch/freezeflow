@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import TrayStatus
 from app.schemas.base import ReadSchema
@@ -15,7 +15,7 @@ class TrayCreate(BaseModel):
     product_name: str | None = None
     ingredients: list[str] | None = None
     preparation_methods: list[str] | None = None
-    starting_weight_grams: Decimal | None = None
+    starting_weight_grams: Decimal | None = Field(default=None, gt=0)
     notes: str | None = None
 
 
@@ -25,16 +25,16 @@ class TrayUpdate(BaseModel):
     product_name: str | None = None
     ingredients: list[str] | None = None
     preparation_methods: list[str] | None = None
-    starting_weight_grams: Decimal | None = None
+    starting_weight_grams: Decimal | None = Field(default=None, gt=0)
     notes: str | None = None
 
 
 class TrayStartingWeightUpdate(BaseModel):
-    starting_weight_grams: Decimal
+    starting_weight_grams: Decimal = Field(gt=0)
 
 
 class TrayComplete(BaseModel):
-    final_dry_weight_grams: Decimal
+    final_dry_weight_grams: Decimal = Field(gt=0)
 
 
 class TrayNotesCorrection(BaseModel):
@@ -50,12 +50,12 @@ class TrayPreparationCorrection(BaseModel):
 
 
 class TrayStartingWeightCorrection(BaseModel):
-    starting_weight_grams: Decimal
+    starting_weight_grams: Decimal = Field(gt=0)
     reason: str | None = None
 
 
 class TrayFinalDryWeightCorrection(BaseModel):
-    final_dry_weight_grams: Decimal
+    final_dry_weight_grams: Decimal = Field(gt=0)
     reason: str | None = None
 
 
