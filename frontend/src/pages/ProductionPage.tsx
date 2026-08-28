@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { productionApi } from "../api/client";
 import { ButtonLink } from "../components/design-system";
+import { formatApiError } from "../utils/apiErrors";
 
 export function ProductionPage() {
   const [searchParams] = useSearchParams();
@@ -31,7 +32,7 @@ export function ProductionPage() {
   const createBatch = useMutation({
     mutationFn: productionApi.createProductionBatch,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: (batch) => {
       setBatchNumber("");
@@ -116,7 +117,8 @@ export function ProductionPage() {
         ) : null}
         {freezeDryersQuery.isError ? (
           <p className="md:col-span-4 text-sm text-red-700" role="alert">
-            Freeze Dryers could not be loaded. {freezeDryersQuery.error.message}
+            Freeze Dryers could not be loaded.{" "}
+            {formatApiError(freezeDryersQuery.error)}
           </p>
         ) : null}
       </form>
@@ -125,7 +127,8 @@ export function ProductionPage() {
         <h3 className="section-title">Production Batches</h3>
         {batchesQuery.isError ? (
           <p className="mt-3 text-red-700" role="alert">
-            Production Batches could not be loaded. {batchesQuery.error.message}
+            Production Batches could not be loaded.{" "}
+            {formatApiError(batchesQuery.error)}
           </p>
         ) : productionBatches.length === 0 ? (
           <p className="mt-3 text-slate-600">

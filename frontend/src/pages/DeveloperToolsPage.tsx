@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 
 import { developerToolsApi, type DevToolResult } from "../api/client";
+import { formatApiError } from "../utils/apiErrors";
 
 type DeveloperAction = {
   id: string;
@@ -234,7 +235,7 @@ export function DeveloperToolsPage() {
           className="rounded-md border border-red-300 bg-red-50 p-4 text-red-800"
           role="alert"
         >
-          {mutation.error.message}
+          {formatApiError(mutation.error)}
         </div>
       ) : null}
 

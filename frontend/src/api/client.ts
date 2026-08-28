@@ -599,13 +599,22 @@ export async function apiDelete<T>(path: string): Promise<T> {
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = String(init.method ?? "GET").toUpperCase();
-  const response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-    ...init,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+      ...init,
+    });
+  } catch {
+    const error = networkError();
+    if (method !== "GET") {
+      logAction(`Failed: ${describeApiCall(method, path)} — ${error.message}`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -625,11 +634,16 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 async function devRequest<T>(path: string, body?: unknown) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw networkError();
+  }
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
@@ -638,6 +652,16 @@ async function devRequest<T>(path: string, body?: unknown) {
 
   const payload = (await response.json()) as ApiResponse<T>;
   return payload.data;
+}
+
+function networkError() {
+  return new ApiError({
+    status: 0,
+    code: "network_error",
+    detail: null,
+    body: null,
+    message: "Could not reach the server. Check your connection.",
+  });
 }
 
 function toApiError(status: number, body: unknown, fallback: string) {

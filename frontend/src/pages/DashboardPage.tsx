@@ -18,6 +18,7 @@ import {
   getLatestDashboardDryingRun,
   selectDashboardHeroBatch,
 } from "./dashboardPrioritization";
+import { formatApiError } from "../utils/apiErrors";
 
 export function DashboardPage() {
   const freezeDryersQuery = useQuery({
@@ -71,7 +72,7 @@ export function DashboardPage() {
         />
       ) : batchesQuery.isError ? (
         <StatusBanner
-          body={`Production Batches could not be loaded. ${batchesQuery.error.message}`}
+          body={`Production Batches could not be loaded. ${formatApiError(batchesQuery.error)}`}
           title="Dashboard attention is temporarily unavailable"
           tone="danger"
         />
@@ -129,7 +130,8 @@ export function DashboardPage() {
           </Surface>
         ) : freezeDryersQuery.isError ? (
           <Surface className="dashboard__error" role="alert">
-            Freeze Dryers could not be loaded. {freezeDryersQuery.error.message}
+            Freeze Dryers could not be loaded.{" "}
+            {formatApiError(freezeDryersQuery.error)}
           </Surface>
         ) : freezeDryers.length === 0 ? (
           <EmptyState
@@ -252,7 +254,8 @@ export function DashboardPage() {
           </Surface>
         ) : batchesQuery.isError ? (
           <Surface className="dashboard__error" role="alert">
-            Production history could not be loaded. {batchesQuery.error.message}
+            Production history could not be loaded.{" "}
+            {formatApiError(batchesQuery.error)}
           </Surface>
         ) : recentBatches.length === 0 ? (
           <Surface>

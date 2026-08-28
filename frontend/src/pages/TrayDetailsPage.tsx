@@ -259,8 +259,8 @@ export function TrayDetailsPage() {
             </button>
           </div>
           {labelMutation.isError ? (
-            <p className="mt-3 text-sm text-red-700">
-              {labelMutation.error.message}
+            <p className="mt-3 text-sm text-red-700" role="alert">
+              {formatApiError(labelMutation.error)}
             </p>
           ) : null}
           <p className="mt-3 text-sm text-slate-600">
