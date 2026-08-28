@@ -14,6 +14,7 @@ import {
   formatGrams,
   toGrams,
 } from "../utils/weights";
+import { formatApiError } from "../utils/apiErrors";
 
 export function FreezeDryersPage() {
   const queryClient = useQueryClient();
@@ -41,7 +42,7 @@ export function FreezeDryersPage() {
   const saveFreezeDryer = useMutation({
     mutationFn: productionApi.createFreezeDryer,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => {
       setName("");
@@ -54,7 +55,7 @@ export function FreezeDryersPage() {
   const savePhysicalTray = useMutation({
     mutationFn: productionApi.createPhysicalTray,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => {
       setPhysicalTrayLabel("");
@@ -285,7 +286,7 @@ function FreezeDryerCard({
       };
     }) => productionApi.updateFreezeDryer(id, body),
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => {
       setError(null);

@@ -85,35 +85,35 @@ export function ProductionBatchPage() {
   const startBatch = useMutation({
     mutationFn: productionApi.startProductionBatch,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
   const cancelBatch = useMutation({
     mutationFn: productionApi.cancelProductionBatch,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
   const completeBatch = useMutation({
     mutationFn: productionApi.completeProductionBatch,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
   const completeDryingRun = useMutation({
     mutationFn: productionApi.completeDryingRun,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
   const startDryingRun = useMutation({
     mutationFn: productionApi.startDryingRun,
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => refreshBatch(queryClient, batchId),
   });
@@ -126,7 +126,7 @@ export function ProductionBatchPage() {
       body: { freeze_dryer_id?: string; notes?: string | null };
     }) => productionApi.updateProductionBatch(id, body),
     onError: (mutationError) => {
-      setError(mutationError.message);
+      setError(formatApiError(mutationError));
     },
     onSuccess: () => {
       setError(null);
@@ -1431,7 +1431,7 @@ function WeightEntryCard({
             {recordWeightCheck.isError ? (
               <p className="production-weight-card__error" role="alert">
                 Weight Check could not be saved.{" "}
-                {recordWeightCheck.error.message}
+                {formatApiError(recordWeightCheck.error)}
               </p>
             ) : null}
           </div>
