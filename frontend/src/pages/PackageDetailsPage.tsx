@@ -14,7 +14,12 @@ import { CorrectableField } from "../components/CorrectableField";
 import { CreatableStorageLocationSelect } from "../components/CreatableStorageLocationSelect";
 import { PackageLabelEditor } from "../components/PackagingWorkspaceActions";
 import { WeightCorrectableField } from "../components/WeightCorrectableField";
-import { StatusBadge, type SelectOption } from "../components/design-system";
+import {
+  ErrorPanel,
+  LoadingPanel,
+  StatusBadge,
+  type SelectOption,
+} from "../components/design-system";
 import { formatApiError } from "../utils/apiErrors";
 import {
   reserveAvery5163PrintOutput,
@@ -174,28 +179,20 @@ export function PackageDetailsPage() {
   }
 
   if (packageQuery.isLoading) {
-    return <div className="panel">Loading Package…</div>;
+    return <LoadingPanel label="Loading Package…" />;
   }
 
   if (packageQuery.isError) {
     return (
-      <div className="panel">
-        <p className="text-red-700" role="alert">
-          {formatApiError(packageQuery.error)}
-        </p>
-        <button
-          className="secondary-action mt-3"
-          type="button"
-          onClick={() => void packageQuery.refetch()}
-        >
-          Retry
-        </button>
-      </div>
+      <ErrorPanel
+        message={formatApiError(packageQuery.error)}
+        onRetry={() => void packageQuery.refetch()}
+      />
     );
   }
 
   if (!pkg) {
-    return <div className="panel">Package could not be loaded.</div>;
+    return <ErrorPanel message="Package could not be loaded." />;
   }
 
   const isInStorage = pkg.status === "In Storage";

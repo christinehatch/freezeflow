@@ -4,7 +4,9 @@ import { Link, useParams } from "react-router";
 import { WeightCheck, packagingApi, productionApi } from "../api/client";
 import { AuditHistoryViewer } from "../components/AuditHistoryViewer";
 import { CorrectableField } from "../components/CorrectableField";
+import { ErrorPanel, LoadingPanel } from "../components/design-system";
 import { WeightCorrectableField } from "../components/WeightCorrectableField";
+import { formatApiError } from "../utils/apiErrors";
 import { printAvery5163Labels } from "../utils/avery5163Labels";
 import { trayPreparationSummary } from "../utils/preparation";
 
@@ -41,11 +43,20 @@ export function TrayDetailsPage() {
   });
 
   if (trayQuery.isLoading) {
-    return <div className="panel">Loading Tray...</div>;
+    return <LoadingPanel label="Loading Tray…" />;
+  }
+
+  if (trayQuery.isError) {
+    return (
+      <ErrorPanel
+        message={formatApiError(trayQuery.error)}
+        onRetry={() => void trayQuery.refetch()}
+      />
+    );
   }
 
   if (!tray) {
-    return <div className="panel">Tray could not be loaded.</div>;
+    return <ErrorPanel message="Tray could not be loaded." />;
   }
 
   const packaging = tray.packaging;
