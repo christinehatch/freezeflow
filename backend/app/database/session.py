@@ -5,10 +5,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 
-engine = create_engine(
-    get_settings().database_url,
-    connect_args={"check_same_thread": False},
-)
+
+def sqlite_connect_args(database_url: str) -> dict[str, bool]:
+    """SQLite requires this to share one connection across FastAPI's
+    per-request threads; every other dialect's driver rejects it."""
+    return {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+
+
+_database_url = get_settings().database_url
+engine = create_engine(_database_url, connect_args=sqlite_connect_args(_database_url))
 
 if engine.dialect.name == "sqlite":
 

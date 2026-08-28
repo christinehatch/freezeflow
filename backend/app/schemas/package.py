@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import InventoryStatus
 from app.schemas.base import ReadSchema
@@ -20,6 +20,14 @@ class PackageCreate(BaseModel):
     oxygen_absorber: str | None = None
     notes: str | None = None
     label: PackageLabelCreate | None = None
+
+    @field_validator("package_identifier")
+    @classmethod
+    def package_identifier_must_not_be_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Package Identifier must not be blank.")
+        return stripped
 
 
 class PackageUpdate(BaseModel):

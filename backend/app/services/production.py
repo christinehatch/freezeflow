@@ -631,8 +631,6 @@ def correct_tray_starting_weight(
     db: Session, tray_id: UUID, data: TrayStartingWeightCorrection
 ) -> Tray:
     tray = get_tray(db, tray_id)
-    if data.starting_weight_grams <= 0:
-        raise BusinessRuleError("Starting Weight must be greater than zero.")
     previous = tray.starting_weight_grams
     if previous is not None and data.starting_weight_grams == previous:
         raise BusinessRuleError(
@@ -658,8 +656,6 @@ def correct_tray_final_dry_weight(
     db: Session, tray_id: UUID, data: TrayFinalDryWeightCorrection
 ) -> Tray:
     tray = get_tray(db, tray_id)
-    if data.final_dry_weight_grams <= 0:
-        raise BusinessRuleError("Final Dry Weight must be greater than zero.")
     previous = tray.final_dry_weight_grams
     if previous is not None and data.final_dry_weight_grams == previous:
         raise BusinessRuleError(
