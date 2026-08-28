@@ -23,9 +23,12 @@ import {
   toGrams,
 } from "../utils/weights";
 import { trayPreparationSummary } from "../utils/preparation";
+import { formatApiError } from "../utils/apiErrors";
 import {
   Button,
+  ErrorPanel,
   Field,
+  LoadingPanel,
   NumberField,
   Select,
   StatusBadge,
@@ -229,11 +232,20 @@ export function ProductionBatchPage() {
   }
 
   if (batchQuery.isLoading) {
-    return <div className="panel">Loading Production Batch...</div>;
+    return <LoadingPanel label="Loading Production Batch…" />;
+  }
+
+  if (batchQuery.isError) {
+    return (
+      <ErrorPanel
+        message={formatApiError(batchQuery.error)}
+        onRetry={() => void batchQuery.refetch()}
+      />
+    );
   }
 
   if (!batch) {
-    return <div className="panel">Production Batch could not be loaded.</div>;
+    return <ErrorPanel message="Production Batch could not be loaded." />;
   }
 
   return (

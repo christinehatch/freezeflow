@@ -7,8 +7,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Button,
   ButtonLink,
+  EmptyState,
+  ErrorPanel,
   Field,
   FreezeDryerCard,
+  LoadingPanel,
+  Modal,
   PageHeader,
   NumberField,
   RecentProductionRow,
@@ -242,5 +246,110 @@ describe("design-system primitives", () => {
     expect(screen.getByText("Remaining").parentElement).toHaveClass(
       "ds-summary-panel__metric--emphasis",
     );
+  });
+
+  it("renders LoadingPanel, ErrorPanel, and EmptyState with the expected roles and content", () => {
+    const onRetry = vi.fn();
+    render(
+      <>
+        <LoadingPanel />
+        <LoadingPanel label="Loading Tray…" />
+        <ErrorPanel message="Something went wrong." onRetry={onRetry} />
+        <EmptyState
+          message="No Storage Locations yet."
+          action={<Button>Add Storage Location</Button>}
+        />
+      </>,
+    );
+
+    const statusPanels = screen.getAllByRole("status");
+    expect(statusPanels).toHaveLength(2);
+    expect(statusPanels[0]).toHaveTextContent("Loading…");
+    expect(statusPanels[1]).toHaveTextContent("Loading Tray…");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Something went wrong.",
+    );
+    expect(screen.getByText("No Storage Locations yet.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add Storage Location" }),
+    ).toBeInTheDocument();
+  });
+
+  it("omits the ErrorPanel retry action when no onRetry is given", () => {
+    render(<ErrorPanel message="Could not load." />);
+
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
+  });
+
+  describe("Modal", () => {
+    afterEach(cleanup);
+
+    function ModalHarness() {
+      const [isOpen, setIsOpen] = useState(false);
+      return (
+        <div>
+          <button type="button" onClick={() => setIsOpen(true)}>
+            Open Modal
+          </button>
+          {isOpen ? (
+            <Modal title="Example Modal" onClose={() => setIsOpen(false)}>
+              <button type="button">First</button>
+              <button type="button">Second</button>
+            </Modal>
+          ) : null}
+        </div>
+      );
+    }
+
+    it("moves focus into the modal on open and restores it to the trigger on close", async () => {
+      const user = userEvent.setup();
+      render(<ModalHarness />);
+
+      const trigger = screen.getByRole("button", { name: "Open Modal" });
+      trigger.focus();
+      await user.click(trigger);
+
+      expect(screen.getByRole("button", { name: "First" })).toHaveFocus();
+
+      await user.keyboard("{Escape}");
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it("traps Tab focus within the modal, wrapping at both ends", async () => {
+      const user = userEvent.setup();
+      render(<ModalHarness />);
+
+      await user.click(screen.getByRole("button", { name: "Open Modal" }));
+      const first = screen.getByRole("button", { name: "First" });
+      const second = screen.getByRole("button", { name: "Second" });
+
+      expect(first).toHaveFocus();
+
+      await user.tab();
+      expect(second).toHaveFocus();
+
+      await user.tab();
+      expect(first).toHaveFocus();
+
+      await user.tab({ shift: true });
+      expect(second).toHaveFocus();
+    });
+
+    it("locks and restores body scroll while open", async () => {
+      const user = userEvent.setup();
+      render(<ModalHarness />);
+
+      expect(document.body.style.overflow).not.toBe("hidden");
+
+      await user.click(screen.getByRole("button", { name: "Open Modal" }));
+      expect(document.body.style.overflow).toBe("hidden");
+
+      await user.keyboard("{Escape}");
+      expect(document.body.style.overflow).not.toBe("hidden");
+    });
   });
 });
