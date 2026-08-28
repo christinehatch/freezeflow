@@ -43,14 +43,14 @@ Future milestones should extend previous work rather than replacing it.
 
 | Milestone | Status | Goal |
 |-----------|--------|------|
-| 00 | Complete | Project Foundation |
+| 00 | Reopened | Project Foundation |
 | 01 | Complete | Persistence Layer |
 | 02 | Complete | Production Workflow |
 | 03 | Complete | Weight Tracking |
 | 04 | Complete | Packaging and Package Labels |
 | 05 | Complete | Inventory |
 | 06 | Complete | Preparation Presets |
-| 07 | Planned | Reporting |
+| 07 | Complete | Reporting |
 | 08 | Complete | Corrections & Audit History |
 | 09 | Planned | Polish & Production Readiness |
 
