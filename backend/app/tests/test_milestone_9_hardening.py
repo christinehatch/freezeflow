@@ -1,4 +1,3 @@
-import definitely_not_a_real_module  # noqa
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
