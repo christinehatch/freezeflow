@@ -13,6 +13,14 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
 ]
 
+# Not installed by default (see ADR-0021 and docs/deployment.md): Freezeflow
+# is a single-operator home tool, and defaults to SQLite so a self-hosted
+# deployment has one file to back up rather than a second database service
+# to run and secure. Install this group only when pointing
+# FREEZEFLOW_DATABASE_URL at a real Postgres server.
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2.0"]
+
 [dependency-groups]
 dev = [
     "black>=25.1.0",
