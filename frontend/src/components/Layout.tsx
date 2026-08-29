@@ -38,22 +38,42 @@ function describePage(pathname: string): string {
 export function Layout() {
   const location = useLocation();
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   useEffect(() => {
     logAction(`Opened ${describePage(location.pathname)}`);
+    setIsNavOpen(false);
   }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Freezeflow
-            </p>
-            <h1 className="text-2xl font-semibold">Production Workflow</h1>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase text-slate-500">
+                Freezeflow
+              </p>
+              <h1 className="text-2xl font-semibold">Production Workflow</h1>
+            </div>
+            <button
+              aria-controls="primary-navigation"
+              aria-expanded={isNavOpen}
+              className="rounded-md p-2 text-slate-700 hover:bg-slate-100 sm:hidden"
+              type="button"
+              onClick={() => setIsNavOpen((current) => !current)}
+            >
+              <span className="sr-only">
+                {isNavOpen ? "Close menu" : "Open menu"}
+              </span>
+              <MenuIcon open={isNavOpen} />
+            </button>
           </div>
-          <nav aria-label="Primary navigation" className="flex flex-wrap gap-2">
+          <nav
+            aria-label="Primary navigation"
+            className={`${isNavOpen ? "flex" : "hidden"} flex-col gap-2 sm:flex sm:flex-row sm:flex-wrap`}
+            id="primary-navigation"
+          >
             {navigationItems.map((item) => (
               <NavLink
                 className={({ isActive }) =>
@@ -87,5 +107,33 @@ export function Layout() {
         <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />
       ) : null}
     </div>
+  );
+}
+
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="24"
+      viewBox="0 0 24 24"
+      width="24"
+    >
+      {open ? (
+        <path
+          d="M6 6l12 12M18 6l-12 12"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+      ) : (
+        <path
+          d="M4 7h16M4 12h16M4 17h16"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+      )}
+    </svg>
   );
 }

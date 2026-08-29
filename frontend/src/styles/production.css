@@ -74,6 +74,14 @@
   border-radius: 0.75rem;
   box-shadow: var(--ff-elevation-raised);
   padding: var(--ff-space-6);
+  /* .production-batch-page is itself a grid, and .production-overview-grid
+     nests another one — every section here is a grid item somewhere.
+     Grid items default to min-width: auto, which refuses to shrink below
+     the item's own content (e.g. the Freeze Dryer Slots table's deliberate
+     min-width, or a correction row's unwrapped width), overflowing the
+     page horizontally on narrow viewports even though every container
+     already collapses to a single column correctly. */
+  min-width: 0;
 }
 
 .production-section-card__header {
