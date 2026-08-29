@@ -28,7 +28,7 @@ describe("App", () => {
       screen.getByRole("heading", { name: "Production Workflow" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Dashboard" }),
+      await screen.findByRole("heading", { name: "Dashboard" }),
     ).toBeInTheDocument();
     expect(
       await screen.findByText("No Freeze Dryers have been created."),

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 
 import { FeedbackModal } from "./FeedbackModal";
+import { LoadingPanel } from "./design-system";
 import { logAction } from "../utils/actionLog";
 
 const navigationItems = [
@@ -94,7 +95,9 @@ export function Layout() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <Outlet />
+        <Suspense fallback={<LoadingPanel label="Loading page…" />}>
+          <Outlet />
+        </Suspense>
       </main>
       <button
         className="fixed bottom-4 right-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-slate-800"
