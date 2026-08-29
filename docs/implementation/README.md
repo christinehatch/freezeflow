@@ -52,7 +52,7 @@ Future milestones should extend previous work rather than replacing it.
 | 06 | Complete | Preparation Presets |
 | 07 | Complete | Reporting |
 | 08 | Complete | Corrections & Audit History |
-| 09 | Planned | Polish & Production Readiness |
+| 09 | Complete | Polish & Production Readiness |
 
 ---
 
@@ -251,7 +251,7 @@ Includes:
 
 ## Milestone 9 - Polish & Production Readiness
 
-Status: Planned
+Status: Complete
 
 Goal: Prepare Freezeflow for real-world use.
 
