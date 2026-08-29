@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import { mockFreezeflowApi } from "./support/mockApi";
@@ -26,4 +27,21 @@ test("reprints Avery labels from packaged Tray details", async ({ page }) => {
     "Cubed and seasoned",
     "Jul 8, 2026",
   ]);
+});
+
+test("Packaging has no serious or critical accessibility violations", async ({
+  page,
+}) => {
+  await mockFreezeflowApi(page);
+
+  await page.goto("/packaging");
+  await expect(
+    page.getByRole("heading", { name: "Choose a batch" }),
+  ).toBeVisible();
+
+  const results = await new AxeBuilder({ page }).analyze();
+  const seriousOrCritical = results.violations.filter((violation) =>
+    ["serious", "critical"].includes(violation.impact ?? ""),
+  );
+  expect(seriousOrCritical).toEqual([]);
 });

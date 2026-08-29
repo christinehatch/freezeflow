@@ -14,7 +14,7 @@ const colorTokens = [
   ["Subtle surface", "--ff-color-surface-subtle", "#eef1ee"],
   ["Primary text", "--ff-color-text-primary", "#15211d"],
   ["Secondary text", "--ff-color-text-secondary", "#55615b"],
-  ["Muted text", "--ff-color-text-muted", "#718078"],
+  ["Muted text", "--ff-color-text-muted", "#64726b"],
   ["Border", "--ff-color-border", "#e0e4e0"],
   ["Strong border", "--ff-color-border-strong", "#c8d0ca"],
   ["Primary action", "--ff-color-action-primary", "#183c34"],

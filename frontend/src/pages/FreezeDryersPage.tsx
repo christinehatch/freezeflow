@@ -174,6 +174,9 @@ export function FreezeDryersPage() {
               placeholder="Tray 1"
             />
           </label>
+          {/* See docs/accessibility-debt.md - WeightInput wraps two native
+              controls under one label. */}
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label className="field">
             <span>Tare Weight</span>
             <WeightInput
@@ -518,6 +521,9 @@ function PhysicalTrayRow({ physicalTray }: { physicalTray: PhysicalTray }) {
             onChange={(event) => setLabel(event.target.value)}
           />
         </label>
+        {/* See docs/accessibility-debt.md - WeightInput wraps two native
+            controls under one label. */}
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label className="field mt-3">
           <span>Tare Weight</span>
           <WeightInput

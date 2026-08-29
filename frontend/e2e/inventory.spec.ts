@@ -122,7 +122,9 @@ test("moves a Package and sees its updated location and history", async ({
   await expect(
     page.getByRole("heading", { name: "Chicken", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Bin A")).toBeVisible();
+  await expect(
+    page.locator("dd").filter({ hasText: "Bin A" }).first(),
+  ).toBeVisible();
 
   await page.getByRole("combobox", { name: "Move to" }).click();
   await page.getByRole("option", { name: "Bin C" }).click();
