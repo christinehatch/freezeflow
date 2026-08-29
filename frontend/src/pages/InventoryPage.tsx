@@ -298,6 +298,10 @@ function SearchResultsView({
           </p>
         </Surface>
       ) : (
+        // role="list" restores list semantics that this ul's list-style
+        // removal strips in Safari/VoiceOver - not redundant despite the
+        // lint rule's default assumption.
+        // eslint-disable-next-line jsx-a11y/no-redundant-roles
         <ul className="mt-2 space-y-2" role="list">
           {results.map((item) => (
             <li key={item.id}>

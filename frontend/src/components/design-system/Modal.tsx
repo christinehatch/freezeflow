@@ -75,7 +75,15 @@ export function Modal({ children, onClose, title }: ModalProps) {
   }, []);
 
   return (
+    // The backdrop's click-to-dismiss is a mouse-only convenience; Escape
+    // (handled above) is the keyboard equivalent, so this is deliberately
+    // not a focusable/keyboard-interactive element. (Not aria-hidden: that
+    // would hide the dialog it wraps from the accessibility tree too.)
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div className="ds-modal-overlay" onClick={onClose}>
+      {/* Stops the overlay's onClose from firing for clicks inside the
+          dialog itself; not a user-facing interaction of its own. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
       <div
         aria-labelledby="ds-modal-title"
         aria-modal="true"

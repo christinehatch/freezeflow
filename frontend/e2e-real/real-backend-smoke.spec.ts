@@ -134,11 +134,9 @@ test("persists a seeded Inventory move across a reload", async ({
 
   await page.getByText("PKG-2026-000001", { exact: false }).click();
   await expect(
-    page.getByRole("heading", { name: "Taco Chicken", exact: true }),
+    page.getByRole("heading", { level: 2, name: "Taco Chicken", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Basement Bin A", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Basement Bin A", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Batch 019", exact: true }),
   ).toBeVisible();

@@ -603,6 +603,10 @@ function InventoryHistoryTimeline({
   }
 
   return (
+    // role="list" restores list semantics that this ul's list-style
+    // removal strips in Safari/VoiceOver - not redundant despite the
+    // lint rule's default assumption.
+    // eslint-disable-next-line jsx-a11y/no-redundant-roles
     <ul className="mt-3 space-y-1 text-sm text-slate-700" role="list">
       {entries.map((entry) => (
         <li key={entry.key}>
