@@ -9,10 +9,15 @@ for why it's shaped this way.
 
 ```bash
 cp .env.example .env
+printf '%s:%s\n' "freezeflow" "$(openssl passwd -apr1)" > htpasswd
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. The frontend container's nginx serves the
+The second command prompts for a password (typed twice, never echoed or
+recorded in shell history) and writes it as a username/password pair the
+whole app is gated behind — nginx requires this file to exist just to
+start. Open `http://localhost:8080` and log in with `freezeflow` and
+whatever password you just set. The frontend container's nginx serves the
 built app and proxies `/api/` to the backend container, so the browser
 never talks to the backend directly.
 
@@ -76,13 +81,36 @@ settings if they aren't already - on by default for personal accounts.)
 If you'd rather skip `tailscale serve`, plain `http://<tailscale-ip>:8080`
 works too - just point `FREEZEFLOW_CORS_ALLOWED_ORIGINS` at that instead.
 
-**5. Give the other person access.** Have them install the Tailscale app
-and log in to an account on your tailnet - to limit what they can see,
-share just this one machine with them via the Tailscale admin console's
-"Share" feature rather than adding them as a full tailnet member. Send
-them the `https://<server-name>.<tailnet>.ts.net` address; that's the
-whole app, reachable from anywhere with internet, on any device with
-Tailscale installed.
+**4b. Or: a plain public URL with a password, no VPN required.** Installing
+a VPN app and granting it system permissions is a reasonable thing to ask
+of yourself, but can be a hard sell for someone else - it's also the exact
+pattern real scams use ("install this and grant it access"), so hesitation
+there is healthy, not paranoid. If that's the concern, use
+`tailscale funnel` instead of `serve` to make the same hostname reachable
+from the plain public internet, gated behind a shared username/password
+(HTTP Basic Auth, nginx's own `auth_basic`) rather than tailnet membership:
+
+```bash
+printf '%s:%s\n' "freezeflow" "$(openssl passwd -apr1)" > /opt/freezeflow/htpasswd
+sudo tailscale funnel --bg 8080
+```
+
+The first command (same one from Quick start) creates the password file -
+skip it if you already made one. `docker compose up -d` afterward if the
+containers were already running, so the frontend picks up the mounted
+file. This is a real tradeoff, not a free upgrade: the app is now reachable
+by anyone on the internet who has the URL and password, not just people on
+your tailnet - weaker than `serve`, though still gated, not wide open.
+
+**5. Give the other person access.**
+- **Tailscale (`serve`)**: have them install the Tailscale app and log in
+  to an account on your tailnet - to limit what they can see, share just
+  this one machine with them via the Tailscale admin console's "Share"
+  feature rather than adding them as a full tailnet member. Send them the
+  `https://<server-name>.<tailnet>.ts.net` address.
+- **Public URL (`funnel`)**: no app to install - just send them the same
+  address plus the username/password from step 4b. That's the whole app,
+  reachable from anywhere with internet, on any device with a browser.
 
 **6. Back up `./data` off the server.** A nightly cron job that stops the
 backend, tars `./data`, and restarts it keeps backups consistent:
@@ -117,6 +145,8 @@ own service.
   its own. If you're reaching the app directly at `http://<host>:8080`
   rather than through something like `tailscale serve` (see below), you'll
   need to change this binding back to `${FRONTEND_PORT}:80` deliberately.
+  nginx also requires a `./htpasswd` file (see Quick start) to even start -
+  it gates the whole app behind one shared username/password.
 
 ## Environment variables
 
