@@ -34,6 +34,10 @@ services:
       # this keeps the port from ever being exposed to the public internet
       # even without a firewall rule (see docs/deployment.md).
       - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    volumes:
+      # Shared username/password for the whole app (see docs/deployment.md)
+      # - generated on the server, never committed.
+      - ./htpasswd:/etc/nginx/.htpasswd:ro
     depends_on:
       backend:
         condition: service_healthy
