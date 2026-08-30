@@ -100,12 +100,12 @@ def test_feedback_is_saved_even_when_the_notification_email_fails_to_send(
     _override_settings(
         client,
         feedback_upload_dir=str(tmp_path),
-        smtp_host="smtp.example.com",
+        resend_api_key="re_test_key",
         feedback_notify_email="me@example.com",
     )
 
-    with patch("app.services.notifications.smtplib.SMTP") as mock_smtp:
-        mock_smtp.side_effect = OSError("connection refused")
+    with patch("app.services.notifications.httpx.post") as mock_post:
+        mock_post.side_effect = OSError("connection refused")
         response = client.post(
             "/api/v1/feedback",
             data={"category": "Bug", "description": "Still saved, right?"},
@@ -113,10 +113,10 @@ def test_feedback_is_saved_even_when_the_notification_email_fails_to_send(
 
     assert response.status_code == 201
     assert _data(response)["status"] == "New"
-    mock_smtp.assert_called_once()
+    mock_post.assert_called_once()
 
 
-def test_feedback_succeeds_with_no_smtp_configured(
+def test_feedback_succeeds_with_no_resend_configured(
     client: TestClient, tmp_path: Path
 ) -> None:
     _override_settings(client, feedback_upload_dir=str(tmp_path))

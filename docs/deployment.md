@@ -128,7 +128,7 @@ even when every value is left blank.
 | --- | --- |
 | `FREEZEFLOW_ENVIRONMENT` | `production` disables the `/dev/*` developer-tools routes (demo-data seeding, database reset) meant only for local development. |
 | `FREEZEFLOW_CORS_ALLOWED_ORIGINS` | Comma-separated list of origins allowed to call the API. Set this to wherever the frontend is actually reachable. |
-| `FREEZEFLOW_SMTP_HOST`, `FREEZEFLOW_SMTP_PORT`, `FREEZEFLOW_SMTP_USERNAME`, `FREEZEFLOW_SMTP_PASSWORD`, `FREEZEFLOW_SMTP_FROM_ADDRESS`, `FREEZEFLOW_FEEDBACK_NOTIFY_EMAIL` | Optional Feedback notification email (ADR-0020). Leave blank and Feedback submissions are still accepted, just not emailed to anyone. |
+| `FREEZEFLOW_RESEND_API_KEY`, `FREEZEFLOW_FEEDBACK_FROM_ADDRESS`, `FREEZEFLOW_FEEDBACK_NOTIFY_EMAIL` | Optional Feedback notification email (ADR-0020), sent via [Resend](https://resend.com)'s HTTP API rather than SMTP - most cloud/VPS providers block outbound SMTP ports by default for new accounts, which an HTTPS-based API sidesteps entirely. Leave blank and Feedback submissions are still accepted, just not emailed to anyone. |
 | `FRONTEND_PORT` | Host port the frontend is published on (default `8080`). Compose-only; not read by the backend. |
 
 `FREEZEFLOW_DATABASE_URL` and `FREEZEFLOW_FEEDBACK_UPLOAD_DIR` are set

@@ -18,14 +18,14 @@ class Settings(BaseSettings):
     # requires no configuration.
     feedback_upload_dir: str = "uploads/feedback"
 
-    # Feedback notification email (ADR-0020). All optional: an app with no
-    # SMTP settings configured still accepts every submission, it just
-    # doesn't actively notify anyone (FB-001).
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_username: str | None = None
-    smtp_password: str | None = None
-    smtp_from_address: str | None = None
+    # Feedback notification email (ADR-0020). Sent via Resend's HTTP API
+    # rather than raw SMTP - many cloud/VPS providers block outbound SMTP
+    # ports by default for new accounts, which an HTTP API sidesteps
+    # entirely. All optional: an app with no Resend API key configured
+    # still accepts every submission, it just doesn't actively notify
+    # anyone (FB-001).
+    resend_api_key: str | None = None
+    feedback_from_address: str = "onboarding@resend.dev"
     feedback_notify_email: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="FREEZEFLOW_")

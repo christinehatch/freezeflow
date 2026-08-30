@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import base64
 import logging
-import mimetypes
-import smtplib
-from email.message import EmailMessage
 from pathlib import Path
+
+import httpx
 
 from app.core.config import Settings
 from app.models import Feedback
 
 logger = logging.getLogger(__name__)
+
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
 def send_feedback_notification(feedback: Feedback, settings: Settings) -> None:
@@ -17,17 +19,15 @@ def send_feedback_notification(feedback: Feedback, settings: Settings) -> None:
     Feedback row is always committed before this runs; failure here is
     always caught and logged, never raised, so it can never fail or lose a
     submission that was already saved.
+
+    Sent via Resend's HTTP API rather than raw SMTP - many cloud/VPS
+    providers block outbound SMTP ports by default for new accounts, which
+    an HTTPS-based API sidesteps entirely (see ADR-0020 amendment).
     """
-    if not settings.smtp_host or not settings.feedback_notify_email:
-        logger.info("Feedback notification skipped: SMTP is not configured.")
+    if not settings.resend_api_key or not settings.feedback_notify_email:
+        logger.info("Feedback notification skipped: Resend is not configured.")
         return
 
-    message = EmailMessage()
-    message["Subject"] = f"[Freezeflow] {feedback.category} feedback"
-    message["From"] = (
-        settings.smtp_from_address or settings.smtp_username or "freezeflow@localhost"
-    )
-    message["To"] = settings.feedback_notify_email
     body_lines = [
         f"Category: {feedback.category}",
         f"Submitted: {feedback.submitted_at.isoformat()}",
@@ -37,28 +37,34 @@ def send_feedback_notification(feedback: Feedback, settings: Settings) -> None:
     ]
     if feedback.context_json:
         body_lines += ["", "Context:", str(feedback.context_json)]
-    message.set_content("\n".join(body_lines))
 
+    attachments = []
     for filename in feedback.attachments:
         file_path = Path(settings.feedback_upload_dir) / filename
         try:
             data = file_path.read_bytes()
         except OSError:
             continue
-        content_type, _ = mimetypes.guess_type(filename)
-        maintype, _, subtype = (content_type or "application/octet-stream").partition(
-            "/"
-        )
-        message.add_attachment(
-            data, maintype=maintype, subtype=subtype, filename=filename
+        attachments.append(
+            {"filename": filename, "content": base64.b64encode(data).decode("ascii")}
         )
 
+    payload = {
+        "from": settings.feedback_from_address,
+        "to": [settings.feedback_notify_email],
+        "subject": f"[Freezeflow] {feedback.category} feedback",
+        "text": "\n".join(body_lines),
+        "attachments": attachments,
+    }
+
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
-            client.starttls()
-            if settings.smtp_username and settings.smtp_password:
-                client.login(settings.smtp_username, settings.smtp_password)
-            client.send_message(message)
+        response = httpx.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
     except Exception:
         # Never let a notification failure surface past this point - the
         # Feedback row is already saved regardless (FB-001).

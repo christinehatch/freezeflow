@@ -101,9 +101,32 @@ is submitted.
 * A new `backend/uploads/` directory (path configurable via `Settings`,
   gitignored) is created outside version control the first time an
   attachment is saved; this is expected, not a stray file to clean up.
-* SMTP configuration is entirely optional. Deploying Freezeflow with no
-  `.env` SMTP settings is a fully supported configuration — feedback is
-  still collected, just not actively pushed to the developer's inbox.
+* Notification email configuration is entirely optional. Deploying
+  Freezeflow with no `.env` email settings is a fully supported
+  configuration — feedback is still collected, just not actively pushed to
+  the developer's inbox.
+
+---
+
+# Amendment (Milestone 9 real deployment) - SMTP replaced with Resend's HTTP API
+
+`send_feedback_notification` originally sent over raw SMTP (`smtplib`,
+`FREEZEFLOW_SMTP_*` settings). Deploying to a real VPS surfaced that this
+never worked there: DigitalOcean, like most cloud/VPS providers, blocks
+outbound SMTP ports by default on new accounts as an anti-spam measure —
+confirmed by testing from inside the backend container, where general
+outbound HTTPS succeeded fine but port 587 timed out silently. This isn't
+specific to one provider or fixable via this app's own configuration; it's
+a common default across the industry.
+
+The fix: send the notification via [Resend](https://resend.com)'s HTTP API
+(`FREEZEFLOW_RESEND_API_KEY`, `FREEZEFLOW_FEEDBACK_FROM_ADDRESS`) instead of
+SMTP, over port 443 like every other outbound call this app already makes,
+sidestepping the port-blocking problem entirely rather than working around
+it per-provider. Nothing about this ADR's actual design decision changes -
+the notification is still sent from a `BackgroundTasks` call after the
+Feedback row is committed, still fully optional, and a send failure is
+still caught and logged, never raised (FB-001). Only the transport changed.
 * The action-log's coverage and phrasing live in one small, easily
   extended table (`frontend/src/utils/actionDescriptions.ts`), not scattered
   across the codebase — future report types or workflows don't need any
