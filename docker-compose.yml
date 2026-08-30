@@ -29,7 +29,11 @@ services:
         # public host/port at build time.
         VITE_API_BASE_URL: ""
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      # Bound to localhost only - Tailscale Serve proxies to this via the
+      # loopback interface, so nothing beyond that needs it reachable, and
+      # this keeps the port from ever being exposed to the public internet
+      # even without a firewall rule (see docs/deployment.md).
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy
