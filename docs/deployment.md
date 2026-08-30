@@ -19,6 +19,86 @@ never talks to the backend directly.
 `docker compose up` alone (without `--build`) is enough on later runs once
 the images exist; `--build` picks up code changes.
 
+## Recommended: a small VPS + Tailscale
+
+For a real, single-user deployment (e.g. running this for a family member)
+with no public exposure and no domain to manage, the simplest secure setup
+is a small VPS reachable only over [Tailscale](https://tailscale.com) - the
+app is never exposed to the raw internet at all.
+
+**1. Provision a VPS.** Any provider works; this app's SQLite-backed load
+is light enough for the cheapest tier anyone offers - e.g. a Hetzner Cloud
+CX22 or a DigitalOcean Basic Droplet. Pick Ubuntu 24.04 LTS and make sure
+you have SSH access (providers walk you through adding an SSH key at
+creation time).
+
+**2. Add a read-only deploy key for this repo** (it's private, so the
+server needs its own credential rather than your personal one). On your
+own machine:
+
+```bash
+ssh-keygen -t ed25519 -f freezeflow-deploy-key -N ""
+```
+
+Add `freezeflow-deploy-key.pub`'s contents as a Deploy Key on the GitHub
+repo (Settings -> Deploy keys -> Add deploy key; read-only is enough).
+Keep `freezeflow-deploy-key` (no `.pub`) - you'll copy it to the server.
+
+**3. Run the setup script on the server.** `scp` `freezeflow-deploy-key` to
+`~/.ssh/freezeflow-deploy-key` on the server, then `scp` and run
+[`scripts/vps-setup.sh`](../scripts/vps-setup.sh):
+
+```bash
+scp freezeflow-deploy-key root@<server-ip>:~/.ssh/freezeflow-deploy-key
+scp scripts/vps-setup.sh root@<server-ip>:~/vps-setup.sh
+ssh root@<server-ip> 'bash ~/vps-setup.sh'
+```
+
+It installs Docker and Tailscale, brings Tailscale up (follow the login
+link it prints the first time, to attach the server to your tailnet),
+clones this repo to `/opt/freezeflow`, creates `.env` from `.env.example`,
+and starts the stack.
+
+**4. Expose it over Tailscale only, with HTTPS.** On the server:
+
+```bash
+sudo tailscale serve --bg 8080
+```
+
+This makes the app reachable at `https://<server-name>.<your-tailnet>.ts.net`
+to anyone on your tailnet - no port number, a valid HTTPS certificate, and
+nothing reachable from the public internet. Set
+`FREEZEFLOW_CORS_ALLOWED_ORIGINS` in `.env` to that exact `https://...`
+origin and restart: `docker compose up -d`. (HTTPS certificates need to be
+enabled once for your tailnet in the Tailscale admin console's DNS
+settings if they aren't already - on by default for personal accounts.)
+
+If you'd rather skip `tailscale serve`, plain `http://<tailscale-ip>:8080`
+works too - just point `FREEZEFLOW_CORS_ALLOWED_ORIGINS` at that instead.
+
+**5. Give the other person access.** Have them install the Tailscale app
+and log in to an account on your tailnet - to limit what they can see,
+share just this one machine with them via the Tailscale admin console's
+"Share" feature rather than adding them as a full tailnet member. Send
+them the `https://<server-name>.<tailnet>.ts.net` address; that's the
+whole app, reachable from anywhere with internet, on any device with
+Tailscale installed.
+
+**6. Back up `./data` off the server.** A nightly cron job that stops the
+backend, tars `./data`, and restarts it keeps backups consistent:
+
+```cron
+0 3 * * * cd /opt/freezeflow && docker compose stop backend && tar czf /root/backups/freezeflow-$(date +\%F).tar.gz data && docker compose start backend
+```
+
+Periodically `scp` those tarballs off the server - a backup that only
+lives on the same VPS it's backing up isn't a real backup.
+
+**7. It survives reboots.** `docker-compose.yml` already sets
+`restart: unless-stopped` on both services; `vps-setup.sh` enables Docker
+itself to start on boot, and Tailscale's installer does the same for its
+own service.
+
 ## What's in the stack
 
 - **`backend`** - a multi-stage `backend/Dockerfile` image. On start, it
