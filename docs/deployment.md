@@ -111,7 +111,12 @@ own service.
   `nginx:alpine` (config in `frontend/nginx.conf`). `frontend` declares
   `depends_on: backend: condition: service_healthy`, so Compose won't start
   it until the backend's healthcheck passes - the fix for `docker compose
-  up` racing the frontend against a backend that isn't ready yet.
+  up` racing the frontend against a backend that isn't ready yet. Its port
+  is published as `127.0.0.1:${FRONTEND_PORT}:80` - bound to localhost
+  only, so `docker compose up` never exposes it to the public internet on
+  its own. If you're reaching the app directly at `http://<host>:8080`
+  rather than through something like `tailscale serve` (see below), you'll
+  need to change this binding back to `${FRONTEND_PORT}:80` deliberately.
 
 ## Environment variables
 
